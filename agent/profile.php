@@ -1,0 +1,751 @@
+<?php
+/**
+ * SAMRIDHI AGRO - Agent Profile
+ * 
+ * This page allows agents to view and update their profile,
+ * change password, and view earnings summary.
+ * 
+ * @package SamridhiAgro
+ * @subpackage Agent
+ * @author Samridhi Agro Team
+ * @version 1.0.0
+ */
+
+// Set page title
+$pageTitle = 'My Profile';
+
+// Include agent header
+require_once '../includes/agent_header.php';
+
+// Require agent login
+requireLogin();
+requireRole('agent');
+
+// Get database instance
+$db = getDB();
+
+// Get agent data
+$sql = "SELECT a.*, u.full_name, u.username, u.email, u.phone, u.created_at, u.last_login,
+        u.status as user_status
+        FROM agents a 
+        JOIN users u ON a.user_id = u.id 
+        WHERE a.user_id = ?";
+$agent = $db->fetchOne($sql, [$_SESSION['user_id']]);
+
+// Initialize variables
+$errors = [];
+$success = [];
+
+// ============================================
+// GET EARNINGS SUMMARY
+// ============================================
+
+// Total earnings (commission)
+$sql = "SELECT COALESCE(SUM(o.total_amount * a.commission_rate / 100), 0) as total_commission
+        FROM agents a
+        LEFT JOIN shops s ON a.id = s.agent_id
+        LEFT JOIN orders o ON s.id = o.shop_id AND o.status = 'delivered'
+        WHERE a.id = ?";
+$result = $db->fetchOne($sql, [$agent['id']]);
+$totalEarnings = $result['total_commission'] ?? 0;
+
+// This month earnings
+$sql = "SELECT COALESCE(SUM(o.total_amount * a.commission_rate / 100), 0) as total
+        FROM agents a
+        LEFT JOIN shops s ON a.id = s.agent_id
+        LEFT JOIN orders o ON s.id = o.shop_id AND o.status = 'delivered'
+        WHERE a.id = ? AND MONTH(o.order_date) = MONTH(CURDATE()) 
+        AND YEAR(o.order_date) = YEAR(CURDATE())";
+$result = $db->fetchOne($sql, [$agent['id']]);
+$monthEarnings = $result['total'] ?? 0;
+
+// Total shops
+$sql = "SELECT COUNT(*) as count FROM shops WHERE agent_id = ? AND status = 'approved'";
+$result = $db->fetchOne($sql, [$agent['id']]);
+$totalShops = $result['count'] ?? 0;
+
+// Total orders
+$sql = "SELECT COUNT(*) as count 
+        FROM orders o 
+        JOIN shops s ON o.shop_id = s.id 
+        WHERE s.agent_id = ? AND o.status = 'delivered'";
+$result = $db->fetchOne($sql, [$agent['id']]);
+$totalOrders = $result['count'] ?? 0;
+
+// ============================================
+// HANDLE PROFILE UPDATE
+// ============================================
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    if (!isset($_POST[CSRF_TOKEN_NAME]) || !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])) {
+        setFlashMessage('error', 'Invalid security token. Please try again.');
+        redirect('agent/profile.php');
+        exit;
+    }
+    
+    $action = $_POST['action'] ?? '';
+    
+    // ============================================
+    // UPDATE PROFILE
+    // ============================================
+    if ($action === 'update_profile') {
+        $fullName = sanitizeInput($_POST['full_name'] ?? '');
+        $email = sanitizeInput($_POST['email'] ?? '');
+        $phone = sanitizeInput($_POST['phone'] ?? '');
+        $companyName = sanitizeInput($_POST['company_name'] ?? '');
+        $gstNumber = sanitizeInput($_POST['gst_number'] ?? '');
+        $address = sanitizeInput($_POST['address'] ?? '');
+        $city = sanitizeInput($_POST['city'] ?? '');
+        $state = sanitizeInput($_POST['state'] ?? '');
+        $pincode = sanitizeInput($_POST['pincode'] ?? '');
+        
+        // Validation
+        $hasErrors = false;
+        
+        if (empty($fullName)) {
+            $errors['full_name'] = 'Full name is required';
+            $hasErrors = true;
+        } elseif (strlen($fullName) < 3) {
+            $errors['full_name'] = 'Full name must be at least 3 characters';
+            $hasErrors = true;
+        }
+        
+        if (empty($email)) {
+            $errors['email'] = 'Email address is required';
+            $hasErrors = true;
+        } elseif (!isValidEmail($email)) {
+            $errors['email'] = 'Please enter a valid email address';
+            $hasErrors = true;
+        } else {
+            $sql = "SELECT id FROM users WHERE email = ? AND id != ?";
+            $existing = $db->fetchOne($sql, [$email, $_SESSION['user_id']]);
+            if ($existing) {
+                $errors['email'] = 'Email already exists. Please use another.';
+                $hasErrors = true;
+            }
+        }
+        
+        if (!empty($phone) && !isValidPhone($phone)) {
+            $errors['phone'] = 'Please enter a valid 10-digit phone number';
+            $hasErrors = true;
+        }
+        
+        if (!empty($gstNumber) && !isValidGST($gstNumber)) {
+            $errors['gst_number'] = 'Please enter a valid GST number';
+            $hasErrors = true;
+        }
+        
+        if (!empty($pincode) && !isValidPincode($pincode)) {
+            $errors['pincode'] = 'Please enter a valid 6-digit pincode';
+            $hasErrors = true;
+        }
+        
+        if (!$hasErrors) {
+            // Update user
+            $sql = "UPDATE users SET full_name = ?, email = ?, phone = ?, updated_at = NOW() WHERE id = ?";
+            $db->query($sql, [$fullName, $email, $phone, $_SESSION['user_id']]);
+            
+            // Update agent
+            $sql = "UPDATE agents SET 
+                    company_name = ?,
+                    gst_number = ?,
+                    address = ?,
+                    city = ?,
+                    state = ?,
+                    pincode = ?
+                    WHERE user_id = ?";
+            $db->query($sql, [$companyName, $gstNumber, $address, $city, $state, $pincode, $_SESSION['user_id']]);
+            
+            // Update session
+            $_SESSION['user_name'] = $fullName;
+            $_SESSION['user_email'] = $email;
+            
+            logActivity('update', $_SESSION['user_id'], 'profile', 'Updated agent profile');
+            
+            setFlashMessage('success', 'Profile updated successfully!');
+            redirect('agent/profile.php');
+            exit;
+        }
+    }
+    
+    // ============================================
+    // CHANGE PASSWORD
+    // ============================================
+    if ($action === 'change_password') {
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+        
+        $hasErrors = false;
+        
+        if (empty($currentPassword)) {
+            $errors['current_password'] = 'Current password is required';
+            $hasErrors = true;
+        } else {
+            $sql = "SELECT password_hash FROM users WHERE id = ?";
+            $userData = $db->fetchOne($sql, [$_SESSION['user_id']]);
+            if (!password_verify($currentPassword, $userData['password_hash'])) {
+                $errors['current_password'] = 'Current password is incorrect';
+                $hasErrors = true;
+            }
+        }
+        
+        if (empty($newPassword)) {
+            $errors['new_password'] = 'New password is required';
+            $hasErrors = true;
+        } elseif (strlen($newPassword) < PASSWORD_MIN_LENGTH) {
+            $errors['new_password'] = 'Password must be at least ' . PASSWORD_MIN_LENGTH . ' characters';
+            $hasErrors = true;
+        } else {
+            $validation = validatePassword($newPassword);
+            if (!$validation['valid']) {
+                $errors['new_password'] = implode(' ', $validation['errors']);
+                $hasErrors = true;
+            }
+        }
+        
+        if ($newPassword !== $confirmPassword) {
+            $errors['confirm_password'] = 'Passwords do not match';
+            $hasErrors = true;
+        }
+        
+        if (!$hasErrors) {
+            $hashedPassword = hashPassword($newPassword);
+            $sql = "UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?";
+            $db->query($sql, [$hashedPassword, $_SESSION['user_id']]);
+            
+            logActivity('update', $_SESSION['user_id'], 'profile', 'Changed agent password');
+            
+            setFlashMessage('success', 'Password changed successfully!');
+            redirect('agent/profile.php');
+            exit;
+        }
+    }
+}
+
+// Generate CSRF token
+$csrfToken = generateCsrfToken();
+?>
+
+<style>
+    .profile-container {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 24px;
+    }
+    
+    .profile-sidebar {
+        background: white;
+        border: 1px solid #E5EDE7;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+    }
+    
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #14532D, #16A34A);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        font-weight: 700;
+        color: white;
+        margin: 0 auto 16px;
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    
+    .profile-sidebar .profile-name {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        color: #052E16;
+    }
+    
+    .profile-sidebar .profile-role {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: #6B7A7B;
+    }
+    
+    .profile-sidebar .profile-meta {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #E5EDE7;
+        text-align: left;
+    }
+    
+    .profile-sidebar .profile-meta .meta-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+    }
+    
+    .profile-sidebar .profile-meta .meta-item .label {
+        color: #6B7A7B;
+    }
+    
+    .profile-sidebar .profile-meta .meta-item .value {
+        color: #052E16;
+        font-weight: 500;
+    }
+    
+    .profile-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    
+    .profile-card {
+        background: white;
+        border: 1px solid #E5EDE7;
+        border-radius: 12px;
+        padding: 24px;
+    }
+    
+    .profile-card .card-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        color: #052E16;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F0FDF4;
+    }
+    
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-label {
+        display: block;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: #14532D;
+        margin-bottom: 6px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 10px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        border: 2px solid #E5EDE7;
+        border-radius: 8px;
+        background: white;
+        transition: all 0.3s ease;
+        color: #052E16;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #16A34A;
+        box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    }
+    
+    .form-input.error {
+        border-color: #DC2626;
+        background: rgba(220, 38, 38, 0.05);
+    }
+    
+    .form-error {
+        color: #DC2626;
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        margin-top: 4px;
+    }
+    
+    .form-hint {
+        font-size: 12px;
+        color: #6B7A7B;
+        margin-top: 4px;
+    }
+    
+    .btn-primary {
+        padding: 10px 28px;
+        background: linear-gradient(135deg, #14532D, #16A34A);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    
+    .form-row-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+    }
+    
+    .earnings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+    
+    .earning-item {
+        background: #F7FCF7;
+        border-radius: 8px;
+        padding: 14px 16px;
+        text-align: center;
+    }
+    
+    .earning-item .earning-number {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: #14532D;
+    }
+    
+    .earning-item .earning-label {
+        font-size: 12px;
+        color: #6B7A7B;
+    }
+    
+    @media (max-width: 1024px) {
+        .profile-container {
+            grid-template-columns: 1fr;
+        }
+        .profile-sidebar {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        .form-row-3 {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="profile-container">
+    <!-- Sidebar -->
+    <div class="profile-sidebar">
+        <div class="profile-avatar">
+            <?php echo strtoupper(substr($agent['full_name'] ?? 'A', 0, 2)); ?>
+        </div>
+        <div class="profile-name"><?php echo escapeHtml($agent['full_name'] ?? 'Agent'); ?></div>
+        <div class="profile-role">
+            <i class="fas fa-user-tie" style="color: #16A34A;"></i> Agent
+            <?php if ($agent['status'] === 'approved'): ?>
+            <span style="color: #16A34A; font-size: 12px;">✓ Active</span>
+            <?php endif; ?>
+        </div>
+        
+        <div class="profile-meta">
+            <div class="meta-item">
+                <span class="label">Agent Code</span>
+                <span class="value"><?php echo escapeHtml($agent['agent_code'] ?? ''); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Commission Rate</span>
+                <span class="value"><?php echo number_format($agent['commission_rate'] ?? 0, 1); ?>%</span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Username</span>
+                <span class="value"><?php echo escapeHtml($agent['username'] ?? ''); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Email</span>
+                <span class="value"><?php echo escapeHtml($agent['email'] ?? ''); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Phone</span>
+                <span class="value"><?php echo !empty($agent['phone']) ? escapeHtml($agent['phone']) : 'Not provided'; ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Joined</span>
+                <span class="value"><?php echo formatDate($agent['created_at'] ?? date('Y-m-d')); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Last Login</span>
+                <span class="value">
+                    <?php if (!empty($agent['last_login'])): ?>
+                        <?php echo timeAgo($agent['last_login']); ?>
+                    <?php else: ?>
+                        Never
+                    <?php endif; ?>
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content -->
+    <div class="profile-content">
+        <!-- Earnings Summary -->
+        <div class="profile-card">
+            <div class="card-title">
+                <i class="fas fa-rupee-sign" style="color: #D97706;"></i>
+                Earnings Summary
+            </div>
+            <div class="earnings-grid">
+                <div class="earning-item">
+                    <div class="earning-number" style="color: #16A34A;">₹ <?php echo number_format($totalEarnings, 0); ?></div>
+                    <div class="earning-label">Total Earnings</div>
+                </div>
+                <div class="earning-item">
+                    <div class="earning-number" style="color: #D97706;">₹ <?php echo number_format($monthEarnings, 0); ?></div>
+                    <div class="earning-label">This Month</div>
+                </div>
+                <div class="earning-item">
+                    <div class="earning-number" style="color: #2563EB;"><?php echo number_format($totalShops); ?></div>
+                    <div class="earning-label">Total Shops</div>
+                </div>
+                <div class="earning-item">
+                    <div class="earning-number" style="color: #7C3AED;"><?php echo number_format($totalOrders); ?></div>
+                    <div class="earning-label">Total Orders</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Update Profile -->
+        <div class="profile-card">
+            <div class="card-title">
+                <i class="fas fa-user-edit" style="color: #16A34A;"></i>
+                Update Profile
+            </div>
+            
+            <?php if (!empty($errors)): ?>
+            <div style="background: #FEE2E2; border: 1px solid #FECACA; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                <p style="color: #991B1B; font-weight: 600; margin-bottom: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> Please fix the following errors:
+                </p>
+                <ul style="margin: 0; padding-left: 20px; color: #991B1B;">
+                    <?php foreach ($errors as $field => $error): ?>
+                        <li><?php echo escapeHtml($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+            
+            <form method="POST" action="">
+                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
+                <input type="hidden" name="action" value="update_profile">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="full_name">Full Name <span style="color: #DC2626;">*</span></label>
+                        <input 
+                            type="text" 
+                            id="full_name" 
+                            name="full_name" 
+                            class="form-input <?php echo isset($errors['full_name']) ? 'error' : ''; ?>"
+                            value="<?php echo escapeHtml($agent['full_name'] ?? ''); ?>"
+                            required
+                        >
+                        <?php if (isset($errors['full_name'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['full_name']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address <span style="color: #DC2626;">*</span></label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-input <?php echo isset($errors['email']) ? 'error' : ''; ?>"
+                            value="<?php echo escapeHtml($agent['email'] ?? ''); ?>"
+                            required
+                        >
+                        <?php if (isset($errors['email'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['email']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="phone">Phone Number</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        class="form-input <?php echo isset($errors['phone']) ? 'error' : ''; ?>"
+                        value="<?php echo escapeHtml($agent['phone'] ?? ''); ?>"
+                        placeholder="Enter 10-digit phone number"
+                    >
+                    <?php if (isset($errors['phone'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['phone']); ?></div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="company_name">Company Name</label>
+                    <input 
+                        type="text" 
+                        id="company_name" 
+                        name="company_name" 
+                        class="form-input"
+                        value="<?php echo escapeHtml($agent['company_name'] ?? ''); ?>"
+                        placeholder="Enter company name"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="gst_number">GST Number</label>
+                    <input 
+                        type="text" 
+                        id="gst_number" 
+                        name="gst_number" 
+                        class="form-input <?php echo isset($errors['gst_number']) ? 'error' : ''; ?>"
+                        value="<?php echo escapeHtml($agent['gst_number'] ?? ''); ?>"
+                        placeholder="Enter GST number"
+                    >
+                    <?php if (isset($errors['gst_number'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['gst_number']); ?></div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="address">Address</label>
+                    <textarea 
+                        id="address" 
+                        name="address" 
+                        class="form-input"
+                        rows="2"
+                        placeholder="Enter full address"
+                    ><?php echo escapeHtml($agent['address'] ?? ''); ?></textarea>
+                </div>
+                
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label" for="city">City</label>
+                        <input 
+                            type="text" 
+                            id="city" 
+                            name="city" 
+                            class="form-input"
+                            value="<?php echo escapeHtml($agent['city'] ?? ''); ?>"
+                            placeholder="City"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="state">State</label>
+                        <input 
+                            type="text" 
+                            id="state" 
+                            name="state" 
+                            class="form-input"
+                            value="<?php echo escapeHtml($agent['state'] ?? ''); ?>"
+                            placeholder="State"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="pincode">Pincode</label>
+                        <input 
+                            type="text" 
+                            id="pincode" 
+                            name="pincode" 
+                            class="form-input <?php echo isset($errors['pincode']) ? 'error' : ''; ?>"
+                            value="<?php echo escapeHtml($agent['pincode'] ?? ''); ?>"
+                            placeholder="6-digit pincode"
+                        >
+                        <?php if (isset($errors['pincode'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['pincode']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Update Profile
+                </button>
+            </form>
+        </div>
+        
+        <!-- Change Password -->
+        <div class="profile-card">
+            <div class="card-title">
+                <i class="fas fa-lock" style="color: #16A34A;"></i>
+                Change Password
+            </div>
+            
+            <form method="POST" action="">
+                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
+                <input type="hidden" name="action" value="change_password">
+                
+                <div class="form-group">
+                    <label class="form-label" for="current_password">Current Password <span style="color: #DC2626;">*</span></label>
+                    <input 
+                        type="password" 
+                        id="current_password" 
+                        name="current_password" 
+                        class="form-input <?php echo isset($errors['current_password']) ? 'error' : ''; ?>"
+                        placeholder="Enter current password"
+                        required
+                    >
+                    <?php if (isset($errors['current_password'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['current_password']); ?></div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="new_password">New Password <span style="color: #DC2626;">*</span></label>
+                        <input 
+                            type="password" 
+                            id="new_password" 
+                            name="new_password" 
+                            class="form-input <?php echo isset($errors['new_password']) ? 'error' : ''; ?>"
+                            placeholder="Enter new password"
+                            required
+                        >
+                        <?php if (isset($errors['new_password'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['new_password']); ?></div>
+                        <?php endif; ?>
+                        <div class="form-hint">
+                            <i class="fas fa-info-circle"></i> 
+                            Minimum <?php echo PASSWORD_MIN_LENGTH; ?> characters, with uppercase, number and special character
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="confirm_password">Confirm Password <span style="color: #DC2626;">*</span></label>
+                        <input 
+                            type="password" 
+                            id="confirm_password" 
+                            name="confirm_password" 
+                            class="form-input <?php echo isset($errors['confirm_password']) ? 'error' : ''; ?>"
+                            placeholder="Confirm new password"
+                            required
+                        >
+                        <?php if (isset($errors['confirm_password'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['confirm_password']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-key"></i> Change Password
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/../includes/agent_footer.php'; ?>

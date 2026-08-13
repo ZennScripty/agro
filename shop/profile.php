@@ -1,0 +1,773 @@
+<?php
+/**
+ * SAMRIDHI AGRO - Shop Profile
+ * 
+ * This page allows shop owners to view and update their profile,
+ * shop details, and change password.
+ * 
+ * @package SamridhiAgro
+ * @subpackage Shop
+ * @author Samridhi Agro Team
+ * @version 1.0.0
+ */
+
+// Set page title
+$pageTitle = 'My Profile';
+
+// Include shop header
+require_once __DIR__ . '/../includes/shop_header.php';
+
+// Require shop login
+requireLogin();
+requireRole('shop');
+
+// Get database instance
+$db = getDB();
+
+// Get shop data with user details
+$sql = "SELECT s.*, u.full_name, u.username, u.email, u.phone, u.created_at, u.last_login,
+        u.status as user_status,
+        a.full_name as agent_name
+        FROM shops s 
+        JOIN users u ON s.user_id = u.id 
+        LEFT JOIN agents ag ON s.agent_id = ag.id
+        LEFT JOIN users a ON ag.user_id = a.id
+        WHERE s.user_id = ?";
+$shop = $db->fetchOne($sql, [$_SESSION['user_id']]);
+
+// Initialize variables
+$errors = [];
+$success = [];
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    if (!isset($_POST[CSRF_TOKEN_NAME]) || !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])) {
+        setFlashMessage('error', 'Invalid security token. Please try again.');
+        redirect('shop/profile.php');
+        exit;
+    }
+    
+    $action = $_POST['action'] ?? '';
+    
+    // ============================================
+    // UPDATE PROFILE
+    // ============================================
+    if ($action === 'update_profile') {
+        $fullName = sanitizeInput($_POST['full_name'] ?? '');
+        $email = sanitizeInput($_POST['email'] ?? '');
+        $phone = sanitizeInput($_POST['phone'] ?? '');
+        $shopName = sanitizeInput($_POST['shop_name'] ?? '');
+        $shopType = sanitizeInput($_POST['shop_type'] ?? 'retail');
+        $address = sanitizeInput($_POST['address'] ?? '');
+        $city = sanitizeInput($_POST['city'] ?? '');
+        $state = sanitizeInput($_POST['state'] ?? '');
+        $pincode = sanitizeInput($_POST['pincode'] ?? '');
+        $gstNumber = sanitizeInput($_POST['gst_number'] ?? '');
+        $establishmentYear = (int)($_POST['establishment_year'] ?? 0);
+        $shopCategory = sanitizeInput($_POST['shop_category'] ?? 'grocery');
+        $deliveryAvailable = isset($_POST['delivery_available']) ? 1 : 0;
+        $workingHoursStart = sanitizeInput($_POST['working_hours_start'] ?? '');
+        $workingHoursEnd = sanitizeInput($_POST['working_hours_end'] ?? '');
+        $weekendDays = sanitizeInput($_POST['weekend_days'] ?? '');
+        
+        // Validation
+        $hasErrors = false;
+        
+        if (empty($fullName)) {
+            $errors['full_name'] = 'Full name is required';
+            $hasErrors = true;
+        } elseif (strlen($fullName) < 3) {
+            $errors['full_name'] = 'Full name must be at least 3 characters';
+            $hasErrors = true;
+        }
+        
+        if (empty($email)) {
+            $errors['email'] = 'Email address is required';
+            $hasErrors = true;
+        } elseif (!isValidEmail($email)) {
+            $errors['email'] = 'Please enter a valid email address';
+            $hasErrors = true;
+        } else {
+            $sql = "SELECT id FROM users WHERE email = ? AND id != ?";
+            $existing = $db->fetchOne($sql, [$email, $_SESSION['user_id']]);
+            if ($existing) {
+                $errors['email'] = 'Email already exists. Please use another.';
+                $hasErrors = true;
+            }
+        }
+        
+        if (!empty($phone) && !isValidPhone($phone)) {
+            $errors['phone'] = 'Please enter a valid 10-digit phone number';
+            $hasErrors = true;
+        }
+        
+        if (empty($shopName)) {
+            $errors['shop_name'] = 'Shop name is required';
+            $hasErrors = true;
+        } elseif (strlen($shopName) < 3) {
+            $errors['shop_name'] = 'Shop name must be at least 3 characters';
+            $hasErrors = true;
+        }
+        
+        if (empty($shopType) || !in_array($shopType, ['retail', 'wholesale', 'both'])) {
+            $errors['shop_type'] = 'Invalid shop type';
+            $hasErrors = true;
+        }
+        
+        if (!empty($pincode) && !isValidPincode($pincode)) {
+            $errors['pincode'] = 'Please enter a valid 6-digit pincode';
+            $hasErrors = true;
+        }
+        
+        if (!empty($gstNumber) && !isValidGST($gstNumber)) {
+            $errors['gst_number'] = 'Please enter a valid GST number';
+            $hasErrors = true;
+        }
+        
+        if ($establishmentYear > 0 && ($establishmentYear < 1900 || $establishmentYear > date('Y'))) {
+            $errors['establishment_year'] = 'Please enter a valid establishment year';
+            $hasErrors = true;
+        }
+        
+        if (!empty($workingHoursStart) && !empty($workingHoursEnd) && $workingHoursStart >= $workingHoursEnd) {
+            $errors['working_hours'] = 'Closing time must be after opening time';
+            $hasErrors = true;
+        }
+        
+        if (!$hasErrors) {
+            // Update user
+            $sql = "UPDATE users SET full_name = ?, email = ?, phone = ?, updated_at = NOW() WHERE id = ?";
+            $db->query($sql, [$fullName, $email, $phone, $_SESSION['user_id']]);
+            
+            // Update shop
+            $sql = "UPDATE shops SET 
+                    shop_name = ?,
+                    shop_type = ?,
+                    address = ?,
+                    city = ?,
+                    state = ?,
+                    pincode = ?,
+                    gst_number = ?,
+                    establishment_year = ?,
+                    shop_category = ?,
+                    delivery_available = ?,
+                    working_hours_start = ?,
+                    working_hours_end = ?,
+                    weekend_days = ?,
+                    updated_at = NOW()
+                    WHERE user_id = ?";
+            $db->query($sql, [
+                $shopName,
+                $shopType,
+                $address,
+                $city,
+                $state,
+                $pincode,
+                $gstNumber,
+                $establishmentYear > 0 ? $establishmentYear : null,
+                $shopCategory,
+                $deliveryAvailable,
+                $workingHoursStart ?: null,
+                $workingHoursEnd ?: null,
+                $weekendDays,
+                $_SESSION['user_id']
+            ]);
+            
+            // Update session
+            $_SESSION['user_name'] = $fullName;
+            $_SESSION['user_email'] = $email;
+            
+            logActivity('update', $_SESSION['user_id'], 'profile', 'Updated shop profile');
+            
+            setFlashMessage('success', 'Profile updated successfully!');
+            redirect('shop/profile.php');
+            exit;
+        }
+    }
+    
+    // ============================================
+    // CHANGE PASSWORD
+    // ============================================
+    if ($action === 'change_password') {
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+        
+        $hasErrors = false;
+        
+        if (empty($currentPassword)) {
+            $errors['current_password'] = 'Current password is required';
+            $hasErrors = true;
+        } else {
+            $sql = "SELECT password_hash FROM users WHERE id = ?";
+            $userData = $db->fetchOne($sql, [$_SESSION['user_id']]);
+            if (!password_verify($currentPassword, $userData['password_hash'])) {
+                $errors['current_password'] = 'Current password is incorrect';
+                $hasErrors = true;
+            }
+        }
+        
+        if (empty($newPassword)) {
+            $errors['new_password'] = 'New password is required';
+            $hasErrors = true;
+        } elseif (strlen($newPassword) < PASSWORD_MIN_LENGTH) {
+            $errors['new_password'] = 'Password must be at least ' . PASSWORD_MIN_LENGTH . ' characters';
+            $hasErrors = true;
+        } else {
+            $validation = validatePassword($newPassword);
+            if (!$validation['valid']) {
+                $errors['new_password'] = implode(' ', $validation['errors']);
+                $hasErrors = true;
+            }
+        }
+        
+        if ($newPassword !== $confirmPassword) {
+            $errors['confirm_password'] = 'Passwords do not match';
+            $hasErrors = true;
+        }
+        
+        if (!$hasErrors) {
+            $hashedPassword = hashPassword($newPassword);
+            $sql = "UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?";
+            $db->query($sql, [$hashedPassword, $_SESSION['user_id']]);
+            
+            logActivity('update', $_SESSION['user_id'], 'profile', 'Changed shop password');
+            
+            setFlashMessage('success', 'Password changed successfully!');
+            redirect('shop/profile.php');
+            exit;
+        }
+    }
+}
+
+// Generate CSRF token
+$csrfToken = generateCsrfToken();
+
+// Weekend days options
+$weekendDaysOptions = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+// Shop categories
+$shopCategories = [
+    'grocery' => 'Grocery Store',
+    'produce' => 'Fresh Produce',
+    'organic' => 'Organic Store',
+    'wholesale' => 'Wholesale Market',
+    'specialty' => 'Specialty Store',
+    'supermarket' => 'Supermarket',
+    'convenience' => 'Convenience Store'
+];
+?>
+
+<style>
+    .profile-container {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 24px;
+    }
+    
+    .profile-sidebar {
+        background: white;
+        border: 1px solid #E5EDE7;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+    }
+    
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #14532D, #16A34A);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        font-weight: 700;
+        color: white;
+        margin: 0 auto 12px;
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    
+    .profile-sidebar .profile-name {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: #052E16;
+    }
+    
+    .profile-sidebar .profile-role {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: #6B7A7B;
+    }
+    
+    .profile-sidebar .profile-meta {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #E5EDE7;
+        text-align: left;
+    }
+    
+    .profile-sidebar .profile-meta .meta-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+    }
+    
+    .profile-sidebar .profile-meta .meta-item .label {
+        color: #6B7A7B;
+    }
+    
+    .profile-sidebar .profile-meta .meta-item .value {
+        color: #052E16;
+        font-weight: 500;
+    }
+    
+    .profile-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    
+    .profile-card {
+        background: white;
+        border: 1px solid #E5EDE7;
+        border-radius: 12px;
+        padding: 24px;
+    }
+    
+    .profile-card .card-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        color: #052E16;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F0FDF4;
+    }
+    
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-label {
+        display: block;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: #14532D;
+        margin-bottom: 6px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 10px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        border: 2px solid #E5EDE7;
+        border-radius: 8px;
+        background: white;
+        transition: all 0.3s ease;
+        color: #052E16;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #16A34A;
+        box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    }
+    
+    .form-input.error {
+        border-color: #DC2626;
+        background: rgba(220, 38, 38, 0.05);
+    }
+    
+    .form-error {
+        color: #DC2626;
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        margin-top: 4px;
+    }
+    
+    .form-hint {
+        font-size: 12px;
+        color: #6B7A7B;
+        margin-top: 4px;
+    }
+    
+    .btn-primary {
+        padding: 10px 28px;
+        background: linear-gradient(135deg, #14532D, #16A34A);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    
+    .btn-secondary {
+        padding: 10px 24px;
+        background: #F3F4F6;
+        color: #4A5B5D;
+        border: none;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: #E5E7EB;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    
+    .form-row-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: #4A5B5D;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #16A34A;
+        cursor: pointer;
+    }
+    
+    @media (max-width: 1024px) {
+        .profile-container {
+            grid-template-columns: 1fr;
+        }
+        /* .profile-sidebar {
+            max-width: 400px;
+            margin: 0 auto;
+        } */
+    }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        .form-row-3 {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="profile-container">
+    <!-- Sidebar -->
+    <div class="profile-sidebar">
+        <div class="profile-avatar">
+            <?php echo strtoupper(substr($shop['shop_name'] ?? 'S', 0, 2)); ?>
+        </div>
+        <div class="profile-name"><?php echo escapeHtml($shop['shop_name'] ?? 'Shop'); ?></div>
+        <div class="profile-role">
+            <i class="fas fa-store" style="color: #16A34A;"></i> 
+            <?php 
+            $typeLabels = [
+                'retail' => 'Retail Shop',
+                'wholesale' => 'Wholesale Shop',
+                'both' => 'Retail & Wholesale'
+            ];
+            echo $typeLabels[$shop['shop_type']] ?? 'Shop';
+            ?>
+        </div>
+        
+        <div class="profile-meta">
+            <div class="meta-item">
+                <span class="label">Shop Code</span>
+                <span class="value"><?php echo escapeHtml($shop['shop_code'] ?? ''); ?></span>
+            </div>
+            <?php if ($shop['agent_name']): ?>
+            <div class="meta-item">
+                <span class="label">Agent</span>
+                <span class="value"><?php echo escapeHtml($shop['agent_name']); ?></span>
+            </div>
+            <?php endif; ?>
+            <div class="meta-item">
+                <span class="label">Status</span>
+                <span class="value">
+                    <?php if ($shop['status'] === 'approved'): ?>
+                        <span style="color: #16A34A;">✓ Active</span>
+                    <?php else: ?>
+                        <span style="color: #F59E0B;">⏳ <?php echo ucfirst($shop['status']); ?></span>
+                    <?php endif; ?>
+                </span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Username</span>
+                <span class="value"><?php echo escapeHtml($shop['username'] ?? ''); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Email</span>
+                <span class="value"><?php echo escapeHtml($shop['email'] ?? ''); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Phone</span>
+                <span class="value"><?php echo !empty($shop['phone']) ? escapeHtml($shop['phone']) : 'Not provided'; ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Joined</span>
+                <span class="value"><?php echo formatDate($shop['created_at'] ?? date('Y-m-d')); ?></span>
+            </div>
+            <div class="meta-item">
+                <span class="label">Last Login</span>
+                <span class="value">
+                    <?php if (!empty($shop['last_login'])): ?>
+                        <?php echo timeAgo($shop['last_login']); ?>
+                    <?php else: ?>
+                        Never
+                    <?php endif; ?>
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content -->
+    <div class="profile-content">
+        <!-- Update Shop Profile -->
+        <div class="profile-card">
+            <div class="card-title">
+                <i class="fas fa-store-edit" style="color: #16A34A;"></i>
+                Shop Information
+            </div>
+            
+            <?php if (!empty($errors)): ?>
+            <div style="background: #FEE2E2; border: 1px solid #FECACA; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                <p style="color: #991B1B; font-weight: 600; margin-bottom: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> Please fix the following errors:
+                </p>
+                <ul style="margin: 0; padding-left: 20px; color: #991B1B;">
+                    <?php foreach ($errors as $field => $error): ?>
+                        <li><?php echo escapeHtml($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+            
+            <form method="POST" action="">
+                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
+                <input type="hidden" name="action" value="update_profile">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="shop_name">Shop Name <span style="color: #DC2626;">*</span></label>
+                        <input type="text" id="shop_name" name="shop_name" class="form-input <?php echo isset($errors['shop_name']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['shop_name'] ?? ''); ?>" required>
+                        <?php if (isset($errors['shop_name'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['shop_name']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="shop_type">Shop Type <span style="color: #DC2626;">*</span></label>
+                        <select id="shop_type" name="shop_type" class="form-input <?php echo isset($errors['shop_type']) ? 'error' : ''; ?>" required>
+                            <option value="retail" <?php echo ($shop['shop_type'] ?? '') === 'retail' ? 'selected' : ''; ?>>Retail</option>
+                            <option value="wholesale" <?php echo ($shop['shop_type'] ?? '') === 'wholesale' ? 'selected' : ''; ?>>Wholesale</option>
+                            <option value="both" <?php echo ($shop['shop_type'] ?? '') === 'both' ? 'selected' : ''; ?>>Both</option>
+                        </select>
+                        <?php if (isset($errors['shop_type'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['shop_type']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="shop_category">Shop Category <span style="color: #DC2626;">*</span></label>
+                        <select id="shop_category" name="shop_category" class="form-input" required>
+                            <?php foreach ($shopCategories as $key => $label): ?>
+                                <option value="<?php echo $key; ?>" <?php echo ($shop['shop_category'] ?? 'grocery') === $key ? 'selected' : ''; ?>>
+                                    <?php echo $label; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="establishment_year">Establishment Year</label>
+                        <input type="number" id="establishment_year" name="establishment_year" class="form-input <?php echo isset($errors['establishment_year']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['establishment_year'] ?? ''); ?>" min="1900" max="<?php echo date('Y'); ?>" placeholder="e.g., 2010">
+                        <?php if (isset($errors['establishment_year'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['establishment_year']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="full_name">Owner Name <span style="color: #DC2626;">*</span></label>
+                        <input type="text" id="full_name" name="full_name" class="form-input <?php echo isset($errors['full_name']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['full_name'] ?? ''); ?>" required>
+                        <?php if (isset($errors['full_name'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['full_name']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address <span style="color: #DC2626;">*</span></label>
+                        <input type="email" id="email" name="email" class="form-input <?php echo isset($errors['email']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['email'] ?? ''); ?>" required>
+                        <?php if (isset($errors['email'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['email']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" class="form-input <?php echo isset($errors['phone']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['phone'] ?? ''); ?>" placeholder="Enter 10-digit phone number">
+                        <?php if (isset($errors['phone'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['phone']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="gst_number">GST Number</label>
+                        <input type="text" id="gst_number" name="gst_number" class="form-input <?php echo isset($errors['gst_number']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['gst_number'] ?? ''); ?>" placeholder="Enter GST number">
+                        <?php if (isset($errors['gst_number'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['gst_number']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="address">Address</label>
+                    <textarea id="address" name="address" class="form-input" rows="2" placeholder="Enter full address"><?php echo escapeHtml($shop['address'] ?? ''); ?></textarea>
+                </div>
+                
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label" for="city">City</label>
+                        <input type="text" id="city" name="city" class="form-input" value="<?php echo escapeHtml($shop['city'] ?? ''); ?>" placeholder="City">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="state">State</label>
+                        <input type="text" id="state" name="state" class="form-input" value="<?php echo escapeHtml($shop['state'] ?? ''); ?>" placeholder="State">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="pincode">Pincode</label>
+                        <input type="text" id="pincode" name="pincode" class="form-input <?php echo isset($errors['pincode']) ? 'error' : ''; ?>" value="<?php echo escapeHtml($shop['pincode'] ?? ''); ?>" placeholder="6-digit pincode">
+                        <?php if (isset($errors['pincode'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['pincode']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="working_hours_start">Opening Time</label>
+                        <input type="time" id="working_hours_start" name="working_hours_start" class="form-input" value="<?php echo escapeHtml($shop['working_hours_start'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="working_hours_end">Closing Time</label>
+                        <input type="time" id="working_hours_end" name="working_hours_end" class="form-input" value="<?php echo escapeHtml($shop['working_hours_end'] ?? ''); ?>">
+                    </div>
+                </div>
+                <?php if (isset($errors['working_hours'])): ?>
+                    <div class="form-error"><?php echo escapeHtml($errors['working_hours']); ?></div>
+                <?php endif; ?>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="weekend_days">Weekend Days</label>
+                        <select id="weekend_days" name="weekend_days" class="form-input" multiple style="height: 80px;">
+                            <?php foreach ($weekendDaysOptions as $day): ?>
+                                <option value="<?php echo $day; ?>" <?php echo strpos($shop['weekend_days'] ?? '', $day) !== false ? 'selected' : ''; ?>>
+                                    <?php echo $day; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-hint"><i class="fas fa-info-circle"></i> Hold Ctrl/Cmd to select multiple days</div>
+                    </div>
+                    
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <label class="checkbox-group" style="margin: 0;">
+                            <input type="checkbox" name="delivery_available" value="1" <?php echo ($shop['delivery_available'] ?? 0) ? 'checked' : ''; ?>>
+                            <span><i class="fas fa-truck" style="color: #16A34A;"></i> Delivery Available</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Update Shop Profile
+                </button>
+            </form>
+        </div>
+        
+        <!-- Change Password -->
+        <div class="profile-card">
+            <div class="card-title">
+                <i class="fas fa-lock" style="color: #16A34A;"></i>
+                Change Password
+            </div>
+            
+            <form method="POST" action="">
+                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
+                <input type="hidden" name="action" value="change_password">
+                
+                <div class="form-group">
+                    <label class="form-label" for="current_password">Current Password <span style="color: #DC2626;">*</span></label>
+                    <input type="password" id="current_password" name="current_password" class="form-input <?php echo isset($errors['current_password']) ? 'error' : ''; ?>" placeholder="Enter current password" required>
+                    <?php if (isset($errors['current_password'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['current_password']); ?></div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="new_password">New Password <span style="color: #DC2626;">*</span></label>
+                        <input type="password" id="new_password" name="new_password" class="form-input <?php echo isset($errors['new_password']) ? 'error' : ''; ?>" placeholder="Enter new password" required>
+                        <?php if (isset($errors['new_password'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['new_password']); ?></div>
+                        <?php endif; ?>
+                        <div class="form-hint">
+                            <i class="fas fa-info-circle"></i> 
+                            Minimum <?php echo PASSWORD_MIN_LENGTH; ?> characters, with uppercase, number and special character
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="confirm_password">Confirm Password <span style="color: #DC2626;">*</span></label>
+                        <input type="password" id="confirm_password" name="confirm_password" class="form-input <?php echo isset($errors['confirm_password']) ? 'error' : ''; ?>" placeholder="Confirm new password" required>
+                        <?php if (isset($errors['confirm_password'])): ?>
+                            <div class="form-error"><?php echo escapeHtml($errors['confirm_password']); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-key"></i> Change Password
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/../includes/shop_footer.php'; ?>
