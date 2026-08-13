@@ -2036,16 +2036,80 @@ function hasAnyPermissionOrAdmin($permissions) {
  * @param array $permissions Array of permission slugs
  * @param string $redirectUrl URL to redirect to
  */
-function requireAnyPermissionOrAdmin($permissions, $redirectUrl = 'unauthorized.php') {
+
+/**
+ * Check if user has permission to access a page
+ * Admin has all access, Staff needs specific permission
+ * 
+ * @param string $permissionSlug The permission slug to check (e.g., 'shop.view', 'agent.edit')
+ * @param string $pageName The page name for logging (e.g., 'agents.php')
+ * @param string $redirectUrl URL to redirect if unauthorized (default: 'dashboard.php')
+ * @return bool Returns true if authorized, otherwise redirects
+ */
+function requirePermissionOrAdmin($permissionSlug, $pageName = '', $redirectUrl = 'dashboard.php') {
+    // First check if user is logged in
     requireLogin();
     
-    if (!hasAnyPermissionOrAdmin($permissions)) {
-        if (!headers_sent()) {
-            header('Location: ' . $redirectUrl);
-            exit;
-        } else {
-            echo '<script>window.location.href="' . $redirectUrl . '";</script>';
-            exit;
+    // Admin has all access - allow
+    if (isAdmin()) {
+        return true;
+    }
+    
+    // Check if user has the specific permission
+    if (hasPermission($permissionSlug)) {
+        return true;
+    }
+    
+    // If no permission, log and redirect
+    $pageName = $pageName ?: ($_SERVER['REQUEST_URI'] ?? 'unknown');
+    logActivity(
+        'unauthorized_access',
+        $_SESSION['user_id'] ?? null,
+        'security',
+        'Attempted to access ' . $pageName . ' without ' . $permissionSlug . ' permission'
+    );
+    
+    setFlashMessage('error', 'You do not have permission to access this page.');
+    redirect($redirectUrl);
+    exit;
+}
+
+/**
+ * Check if user has any of the given permissions or is admin
+ * 
+ * @param array $permissionSlugs Array of permission slugs
+ * @param string $pageName The page name for logging
+ * @param string $redirectUrl URL to redirect if unauthorized
+ * @return bool Returns true if authorized, otherwise redirects
+ */
+function requireAnyPermissionOrAdmin($permissionSlugs, $pageName = '', $redirectUrl = 'dashboard.php') {
+    // First check if user is logged in
+    requireLogin();
+    
+    // Admin has all access - allow
+    if (isAdmin()) {
+        return true;
+    }
+    
+    // Check if user has any of the permissions
+    foreach ($permissionSlugs as $permission) {
+        if (hasPermission($permission)) {
+            return true;
         }
     }
+    
+    // If no permission, log and redirect
+    $pageName = $pageName ?: ($_SERVER['REQUEST_URI'] ?? 'unknown');
+    $permsList = implode(', ', $permissionSlugs);
+    logActivity(
+        'unauthorized_access',
+        $_SESSION['user_id'] ?? null,
+        'security',
+        'Attempted to access ' . $pageName . ' without any of: ' . $permsList
+    );
+    
+    setFlashMessage('error', 'You do not have permission to access this page.');
+    redirect($redirectUrl);
+    exit;
 }
+

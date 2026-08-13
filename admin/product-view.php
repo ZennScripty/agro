@@ -27,10 +27,25 @@ if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// Require admin login and permission
+// ============================================
+// PERMISSION CHECK - Allow Admin OR Staff with permission
+// ============================================
 requireLogin();
-requireRole('admin');
-requirePermission('product.view');
+
+// Admin has all access, Staff needs specific permission
+if (!isAdmin() && !hasPermission('agent.view')) {
+    logActivity('unauthorized_access', $_SESSION['user_id'], 'security', 
+                'Attempted to access agents.php without permission');
+    setFlashMessage('error', 'You do not have permission to access this page.');
+    redirect('dashboard.php');
+    exit;
+}
+
+// Check if user has edit permissions for actions
+$canEdit = isAdmin() || hasPermission('agent.edit');
+$canDelete = isAdmin() || hasPermission('agent.delete');
+$canApprove = isAdmin() || hasPermission('agent.approve');
+$canCreate = isAdmin() || hasPermission('agent.create');
 
 // Get database instance
 $db = getDB();
@@ -402,7 +417,7 @@ require_once '../includes/admin_header.php';
             <a href="admin/product-edit.php?id=<?php echo $product['id']; ?>" class="btn-action-sm btn-view">
                 <i class="fas fa-edit"></i> Edit
             </a>
-            <a href="admin/products.php" class="btn-action-sm btn-view">
+            <a href="products.php" class="btn-action-sm btn-view">
                 <i class="fas fa-arrow-left"></i> Back
             </a>
         </div>
@@ -618,7 +633,7 @@ require_once '../includes/admin_header.php';
     <div class="detail-section" style="margin-bottom: 0;">
         <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
             <span><i class="fas fa-shopping-cart" style="color: #16A34A;"></i> Recent Orders</span>
-            <a href="admin/orders.php?product=<?php echo $product['id']; ?>" style="font-size: 13px; color: #16A34A; text-decoration: none; font-weight: 500;">
+            <a href="orders.php?product=<?php echo $product['id']; ?>" style="font-size: 13px; color: #16A34A; text-decoration: none; font-weight: 500;">
                 View All <i class="fas fa-arrow-right"></i>
             </a>
         </div>
@@ -667,7 +682,7 @@ require_once '../includes/admin_header.php';
                             </td>
                             <td><?php echo formatDate($order['order_date']); ?></td>
                             <td>
-                                <a href="admin/order-view.php?id=<?php echo $order['order_id']; ?>" class="btn-action-sm btn-view">
+                                <a href="order-view.php?id=<?php echo $order['order_id']; ?>" class="btn-action-sm btn-view">
                                     <i class="fas fa-eye"></i> View
                                 </a>
                             </td>

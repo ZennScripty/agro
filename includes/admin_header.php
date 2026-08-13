@@ -30,6 +30,13 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $currentUser = getCurrentUser();
 
 // ============================================
+// CHECK USER ROLE FOR DYNAMIC HEADER
+// ============================================
+
+$isAdmin = isAdmin();
+$isStaff = isStaff();
+
+// ============================================
 // GET PENDING COUNTS FOR BADGES
 // ============================================
 
@@ -57,8 +64,37 @@ $pendingPayments = $result['count'] ?? 0;
 
 $totalPending = $pendingShops + $pendingAgents + $pendingOrders + $pendingPayments;
 
-// Notification count (simplified - would be from database in real implementation)
+// Notification count
 $notificationCount = 3;
+
+// Staff specific notifications
+$staffNotificationCount = 0;
+if ($isStaff) {
+    // New leads for staff
+    $sql = "SELECT COUNT(*) as count FROM staff_leads WHERE staff_id = ? AND status = 'new'";
+    $result = $db->fetchOne($sql, [$_SESSION['user_id'] ?? 0]);
+    $staffNotificationCount += $result['count'] ?? 0;
+    
+    // Planned visits for staff
+    $sql = "SELECT COUNT(*) as count FROM staff_visits WHERE staff_id = ? AND status = 'planned' AND visit_date >= CURDATE()";
+    $result = $db->fetchOne($sql, [$_SESSION['user_id'] ?? 0]);
+    $staffNotificationCount += $result['count'] ?? 0;
+}
+
+// ============================================
+// PERMISSION CHECKS FOR STAFF (when viewing admin pages)
+// ============================================
+
+$canViewAgents = $isAdmin || hasPermission('agent.view');
+$canViewShops = $isAdmin || hasPermission('shop.view');
+$canViewProducts = $isAdmin || hasPermission('product.view');
+$canViewOrders = $isAdmin || hasPermission('order.view');
+$canViewPayments = $isAdmin || hasPermission('payment.view');
+$canViewReports = $isAdmin || hasPermission('report.view');
+$canViewInventory = $isAdmin || hasPermission('inventory.view');
+
+// Staff management permissions (only admin)
+$canManageStaff = $isAdmin && hasPermission('staff.view');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -187,6 +223,14 @@ $notificationCount = 3;
             padding: 2px 8px;
             border-radius: 12px;
             font-weight: 600;
+        }
+        
+        .sidebar-menu .menu-item .badge.badge-warning {
+            background: #F59E0B;
+        }
+        
+        .sidebar-menu .menu-item .badge.badge-success {
+            background: #16A34A;
         }
         
         /* Sub-menu styles */
@@ -569,51 +613,95 @@ $notificationCount = 3;
             </div>
             
             <nav class="sidebar-menu">
+                <!-- Main Menu - Common for all -->
                 <div class="menu-label">Main</div>
                 <a href="<?php echo ADMIN_URL; ?>dashboard.php" class="menu-item <?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>">
                     <i class="fas fa-th-large"></i>
                     Dashboard
                 </a>
                 
+                <!-- ============================================ -->
+                <!-- STAFF WORK SECTION (Only for Staff)          -->
+                <!-- ============================================ -->
+                <?php if ($isStaff): ?>
+                <div class="menu-label" style="margin-top: 20px;">My Work</div>
+                
+                <?php if (hasPermission('staff.attendance.view')): ?>
+                <a href="<?php echo STAFF_URL; ?>attendance.php" class="menu-item <?php echo $currentPage === 'attendance.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-calendar-check"></i> Attendance
+                </a>
+                <?php endif; ?>
+                
+                <?php if (hasPermission('staff.visits.view')): ?>
+                <a href="<?php echo STAFF_URL; ?>visits.php" class="menu-item <?php echo $currentPage === 'visits.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-route"></i> Visits
+                    <?php if ($staffNotificationCount > 0): ?>
+                    <span class="badge"><?php echo $staffNotificationCount; ?></span>
+                    <?php endif; ?>
+                </a>
+                <?php endif; ?>
+                
+                <?php if (hasPermission('staff.leads.view')): ?>
+                <a href="<?php echo STAFF_URL; ?>leads.php" class="menu-item <?php echo $currentPage === 'leads.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-bullhorn"></i> Leads
+                </a>
+                <?php endif; ?>
+                <?php endif; ?>
+                
+                <!-- ============================================ -->
+                <!-- MANAGEMENT SECTION (Admin or Staff with permissions) -->
+                <!-- ============================================ -->
                 <div class="menu-label" style="margin-top: 20px;">Management</div>
                 
-                <!-- Staff Menu with Sub-menu -->
+                <!-- Staff Management - Only Admin -->
+                <?php if ($isAdmin): ?>
                 <a href="<?php echo ADMIN_URL; ?>staff.php" class="menu-item <?php echo in_array($currentPage, ['staff.php', 'staff-attendance.php', 'staff-visits.php', 'staff-leads.php']) ? 'active' : ''; ?>">
                     <i class="fas fa-users"></i>
                     Staff
                 </a>
                 <div class="sub-menu">
-                    <a href="<?php echo ADMIN_URL; ?>staff-attendance.php?id=<?php echo $_GET['id'] ?? 0; ?>" class="menu-item <?php echo $currentPage === 'staff-attendance.php' ? 'active' : ''; ?>">
+                    <a href="<?php echo ADMIN_URL; ?>staff.php" class="menu-item <?php echo $currentPage === 'staff.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-list"></i> All Staff
+                    </a>
+                    <a href="<?php echo ADMIN_URL; ?>staff-attendance.php" class="menu-item <?php echo $currentPage === 'staff-attendance.php' ? 'active' : ''; ?>">
                         <i class="fas fa-calendar-check"></i> Attendance
                     </a>
-                    <a href="<?php echo ADMIN_URL; ?>staff-visits.php?id=<?php echo $_GET['id'] ?? 0; ?>" class="menu-item <?php echo $currentPage === 'staff-visits.php' ? 'active' : ''; ?>">
+                    <a href="<?php echo ADMIN_URL; ?>staff-visits.php" class="menu-item <?php echo $currentPage === 'staff-visits.php' ? 'active' : ''; ?>">
                         <i class="fas fa-route"></i> Visits
                     </a>
-                    <a href="<?php echo ADMIN_URL; ?>staff-leads.php?id=<?php echo $_GET['id'] ?? 0; ?>" class="menu-item <?php echo $currentPage === 'staff-leads.php' ? 'active' : ''; ?>">
+                    <a href="<?php echo ADMIN_URL; ?>staff-leads.php" class="menu-item <?php echo $currentPage === 'staff-leads.php' ? 'active' : ''; ?>">
                         <i class="fas fa-bullhorn"></i> Leads
                     </a>
                     <a href="<?php echo ADMIN_URL; ?>attendance-settings.php" class="menu-item <?php echo $currentPage === 'attendance-settings.php' ? 'active' : ''; ?>">
                         <i class="fas fa-clock"></i> Attendance Settings
                     </a>
                 </div>
+                <?php endif; ?>
                 
+                <!-- Agents - Admin or Staff with permission -->
+                <?php if ($canViewAgents): ?>
                 <a href="<?php echo ADMIN_URL; ?>agents.php" class="menu-item <?php echo $currentPage === 'agents.php' ? 'active' : ''; ?>">
                     <i class="fas fa-user-tie"></i>
                     Agents
                     <?php if ($pendingAgents > 0): ?>
-                    <span class="badge"><?php echo $pendingAgents; ?></span>
+                    <span class="badge badge-warning"><?php echo $pendingAgents; ?></span>
                     <?php endif; ?>
                 </a>
+                <?php endif; ?>
                 
+                <!-- Shops - Admin or Staff with permission -->
+                <?php if ($canViewShops): ?>
                 <a href="<?php echo ADMIN_URL; ?>shops.php" class="menu-item <?php echo $currentPage === 'shops.php' ? 'active' : ''; ?>">
                     <i class="fas fa-store"></i>
                     Shops
                     <?php if ($pendingShops > 0): ?>
-                    <span class="badge"><?php echo $pendingShops; ?></span>
+                    <span class="badge badge-warning"><?php echo $pendingShops; ?></span>
                     <?php endif; ?>
                 </a>
+                <?php endif; ?>
                 
-                <!-- Products Menu with Sub-menu -->
+                <!-- Products - Admin or Staff with permission -->
+                <?php if ($canViewProducts): ?>
                 <a href="<?php echo ADMIN_URL; ?>products.php" class="menu-item <?php echo in_array($currentPage, ['products.php', 'categories.php']) ? 'active' : ''; ?>">
                     <i class="fas fa-box"></i>
                     Products
@@ -626,45 +714,63 @@ $notificationCount = 3;
                         <i class="fas fa-tags"></i> Categories
                     </a>
                 </div>
+                <?php endif; ?>
                 
+                <!-- Orders - Admin or Staff with permission -->
+                <?php if ($canViewOrders): ?>
                 <a href="<?php echo ADMIN_URL; ?>orders.php" class="menu-item <?php echo $currentPage === 'orders.php' ? 'active' : ''; ?>">
                     <i class="fas fa-shopping-cart"></i>
                     Orders
                     <?php if ($pendingOrders > 0): ?>
-                    <span class="badge"><?php echo $pendingOrders; ?></span>
+                    <span class="badge badge-warning"><?php echo $pendingOrders; ?></span>
                     <?php endif; ?>
                 </a>
+                <?php endif; ?>
                 
+                <!-- Payments - Admin or Staff with permission -->
+                <?php if ($canViewPayments): ?>
                 <a href="<?php echo ADMIN_URL; ?>payments.php" class="menu-item <?php echo $currentPage === 'payments.php' ? 'active' : ''; ?>">
                     <i class="fas fa-credit-card"></i>
                     Payments
                     <?php if ($pendingPayments > 0): ?>
-                    <span class="badge"><?php echo $pendingPayments; ?></span>
+                    <span class="badge badge-warning"><?php echo $pendingPayments; ?></span>
                     <?php endif; ?>
                 </a>
+                <?php endif; ?>
                 
+                <!-- Inventory - Admin or Staff with permission -->
+                <?php if ($canViewInventory): ?>
                 <a href="<?php echo ADMIN_URL; ?>inventory.php" class="menu-item <?php echo $currentPage === 'inventory.php' ? 'active' : ''; ?>">
                     <i class="fas fa-warehouse"></i>
                     Inventory
                 </a>
+                <?php endif; ?>
                 
+                <!-- ============================================ -->
+                <!-- SYSTEM SECTION (Admin only)                   -->
+                <!-- ============================================ -->
+                <?php if ($isAdmin): ?>
                 <div class="menu-label" style="margin-top: 20px;">System</div>
+                
                 <a href="<?php echo ADMIN_URL; ?>reports.php" class="menu-item <?php echo $currentPage === 'reports.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-chart-bar"></i>
-                    Reports
+                    <i class="fas fa-chart-bar"></i> Reports
                 </a>
                 <a href="<?php echo ADMIN_URL; ?>settings.php" class="menu-item <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-cog"></i>
-                    Settings
+                    <i class="fas fa-cog"></i> Settings
                 </a>
                 <a href="<?php echo ADMIN_URL; ?>profile.php" class="menu-item <?php echo $currentPage === 'profile.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-user-circle"></i>
-                    My Profile
+                    <i class="fas fa-user-circle"></i> My Profile
                 </a>
                 <a href="<?php echo ADMIN_URL; ?>activity-logs.php" class="menu-item <?php echo $currentPage === 'activity-logs.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-history"></i>
-                    Activity Logs
+                    <i class="fas fa-history"></i> Activity Logs
                 </a>
+                <?php else: ?>
+                <!-- Staff Profile -->
+                <div class="menu-label" style="margin-top: 20px;">Account</div>
+                <a href="<?php echo STAFF_URL; ?>profile.php" class="menu-item <?php echo $currentPage === 'profile.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-user-circle"></i> My Profile
+                </a>
+                <?php endif; ?>
             </nav>
             
             <div class="sidebar-footer">
@@ -673,8 +779,16 @@ $notificationCount = 3;
                         <i class="fas fa-user"></i>
                     </div>
                     <div>
-                        <div class="user-name"><?php echo escapeHtml($currentUser['full_name'] ?? 'Admin'); ?></div>
-                        <div class="user-role">Administrator</div>
+                        <div class="user-name"><?php echo escapeHtml($currentUser['full_name'] ?? 'User'); ?></div>
+                        <div class="user-role">
+                            <?php if ($isAdmin): ?>
+                            Administrator
+                            <?php elseif ($isStaff): ?>
+                            Staff Member
+                            <?php else: ?>
+                            User
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>

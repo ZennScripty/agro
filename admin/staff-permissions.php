@@ -8,7 +8,7 @@
  * @package SamridhiAgro
  * @subpackage Admin
  * @author Samridhi Agro Team
- * @version 2.0.0
+ * @version 2.0.1
  */
 
 // ============================================
@@ -28,10 +28,20 @@ if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// Require admin login and permission
+// ============================================
+// PERMISSION CHECK - Allow Admin OR Staff with staff.edit permission
+// ============================================
 requireLogin();
-requireRole('admin');
-requirePermission('staff.edit');
+
+// Admin has all access, Staff needs specific permission
+// FIXED: Changed from agent.view to staff.edit
+if (!isAdmin() && !hasPermission('staff.edit')) {
+    logActivity('unauthorized_access', $_SESSION['user_id'], 'security', 
+                'Attempted to access staff-permissions.php without staff.edit permission');
+    setFlashMessage('error', 'You do not have permission to access this page.');
+    redirect('dashboard.php');
+    exit;
+}
 
 // Get database instance
 $db = getDB();

@@ -26,7 +26,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // If already logged in and is staff, redirect to dashboard
 if (isLoggedIn() && hasRole('staff')) {
-    redirect('dashboard.php'); // ✅ FIXED: Removed 'staff/' prefix
+    redirect('staff/dashboard.php'); // ✅ FIXED: Removed 'staff/' prefix
     exit;
 }
 

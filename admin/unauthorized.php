@@ -80,7 +80,7 @@ require_once '../includes/staff_header.php';
             You do not have permission to access this page. 
             Please contact your administrator if you believe this is an error.
         </p>
-        <a href="dashboard.php" class="btn-go-back">
+        <a href="<?php echo STAFF_URL; ?>dashboard.php" class="btn-go-back">
             <i class="fas fa-arrow-left"></i> Go to Dashboard
         </a>
     </div>

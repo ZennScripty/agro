@@ -27,10 +27,25 @@ if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// Require admin login and permission
+// ============================================
+// PERMISSION CHECK - Allow Admin OR Staff with permission
+// ============================================
 requireLogin();
-requireRole('admin');
-requirePermission('product.edit');
+
+// Admin has all access, Staff needs specific permission
+if (!isAdmin() && !hasPermission('agent.view')) {
+    logActivity('unauthorized_access', $_SESSION['user_id'], 'security', 
+                'Attempted to access agents.php without permission');
+    setFlashMessage('error', 'You do not have permission to access this page.');
+    redirect('dashboard.php');
+    exit;
+}
+
+// Check if user has edit permissions for actions
+$canEdit = isAdmin() || hasPermission('agent.edit');
+$canDelete = isAdmin() || hasPermission('agent.delete');
+$canApprove = isAdmin() || hasPermission('agent.approve');
+$canCreate = isAdmin() || hasPermission('agent.create');
 
 // Get database instance
 $db = getDB();
@@ -511,10 +526,10 @@ require_once '../includes/admin_header.php';
             </span>
         </h3>
         <div style="display: flex; gap: 8px;">
-            <a href="admin/product-view.php?id=<?php echo $product['id']; ?>" class="card-action">
+            <a href="product-view.php?id=<?php echo $product['id']; ?>" class="card-action">
                 <i class="fas fa-eye"></i> View
             </a>
-            <a href="admin/products.php" class="card-action">
+            <a href="products.php" class="card-action">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
         </div>

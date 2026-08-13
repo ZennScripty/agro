@@ -28,10 +28,6 @@ if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// Require admin login and permission
-// requireLogin();
-// requireRole('admin');
-// requirePermission('agent.view');
 
 // ============================================
 // PERMISSION CHECK - Allow Admin OR Staff with permission
@@ -53,7 +49,6 @@ $canDelete = isAdmin() || hasPermission('agent.delete');
 $canApprove = isAdmin() || hasPermission('agent.approve');
 $canCreate = isAdmin() || hasPermission('agent.create');
 
-// Get database instance
 
 // Get database instance
 $db = getDB();

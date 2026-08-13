@@ -29,10 +29,29 @@ if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// Require admin login and permission
+// ============================================
+// PERMISSION CHECK - Allow Admin OR Staff with permission
+// ============================================
 requireLogin();
-requireRole('admin');
-requirePermission('staff.view');
+
+// Admin has all access, Staff needs specific permission
+if (!isAdmin() && !hasPermission('agent.view')) {
+    logActivity(
+        'unauthorized_access',
+        $_SESSION['user_id'],
+        'security',
+        'Attempted to access agents.php without permission'
+    );
+    setFlashMessage('error', 'You do not have permission to access this page.');
+    redirect('dashboard.php');
+    exit;
+}
+
+// Check if user has edit permissions for actions
+$canEdit = isAdmin() || hasPermission('agent.edit');
+$canDelete = isAdmin() || hasPermission('agent.delete');
+$canApprove = isAdmin() || hasPermission('agent.approve');
+$canCreate = isAdmin() || hasPermission('agent.create');
 
 // Get database instance
 $db = getDB();
