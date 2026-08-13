@@ -18,20 +18,14 @@
 // Set page title
 $pageTitle = 'Inventory Management';
 
-// Include configuration files (admin_header will include these)
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../config/functions.php';
+require_once '../includes/admin_header.php';
 
 // Ensure session is started
 if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// Require admin login and permission
-requireLogin();
-requireRole('admin');
-requirePermission('inventory.view');
+requirePermissionOrAdmin('inventory.view', 'inventory.php');
 
 // Get database instance
 $db = getDB();
@@ -195,7 +189,7 @@ $csrfToken = generateCsrfToken();
 // ============================================
 // STEP 2: NOW include admin header (HTML starts here)
 // ============================================
-require_once '../includes/admin_header.php';
+
 ?>
 
 <!-- SweetAlert2 CDN -->

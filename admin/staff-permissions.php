@@ -31,17 +31,7 @@ if (session_status() === PHP_SESSION_NONE) {
 // ============================================
 // PERMISSION CHECK - Allow Admin OR Staff with staff.edit permission
 // ============================================
-requireLogin();
-
-// Admin has all access, Staff needs specific permission
-// FIXED: Changed from agent.view to staff.edit
-if (!isAdmin() && !hasPermission('staff.edit')) {
-    logActivity('unauthorized_access', $_SESSION['user_id'], 'security', 
-                'Attempted to access staff-permissions.php without staff.edit permission');
-    setFlashMessage('error', 'You do not have permission to access this page.');
-    redirect('dashboard.php');
-    exit;
-}
+requirePermissionOrAdmin('staff.edit', 'staff-permissions.php');
 
 // Get database instance
 $db = getDB();

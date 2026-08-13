@@ -2082,6 +2082,23 @@ function requirePermissionOrAdmin($permissionSlug, $pageName = '', $redirectUrl 
  * @param string $redirectUrl URL to redirect if unauthorized
  * @return bool Returns true if authorized, otherwise redirects
  */
+
+
+// ============================================
+// PERMISSION MANAGEMENT FUNCTIONS
+// ============================================
+
+
+
+/**
+ * Require user to be logged in and have ANY of the given permissions OR be admin
+ * Redirects to unauthorized page if not
+ * 
+ * @param array $permissionSlugs Array of permission slugs
+ * @param string $pageName The page name for logging
+ * @param string $redirectUrl URL to redirect if unauthorized (default: 'dashboard.php')
+ * @return bool Returns true if authorized, otherwise redirects
+ */
 function requireAnyPermissionOrAdmin($permissionSlugs, $pageName = '', $redirectUrl = 'dashboard.php') {
     // First check if user is logged in
     requireLogin();
@@ -2113,3 +2130,70 @@ function requireAnyPermissionOrAdmin($permissionSlugs, $pageName = '', $redirect
     exit;
 }
 
+/**
+ * Get permission slug for a page
+ * Helper function to map page names to permission slugs
+ * 
+ * @param string $page The page name
+ * @return string The permission slug
+ */
+function getPagePermission($page) {
+    $permissions = [
+        // Dashboard
+        'dashboard' => 'dashboard.view',
+        
+        // Staff Management
+        'staff' => 'staff.view',
+        'staff-add' => 'staff.create',
+        'staff-edit' => 'staff.edit',
+        'staff-permissions' => 'staff.edit',
+        'staff-attendance' => 'staff.attendance.view',
+        'staff-visits' => 'staff.visits.view',
+        'staff-leads' => 'staff.leads.view',
+        'attendance-settings' => 'attendance.settings.view',
+        
+        // Agent Management
+        'agents' => 'agent.view',
+        'agent-add' => 'agent.create',
+        'agent-edit' => 'agent.edit',
+        'agent-view' => 'agent.view',
+        
+        // Shop Management
+        'shops' => 'shop.view',
+        'shop-add' => 'shop.create',
+        'shop-edit' => 'shop.edit',
+        'shop-view' => 'shop.view',
+        
+        // Product Management
+        'products' => 'product.view',
+        'product-add' => 'product.create',
+        'product-edit' => 'product.edit',
+        'product-view' => 'product.view',
+        'categories' => 'category.view',
+        'category-add' => 'category.create',
+        
+        // Order Management
+        'orders' => 'order.view',
+        'order-view' => 'order.view',
+        
+        // Payment Management
+        'payments' => 'payment.view',
+        'payment-view' => 'payment.view',
+        
+        // Inventory Management
+        'inventory' => 'inventory.view',
+        'inventory-log' => 'inventory.view',
+        
+        // Reports
+        'reports' => 'report.view',
+        
+        // Settings
+        'settings' => 'settings.view',
+        'profile' => 'settings.view',
+        
+        // Activity Logs
+        'activity-logs' => 'report.view',
+    ];
+    
+    return $permissions[$page] ?? 'dashboard.view';
+}

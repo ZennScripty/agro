@@ -30,23 +30,7 @@ if (session_status() === PHP_SESSION_NONE) {
 // ============================================
 // PERMISSION CHECK - Allow Admin OR Staff with shop.edit permission
 // ============================================
-requireLogin();
-
-// Admin has all access, Staff needs specific permission
-// FIXED: Changed from agent.view to shop.edit
-if (!isAdmin() && !hasPermission('shop.edit')) {
-    logActivity('unauthorized_access', $_SESSION['user_id'], 'security', 
-                'Attempted to access shop-edit.php without shop.edit permission');
-    setFlashMessage('error', 'You do not have permission to access this page.');
-    redirect('dashboard.php');
-    exit;
-}
-
-// Check if user has edit permissions for actions
-$canEdit = isAdmin() || hasPermission('shop.edit');
-$canDelete = isAdmin() || hasPermission('shop.delete');
-$canApprove = isAdmin() || hasPermission('shop.approve');
-$canCreate = isAdmin() || hasPermission('shop.create');
+requirePermissionOrAdmin('shop.edit', 'shop-edit.php');
 
 // Get database instance
 $db = getDB();
