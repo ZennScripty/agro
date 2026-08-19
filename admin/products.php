@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Product Management
  * 
@@ -43,35 +44,35 @@ $db = getDB();
 // Handle toggle status
 if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id'])) {
     requirePermission('product.edit');
-    
+
     $productId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
         // Get current status
         $sql = "SELECT status, product_name FROM products WHERE id = ?";
         $product = $db->fetchOne($sql, [$productId]);
-        
+
         if ($product) {
             $newStatus = $product['status'] === 'active' ? 'inactive' : 'active';
             $sql = "UPDATE products SET status = ? WHERE id = ?";
             $db->query($sql, [$newStatus, $productId]);
-            
+
             logActivity(
                 'update',
                 $_SESSION['user_id'],
                 'product',
                 'Toggled product status to ' . $newStatus . ' for: ' . $product['product_name']
             );
-            
+
             setFlashMessage('success', 'Product status updated successfully.');
         } else {
             setFlashMessage('error', 'Product not found.');
         }
     }
-    
+
     redirect('admin/products.php');
     exit;
 }
@@ -79,42 +80,42 @@ if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id'])
 // Handle delete
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     requirePermission('product.delete');
-    
+
     $productId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
         // Check if product has orders
         $sql = "SELECT COUNT(*) as count FROM order_items WHERE product_id = ?";
         $result = $db->fetchOne($sql, [$productId]);
-        
+
         if ($result && $result['count'] > 0) {
             setFlashMessage('error', 'Cannot delete product. It has ' . $result['count'] . ' orders associated with it.');
         } else {
             // Get product name for log
             $sql = "SELECT product_name FROM products WHERE id = ?";
             $product = $db->fetchOne($sql, [$productId]);
-            
+
             if ($product) {
                 $sql = "DELETE FROM products WHERE id = ?";
                 $db->query($sql, [$productId]);
-                
+
                 logActivity(
                     'delete',
                     $_SESSION['user_id'],
                     'product',
                     'Deleted product: ' . $product['product_name']
                 );
-                
+
                 setFlashMessage('success', 'Product deleted successfully.');
             } else {
                 setFlashMessage('error', 'Product not found.');
             }
         }
     }
-    
+
     redirect('admin/products.php');
     exit;
 }
@@ -211,14 +212,14 @@ require_once '../includes/admin_header.php';
         border: 1px solid #E5EDE7;
         flex-shrink: 0;
     }
-    
+
     .product-image img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         border-radius: 8px;
     }
-    
+
     .badge-status {
         display: inline-block;
         padding: 4px 12px;
@@ -227,13 +228,32 @@ require_once '../includes/admin_header.php';
         font-weight: 600;
         text-transform: capitalize;
     }
-    
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
-    
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
+
     .btn-action {
         width: 32px;
         height: 32px;
@@ -247,23 +267,47 @@ require_once '../includes/admin_header.php';
         cursor: pointer;
         font-size: 13px;
     }
-    
+
     .btn-action:hover {
         transform: translateY(-2px);
     }
-    
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-    .btn-view:hover { background: #BFDBFE; }
-    
-    .btn-edit { background: #EDE9FE; color: #7C3AED; }
-    .btn-edit:hover { background: #DDD6FE; }
-    
-    .btn-toggle { background: #FEF3C7; color: #D97706; }
-    .btn-toggle:hover { background: #FDE68A; }
-    
-    .btn-delete { background: #FEE2E2; color: #DC2626; }
-    .btn-delete:hover { background: #FECACA; }
-    
+
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .btn-view:hover {
+        background: #BFDBFE;
+    }
+
+    .btn-edit {
+        background: #EDE9FE;
+        color: #7C3AED;
+    }
+
+    .btn-edit:hover {
+        background: #DDD6FE;
+    }
+
+    .btn-toggle {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+
+    .btn-toggle:hover {
+        background: #FDE68A;
+    }
+
+    .btn-delete {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-delete:hover {
+        background: #FECACA;
+    }
+
     .stock-badge {
         display: inline-block;
         padding: 2px 10px;
@@ -271,10 +315,21 @@ require_once '../includes/admin_header.php';
         font-size: 12px;
         font-weight: 600;
     }
-    
-    .stock-badge.in-stock { background: #DCFCE7; color: #065F46; }
-    .stock-badge.low-stock { background: #FEF3C7; color: #92400E; }
-    .stock-badge.out-of-stock { background: #FEE2E2; color: #991B1B; }
+
+    .stock-badge.in-stock {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .stock-badge.low-stock {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .stock-badge.out-of-stock {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
 </style>
 
 <div class="content-card">
@@ -308,15 +363,15 @@ require_once '../includes/admin_header.php';
             </a>
         </div>
     </div>
-    
+
     <!-- Search and Filter -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
         <form method="GET" action="" style="flex: 1; min-width: 200px; display: flex; gap: 12px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 180px; position: relative;">
-                <input 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search products..." 
+                <input
+                    type="text"
+                    name="search"
+                    placeholder="Search products..."
                     value="<?php echo escapeHtml($search); ?>"
                     style="
                         width: 100%;
@@ -327,8 +382,7 @@ require_once '../includes/admin_header.php';
                         font-size: 14px;
                         transition: all 0.3s ease;
                         background: white;
-                    "
-                >
+                    ">
                 <i class="fas fa-search" style="
                     position: absolute;
                     left: 14px;
@@ -337,7 +391,7 @@ require_once '../includes/admin_header.php';
                     color: #6B7A7B;
                 "></i>
             </div>
-            
+
             <select name="category" style="
                 padding: 10px 16px;
                 border: 2px solid #E5EDE7;
@@ -355,7 +409,7 @@ require_once '../includes/admin_header.php';
                     </option>
                 <?php endforeach; ?>
             </select>
-            
+
             <select name="status" style="
                 padding: 10px 16px;
                 border: 2px solid #E5EDE7;
@@ -370,7 +424,7 @@ require_once '../includes/admin_header.php';
                 <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
                 <option value="out_of_stock" <?php echo $status === 'out_of_stock' ? 'selected' : ''; ?>>Out of Stock</option>
             </select>
-            
+
             <button type="submit" style="
                 padding: 10px 24px;
                 background: #14532D;
@@ -385,9 +439,9 @@ require_once '../includes/admin_header.php';
             ">
                 <i class="fas fa-filter"></i> Filter
             </button>
-            
+
             <?php if (!empty($search) || $category > 0 || $status !== 'all'): ?>
-            <a href="admin/products.php" style="
+                <a href="products.php" style="
                 padding: 10px 16px;
                 background: #F3F4F6;
                 color: #4A5B5D;
@@ -398,12 +452,12 @@ require_once '../includes/admin_header.php';
                 text-decoration: none;
                 transition: all 0.3s ease;
             ">
-                <i class="fas fa-times"></i> Clear
-            </a>
+                    <i class="fas fa-times"></i> Clear
+                </a>
             <?php endif; ?>
         </form>
     </div>
-    
+
     <!-- Product Table -->
     <div class="table-wrapper">
         <table class="table-custom">
@@ -421,159 +475,162 @@ require_once '../includes/admin_header.php';
             </thead>
             <tbody>
                 <?php if (empty($productList)): ?>
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
-                        <i class="fas fa-box-open" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
-                        No products found
-                        <?php if (!empty($search) || $category > 0 || $status !== 'all'): ?>
-                        <br><span style="font-size: 13px;">Try adjusting your search or filters</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                            <i class="fas fa-box-open" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
+                            No products found
+                            <?php if (!empty($search) || $category > 0 || $status !== 'all'): ?>
+                                <br><span style="font-size: 13px;">Try adjusting your search or filters</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 <?php else: ?>
-                <?php foreach ($productList as $product): ?>
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="product-image">
-                                <?php if (!empty($product['image']) && file_exists('../uploads/products/' . $product['image'])): ?>
-                                    <img src="../uploads/products/<?php echo escapeHtml($product['image']); ?>" alt="<?php echo escapeHtml($product['product_name']); ?>">
+                    <?php foreach ($productList as $product): ?>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="product-image">
+                                        <?php if (!empty($product['image']) && file_exists('../uploads/products/thumbs/' . $product['image'])): ?>
+                                            <img src="../uploads/products/thumbs/<?php echo escapeHtml($product['image']); ?>" alt="<?php echo escapeHtml($product['product_name']); ?>">
+                                        <?php elseif (!empty($product['image']) && file_exists('../uploads/products/' . $product['image'])): ?>
+                                            <!-- Fallback to original if thumbnail not found -->
+                                            <img src="../uploads/products/<?php echo escapeHtml($product['image']); ?>" alt="<?php echo escapeHtml($product['product_name']); ?>">
+                                        <?php else: ?>
+                                            <i class="fas fa-box"></i>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600; color: #052E16;">
+                                            <?php echo escapeHtml($product['product_name']); ?>
+                                        </div>
+                                        <?php if (!empty($product['description'])): ?>
+                                            <div style="font-size: 12px; color: #6B7A7B;">
+                                                <?php echo escapeHtml(truncateText($product['description'], 40)); ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #14532D;">
+                                    <?php echo escapeHtml($product['sku']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($product['category_name']): ?>
+                                    <span style="font-size: 13px; background: #F0FDF4; padding: 2px 10px; border-radius: 12px; color: #065F46;">
+                                        <?php echo escapeHtml($product['category_name']); ?>
+                                    </span>
                                 <?php else: ?>
-                                    <i class="fas fa-box"></i>
+                                    <span style="color: #6B7A7B; font-size: 13px;">Uncategorized</span>
                                 <?php endif; ?>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: #052E16;">
-                                    <?php echo escapeHtml($product['product_name']); ?>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600; color: #14532D;">
+                                    ₹ <?php echo number_format($product['price'], 2); ?>
                                 </div>
-                                <?php if (!empty($product['description'])): ?>
-                                <div style="font-size: 12px; color: #6B7A7B;">
-                                    <?php echo escapeHtml(truncateText($product['description'], 40)); ?>
-                                </div>
+                                <?php if ($product['cost_price'] > 0): ?>
+                                    <div style="font-size: 11px; color: #6B7A7B;">
+                                        Cost: ₹ <?php echo number_format($product['cost_price'], 2); ?>
+                                    </div>
                                 <?php endif; ?>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #14532D;">
-                            <?php echo escapeHtml($product['sku']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php if ($product['category_name']): ?>
-                            <span style="font-size: 13px; background: #F0FDF4; padding: 2px 10px; border-radius: 12px; color: #065F46;">
-                                <?php echo escapeHtml($product['category_name']); ?>
-                            </span>
-                        <?php else: ?>
-                            <span style="color: #6B7A7B; font-size: 13px;">Uncategorized</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <div style="font-weight: 600; color: #14532D;">
-                            ₹ <?php echo number_format($product['price'], 2); ?>
-                        </div>
-                        <?php if ($product['cost_price'] > 0): ?>
-                        <div style="font-size: 11px; color: #6B7A7B;">
-                            Cost: ₹ <?php echo number_format($product['cost_price'], 2); ?>
-                        </div>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <div style="font-weight: 600; color: <?php echo $product['quantity'] <= $product['min_quantity'] ? '#DC2626' : '#052E16'; ?>;">
-                            <?php echo number_format($product['quantity']); ?>
-                        </div>
-                        <?php if ($product['min_quantity'] > 0): ?>
-                        <div style="font-size: 11px; color: #6B7A7B;">
-                            Min: <?php echo number_format($product['min_quantity']); ?>
-                        </div>
-                        <?php endif; ?>
-                        <?php 
-                        $stockStatus = 'in-stock';
-                        if ($product['quantity'] <= 0) {
-                            $stockStatus = 'out-of-stock';
-                        } elseif ($product['quantity'] <= $product['min_quantity']) {
-                            $stockStatus = 'low-stock';
-                        }
-                        ?>
-                        <span class="stock-badge <?php echo $stockStatus; ?>">
-                            <?php 
-                            echo match($stockStatus) {
-                                'in-stock' => 'In Stock',
-                                'low-stock' => 'Low Stock',
-                                'out-of-stock' => 'Out of Stock',
-                                default => 'In Stock'
-                            };
-                            ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php 
-                        $statusColors = [
-                            'active' => 'badge-success',
-                            'inactive' => 'badge-secondary',
-                            'out_of_stock' => 'badge-danger'
-                        ];
-                        $color = $statusColors[$product['status']] ?? 'badge-secondary';
-                        ?>
-                        <span class="badge-status <?php echo $color; ?>">
-                            <?php echo str_replace('_', ' ', ucfirst($product['status'])); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <div style="font-size: 13px;">
-                            <?php echo formatDate($product['created_at']); ?>
-                        </div>
-                        <?php if ($product['created_by_name']): ?>
-                        <div style="font-size: 11px; color: #6B7A7B;">
-                            By: <?php echo escapeHtml($product['created_by_name']); ?>
-                        </div>
-                        <?php endif; ?>
-                    </td>
-                    <td style="text-align: center;">
-                        <div style="display: flex; gap: 4px; justify-content: center;">
-                            <!-- View -->
-                            <a href="product-view.php?id=<?php echo $product['id']; ?>" 
-                               class="btn-action btn-view" 
-                               title="View Product">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            
-                            <!-- Edit -->
-                            <a href="product-edit.php?id=<?php echo $product['id']; ?>" 
-                               class="btn-action btn-edit" 
-                               title="Edit Product">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            
-                            <!-- Toggle Status -->
-                            <a href="admin/products.php?action=toggle&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                               class="btn-action btn-toggle" 
-                               title="<?php echo $product['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
-                               onclick="return confirm('Are you sure you want to <?php echo $product['status'] === 'active' ? 'deactivate' : 'activate'; ?> this product?')">
-                                <i class="fas fa-<?php echo $product['status'] === 'active' ? 'pause' : 'play'; ?>"></i>
-                            </a>
-                            
-                            <!-- Delete -->
-                            <a href="admin/products.php?action=delete&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                               class="btn-action btn-delete" 
-                               title="Delete Product"
-                               onclick="return confirm('Are you sure you want to delete this product? This action cannot be undone.')">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600; color: <?php echo $product['quantity'] <= $product['min_quantity'] ? '#DC2626' : '#052E16'; ?>;">
+                                    <?php echo number_format($product['quantity']); ?>
+                                </div>
+                                <?php if ($product['min_quantity'] > 0): ?>
+                                    <div style="font-size: 11px; color: #6B7A7B;">
+                                        Min: <?php echo number_format($product['min_quantity']); ?>
+                                    </div>
+                                <?php endif; ?>
+                                <?php
+                                $stockStatus = 'in-stock';
+                                if ($product['quantity'] <= 0) {
+                                    $stockStatus = 'out-of-stock';
+                                } elseif ($product['quantity'] <= $product['min_quantity']) {
+                                    $stockStatus = 'low-stock';
+                                }
+                                ?>
+                                <span class="stock-badge <?php echo $stockStatus; ?>">
+                                    <?php
+                                    echo match ($stockStatus) {
+                                        'in-stock' => 'In Stock',
+                                        'low-stock' => 'Low Stock',
+                                        'out-of-stock' => 'Out of Stock',
+                                        default => 'In Stock'
+                                    };
+                                    ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php
+                                $statusColors = [
+                                    'active' => 'badge-success',
+                                    'inactive' => 'badge-secondary',
+                                    'out_of_stock' => 'badge-danger'
+                                ];
+                                $color = $statusColors[$product['status']] ?? 'badge-secondary';
+                                ?>
+                                <span class="badge-status <?php echo $color; ?>">
+                                    <?php echo str_replace('_', ' ', ucfirst($product['status'])); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <div style="font-size: 13px;">
+                                    <?php echo formatDate($product['created_at']); ?>
+                                </div>
+                                <?php if ($product['created_by_name']): ?>
+                                    <div style="font-size: 11px; color: #6B7A7B;">
+                                        By: <?php echo escapeHtml($product['created_by_name']); ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
+                            <td style="text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                    <!-- View -->
+                                    <a href="product-view.php?id=<?php echo $product['id']; ?>"
+                                        class="btn-action btn-view"
+                                        title="View Product">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    <!-- Edit -->
+                                    <a href="product-edit.php?id=<?php echo $product['id']; ?>"
+                                        class="btn-action btn-edit"
+                                        title="Edit Product">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    <!-- Toggle Status -->
+                                    <a href="admin/products.php?action=toggle&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                        class="btn-action btn-toggle"
+                                        title="<?php echo $product['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
+                                        onclick="return confirm('Are you sure you want to <?php echo $product['status'] === 'active' ? 'deactivate' : 'activate'; ?> this product?')">
+                                        <i class="fas fa-<?php echo $product['status'] === 'active' ? 'pause' : 'play'; ?>"></i>
+                                    </a>
+
+                                    <!-- Delete -->
+                                    <a href="admin/products.php?action=delete&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                        class="btn-action btn-delete"
+                                        title="Delete Product"
+                                        onclick="return confirm('Are you sure you want to delete this product? This action cannot be undone.')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
-    
+
     <!-- Pagination -->
     <?php if ($totalPages > 1): ?>
-    <div style="margin-top: 20px;">
-        <?php echo $pagination; ?>
-    </div>
+        <div style="margin-top: 20px;">
+            <?php echo $pagination; ?>
+        </div>
     <?php endif; ?>
 </div>
 

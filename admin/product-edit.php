@@ -17,10 +17,7 @@
 // Set page title
 $pageTitle = 'Edit Product';
 
-// Include configuration files
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../config/functions.php';
+require_once '../includes/admin_header.php';
 
 // Ensure session is started
 if (session_status() === PHP_SESSION_NONE) {
@@ -216,88 +213,103 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasErrors = true;
     }
     
+    // ============================================
+    // HANDLE IMAGE UPLOAD WITH COMPRESSION
+    // ============================================
+    $imageName = $formData['image'];
+    $removeImage = isset($_POST['remove_image']) && $_POST['remove_image'] == '1';
+    
+    // If remove image is checked
+    if ($removeImage && !empty($imageName)) {
+        // Delete old image and thumbnail
+        if (file_exists('../uploads/products/' . $imageName)) {
+            unlink('../uploads/products/' . $imageName);
+        }
+        if (file_exists('../uploads/products/thumbs/' . $imageName)) {
+            unlink('../uploads/products/thumbs/' . $imageName);
+        }
+        $imageName = null;
+    }
+    
+    // If new image is uploaded
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $uploadResult = uploadAndCompressImage(
+            $_FILES['image'],
+            '../uploads/products/',
+            70,        // Quality (70%)
+            1920,      // Max width
+            1920,      // Max height
+            true,      // Create thumbnail
+            400,       // Thumb width
+            400        // Thumb height
+        );
+        
+        if ($uploadResult['success']) {
+            // Delete old image if exists
+            if (!empty($formData['image']) && file_exists('../uploads/products/' . $formData['image'])) {
+                unlink('../uploads/products/' . $formData['image']);
+                if (file_exists('../uploads/products/thumbs/' . $formData['image'])) {
+                    unlink('../uploads/products/thumbs/' . $formData['image']);
+                }
+            }
+            $imageName = $uploadResult['filename'];
+        } else {
+            $errors['image'] = $uploadResult['message'];
+            $hasErrors = true;
+        }
+    }
+    
     // If no errors, update product
     if (!$hasErrors) {
         try {
-            // Handle image upload
-            $imageName = $formData['image'];
-            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                $uploadResult = uploadFile($_FILES['image'], '../uploads/products/', ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
-                if ($uploadResult['success']) {
-                    // Delete old image if exists
-                    if (!empty($formData['image']) && file_exists('../uploads/products/' . $formData['image'])) {
-                        unlink('../uploads/products/' . $formData['image']);
-                        if (file_exists('../uploads/products/thumbs/' . $formData['image'])) {
-                            unlink('../uploads/products/thumbs/' . $formData['image']);
-                        }
-                    }
-                    $imageName = $uploadResult['filename'];
-                    
-                    // Create thumbnail
-                    $thumbPath = '../uploads/products/thumbs/' . $imageName;
-                    createThumbnail(
-                        $uploadResult['path'],
-                        $thumbPath,
-                        IMAGE_THUMB_WIDTH,
-                        IMAGE_THUMB_HEIGHT,
-                        true
-                    );
-                } else {
-                    $errors['image'] = $uploadResult['error'];
-                    $hasErrors = true;
-                }
-            }
+            // Update product
+            $sql = "UPDATE products SET 
+                        product_name = ?,
+                        product_slug = ?,
+                        category_id = ?,
+                        sku = ?,
+                        description = ?,
+                        unit = ?,
+                        price = ?,
+                        cost_price = ?,
+                        quantity = ?,
+                        min_quantity = ?,
+                        image = ?,
+                        status = ?,
+                        is_featured = ?,
+                        updated_at = NOW()
+                    WHERE id = ?";
             
-            if (!$hasErrors) {
-                // Update product
-                $sql = "UPDATE products SET 
-                            product_name = ?,
-                            product_slug = ?,
-                            category_id = ?,
-                            sku = ?,
-                            description = ?,
-                            unit = ?,
-                            price = ?,
-                            cost_price = ?,
-                            quantity = ?,
-                            min_quantity = ?,
-                            image = ?,
-                            status = ?,
-                            is_featured = ?,
-                            updated_at = NOW()
-                        WHERE id = ?";
-                
-                $db->query($sql, [
-                    $formData['product_name'],
-                    $formData['product_slug'],
-                    $formData['category_id'],
-                    $formData['sku'],
-                    $formData['description'],
-                    $formData['unit'],
-                    $formData['price'],
-                    $formData['cost_price'],
-                    $formData['quantity'],
-                    $formData['min_quantity'],
-                    $imageName ?: null,
-                    $formData['status'],
-                    $formData['is_featured'],
-                    $productId
-                ]);
-                
-                // Log activity
-                logActivity(
-                    'update',
-                    $_SESSION['user_id'],
-                    'product',
-                    'Updated product: ' . $formData['product_name'] . ' (SKU: ' . $formData['sku'] . ')'
-                );
-                
-                setFlashMessage('success', 'Product updated successfully!');
-                
-                // Redirect to product list
-                redirect('admin/products.php');
-                exit;
-            }
+            $db->query($sql, [
+                $formData['product_name'],
+                $formData['product_slug'],
+                $formData['category_id'],
+                $formData['sku'],
+                $formData['description'],
+                $formData['unit'],
+                $formData['price'],
+                $formData['cost_price'],
+                $formData['quantity'],
+                $formData['min_quantity'],
+                $imageName ?: null,
+                $formData['status'],
+                $formData['is_featured'],
+                $productId
+            ]);
+            
+            // Log activity
+            logActivity(
+                'update',
+                $_SESSION['user_id'],
+                'product',
+                'Updated product: ' . $formData['product_name'] . ' (SKU: ' . $formData['sku'] . ')'
+            );
+            
+            setFlashMessage('success', 'Product updated successfully!');
+            
+            // Redirect to product list
+            redirect('admin/products.php');
+            exit;
             
         } catch (Exception $e) {
             error_log('Product update error: ' . $e->getMessage());
@@ -314,7 +326,7 @@ $csrfToken = generateCsrfToken();
 // ============================================
 // STEP 2: NOW include admin header (HTML starts here)
 // ============================================
-require_once '../includes/admin_header.php';
+
 ?>
 
 <style>
@@ -802,7 +814,7 @@ require_once '../includes/admin_header.php';
                             </div>
                         <?php endif; ?>
                         <div style="font-size: 12px; color: #6B7A7B;">
-                            <i class="fas fa-info-circle"></i> Allowed: JPG, PNG, GIF, WebP
+                            <i class="fas fa-info-circle"></i> Allowed: JPG, PNG, GIF, WebP • Will be converted to WebP
                         </div>
                     </div>
                 </div>

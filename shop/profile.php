@@ -26,7 +26,7 @@ $db = getDB();
 
 // Get shop data with user details
 $sql = "SELECT s.*, u.full_name, u.username, u.email, u.phone, u.created_at, u.last_login,
-        u.status as user_status,
+        u.status as user_status, u.avatar,
         a.full_name as agent_name
         FROM shops s 
         JOIN users u ON s.user_id = u.id 
@@ -69,7 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $deliveryAvailable = isset($_POST['delivery_available']) ? 1 : 0;
         $workingHoursStart = sanitizeInput($_POST['working_hours_start'] ?? '');
         $workingHoursEnd = sanitizeInput($_POST['working_hours_end'] ?? '');
-        $weekendDays = sanitizeInput($_POST['weekend_days'] ?? '');
+        
+        // Get weekend days from checkboxes
+        $weekendDays = isset($_POST['weekend_days']) ? implode(',', $_POST['weekend_days']) : '';
         
         // Validation
         $hasErrors = false;
@@ -135,10 +137,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $hasErrors = true;
         }
         
+        // ============================================
+        // HANDLE AVATAR UPLOAD - uploads/avatars/
+        // ============================================
+        $avatarFileName = null;
+        $avatarUploaded = false;
+        
+        if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+            // Check if uploads/avatars directory exists
+            $uploadDir = '../uploads/avatars/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
+            // Upload and compress image
+            $uploadResult = uploadAndCompressImage(
+                $_FILES['avatar'],
+                $uploadDir,
+                70,     // Quality (70%)
+                500,    // Max width
+                500,    // Max height
+                false,  // No thumbnail needed
+                0,
+                0
+            );
+            
+            if ($uploadResult['success']) {
+                $avatarFileName = $uploadResult['filename'];
+                $avatarUploaded = true;
+                
+                // Delete old avatar if exists
+                if (!empty($shop['avatar']) && file_exists($uploadDir . $shop['avatar'])) {
+                    @unlink($uploadDir . $shop['avatar']);
+                }
+            } else {
+                $errors['avatar'] = $uploadResult['message'];
+                $hasErrors = true;
+            }
+        }
+        
         if (!$hasErrors) {
-            // Update user
-            $sql = "UPDATE users SET full_name = ?, email = ?, phone = ?, updated_at = NOW() WHERE id = ?";
-            $db->query($sql, [$fullName, $email, $phone, $_SESSION['user_id']]);
+            // Build update query dynamically for users table
+            $updateFields = [];
+            $updateParams = [];
+            
+            $updateFields[] = "full_name = ?";
+            $updateParams[] = $fullName;
+            
+            $updateFields[] = "email = ?";
+            $updateParams[] = $email;
+            
+            $updateFields[] = "phone = ?";
+            $updateParams[] = $phone;
+            
+            // Add avatar if uploaded
+            if ($avatarUploaded && $avatarFileName !== null) {
+                $updateFields[] = "avatar = ?";
+                $updateParams[] = $avatarFileName;
+            }
+            
+            $updateFields[] = "updated_at = NOW()";
+            
+            // Add user_id at the end
+            $updateParams[] = $_SESSION['user_id'];
+            
+            $sql = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
+            $db->query($sql, $updateParams);
             
             // Update shop
             $sql = "UPDATE shops SET 
@@ -257,6 +321,12 @@ $shopCategories = [
     'supermarket' => 'Supermarket',
     'convenience' => 'Convenience Store'
 ];
+
+// Parse weekend days from database
+$selectedWeekendDays = [];
+if (!empty($shop['weekend_days'])) {
+    $selectedWeekendDays = explode(',', $shop['weekend_days']);
+}
 ?>
 
 <style>
@@ -272,21 +342,42 @@ $shopCategories = [
         border-radius: 12px;
         padding: 24px;
         text-align: center;
+        box-shadow: 0 2px 6px rgba(5, 46, 22, 0.06);
+    }
+    
+    .profile-avatar-wrapper {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 12px;
     }
     
     .profile-avatar {
-        width: 100px;
-        height: 100px;
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
         background: linear-gradient(135deg, #14532D, #16A34A);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 40px;
+        font-size: 42px;
         font-weight: 700;
         color: white;
-        margin: 0 auto 12px;
         box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        overflow: hidden;
+        object-fit: cover;
+        border: 3px solid #16A34A;
+    }
+    
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .profile-avatar .avatar-text {
+        font-size: 42px;
+        font-weight: 700;
+        color: white;
     }
     
     .profile-sidebar .profile-name {
@@ -337,6 +428,7 @@ $shopCategories = [
         border: 1px solid #E5EDE7;
         border-radius: 12px;
         padding: 24px;
+        box-shadow: 0 2px 6px rgba(5, 46, 22, 0.06);
     }
     
     .profile-card .card-title {
@@ -463,14 +555,65 @@ $shopCategories = [
         cursor: pointer;
     }
     
+    /* Weekend days checkbox grid */
+    .weekend-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .weekend-grid .checkbox-group {
+        padding: 6px 10px;
+        border: 1px solid #E5EDE7;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    
+    .weekend-grid .checkbox-group:hover {
+        background: #F0FDF4;
+        border-color: #16A34A;
+    }
+    
+    .weekend-grid .checkbox-group input[type="checkbox"]:checked + span {
+        color: #16A34A;
+    }
+    
+    /* Avatar preview in form */
+    .avatar-preview-wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .avatar-preview-wrap .preview-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 2px dashed #E5EDE7;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F7FCF7;
+        flex-shrink: 0;
+    }
+    
+    .avatar-preview-wrap .preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .avatar-preview-wrap .preview-box .placeholder-icon {
+        font-size: 28px;
+        color: #6B7A7B;
+    }
+    
     @media (max-width: 1024px) {
         .profile-container {
             grid-template-columns: 1fr;
         }
-        /* .profile-sidebar {
-            max-width: 400px;
-            margin: 0 auto;
-        } */
     }
     
     @media (max-width: 768px) {
@@ -480,15 +623,50 @@ $shopCategories = [
         .form-row-3 {
             grid-template-columns: 1fr;
         }
+        .profile-avatar-wrapper {
+            width: 100px;
+            height: 100px;
+        }
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            font-size: 36px;
+        }
+        .profile-avatar .avatar-text {
+            font-size: 36px;
+        }
+        .weekend-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .profile-sidebar {
+            padding: 16px;
+        }
+        .profile-card {
+            padding: 16px;
+        }
+  
+        .weekend-grid {
+            grid-template-columns: 1fr 1fr;
+        }
     }
 </style>
 
 <div class="profile-container">
     <!-- Sidebar -->
     <div class="profile-sidebar">
-        <div class="profile-avatar">
-            <?php echo strtoupper(substr($shop['shop_name'] ?? 'S', 0, 2)); ?>
+        <div class="profile-avatar-wrapper">
+            <div class="profile-avatar">
+                <?php if (!empty($shop['avatar']) && file_exists('../uploads/avatars/' . $shop['avatar'])): ?>
+                    <img src="../uploads/avatars/<?php echo escapeHtml($shop['avatar']); ?>" alt="<?php echo escapeHtml($shop['shop_name'] ?? 'Shop'); ?>">
+                <?php else: ?>
+                    <span class="avatar-text"><?php echo strtoupper(substr($shop['shop_name'] ?? 'S', 0, 2)); ?></span>
+                <?php endif; ?>
+            </div>
         </div>
+        
         <div class="profile-name"><?php echo escapeHtml($shop['shop_name'] ?? 'Shop'); ?></div>
         <div class="profile-role">
             <i class="fas fa-store" style="color: #16A34A;"></i> 
@@ -574,9 +752,39 @@ $shopCategories = [
             </div>
             <?php endif; ?>
             
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data">
                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
                 <input type="hidden" name="action" value="update_profile">
+                
+                <!-- Avatar Upload -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-image" style="color: #16A34A;"></i>
+                        Profile Photo
+                    </label>
+                    <div class="avatar-preview-wrap">
+                        <div class="preview-box" id="avatarPreview">
+                            <?php if (!empty($shop['avatar']) && file_exists('../uploads/avatars/' . $shop['avatar'])): ?>
+                                <img src="../uploads/avatars/<?php echo escapeHtml($shop['avatar']); ?>" alt="Avatar">
+                            <?php else: ?>
+                                <i class="fas fa-user placeholder-icon"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div>
+                            <input type="file" id="avatarInputForm" name="avatar" accept="image/*" style="display: none;" onchange="previewAvatarForm(this)">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('avatarInputForm').click()">
+                                <i class="fas fa-upload"></i> Choose Image
+                            </button>
+                            <div class="form-hint" style="margin-top: 4px;">
+                                <i class="fas fa-info-circle"></i> 
+                                Allowed: JPG, PNG, GIF, WebP (Max 5MB)
+                            </div>
+                            <?php if (isset($errors['avatar'])): ?>
+                                <div class="form-error"><?php echo escapeHtml($errors['avatar']); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -694,19 +902,27 @@ $shopCategories = [
                     <div class="form-error"><?php echo escapeHtml($errors['working_hours']); ?></div>
                 <?php endif; ?>
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" for="weekend_days">Weekend Days</label>
-                        <select id="weekend_days" name="weekend_days" class="form-input" multiple style="height: 80px;">
-                            <?php foreach ($weekendDaysOptions as $day): ?>
-                                <option value="<?php echo $day; ?>" <?php echo strpos($shop['weekend_days'] ?? '', $day) !== false ? 'selected' : ''; ?>>
-                                    <?php echo $day; ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="form-hint"><i class="fas fa-info-circle"></i> Hold Ctrl/Cmd to select multiple days</div>
+                <!-- Weekend Days - Checkbox -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-week" style="color: #16A34A;"></i>
+                        Weekend Days
+                    </label>
+                    <div class="weekend-grid">
+                        <?php foreach ($weekendDaysOptions as $day): ?>
+                            <label class="checkbox-group">
+                                <input type="checkbox" name="weekend_days[]" value="<?php echo $day; ?>" 
+                                    <?php echo in_array($day, $selectedWeekendDays) ? 'checked' : ''; ?>>
+                                <span><?php echo $day; ?></span>
+                            </label>
+                        <?php endforeach; ?>
                     </div>
-                    
+                    <div class="form-hint">
+                        <i class="fas fa-info-circle"></i> Select days when your shop is closed
+                    </div>
+                </div>
+                
+                <div class="form-row">
                     <div class="form-group" style="display: flex; align-items: flex-end;">
                         <label class="checkbox-group" style="margin: 0;">
                             <input type="checkbox" name="delivery_available" value="1" <?php echo ($shop['delivery_available'] ?? 0) ? 'checked' : ''; ?>>
@@ -769,5 +985,19 @@ $shopCategories = [
         </div>
     </div>
 </div>
+
+<script>
+// Preview avatar from form upload
+function previewAvatarForm(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const previewBox = document.getElementById('avatarPreview');
+            previewBox.innerHTML = '<img src="' + e.target.result + '" alt="Avatar Preview">';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 
 <?php require_once __DIR__ . '/../includes/shop_footer.php'; ?>

@@ -26,9 +26,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 // Get current user data
 $currentUser = getCurrentUser();
 
-// Get agent data
+// Get agent data with avatar
 $db = getDB();
-$sql = "SELECT a.*, u.full_name, u.username, u.email 
+$sql = "SELECT a.*, u.full_name, u.username, u.email, u.avatar 
         FROM agents a 
         JOIN users u ON a.user_id = u.id 
         WHERE a.user_id = ?";
@@ -161,13 +161,27 @@ $notificationCount = 0;
         }
         
         .sidebar-footer .user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: rgba(34, 197, 94, 0.2);
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 16px;
+            color: #22C55E;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .sidebar-footer .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .sidebar-footer .user-avatar .avatar-placeholder {
             font-size: 16px;
             color: #22C55E;
         }
@@ -307,6 +321,21 @@ $notificationCount = 0;
         .alert-warning { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
         .alert-info { background: #DBEAFE; color: #1E40AF; border: 1px solid #BFDBFE; }
         
+        .alert .close-btn {
+            margin-left: auto;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: inherit;
+            opacity: 0.6;
+            padding: 0 4px;
+        }
+        
+        .alert .close-btn:hover {
+            opacity: 1;
+        }
+        
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -392,7 +421,13 @@ $notificationCount = 0;
             
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-avatar">
+                        <?php if (!empty($agent['avatar']) && file_exists('../uploads/avatars/' . $agent['avatar'])): ?>
+                            <img src="../uploads/avatars/<?php echo escapeHtml($agent['avatar']); ?>" alt="<?php echo escapeHtml($agent['full_name'] ?? 'Agent'); ?>">
+                        <?php else: ?>
+                            <i class="fas fa-user avatar-placeholder"></i>
+                        <?php endif; ?>
+                    </div>
                     <div>
                         <div class="user-name"><?php echo escapeHtml($agent['full_name'] ?? 'Agent'); ?></div>
                         <div class="user-role">Agent</div>
@@ -430,7 +465,7 @@ $notificationCount = 0;
                             };
                         ?>"></i>
                         <span><?php echo escapeHtml($message); ?></span>
-                        <button class="close-btn" onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; font-size: 18px; cursor: pointer; color: inherit; opacity: 0.6;">&times;</button>
+                        <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
                     </div>
                     <?php endforeach; ?>
                 <?php endforeach; ?>

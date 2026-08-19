@@ -9,16 +9,16 @@
  * @author Samridhi Agro Team
  * @version 1.0.0
  */
-
+// Include configuration
+require_once '../config/config.php';
+require_once '../config/database.php';
+require_once '../config/functions.php';
 // Start session if not started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Include configuration
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../config/functions.php';
+
 
 // Require shop login
 if (!isLoggedIn() || !hasRole('shop')) {

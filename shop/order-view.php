@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Shop Order View
  * 
@@ -98,7 +99,10 @@ $csrfToken = generateCsrfToken();
 ?>
 
 <style>
-    .order-header {
+    /* ===== ORDER VIEW PAGE STYLES ===== */
+
+    /* Order Header */
+    .ov-order-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -108,9 +112,10 @@ $csrfToken = generateCsrfToken();
         margin-bottom: 20px;
         flex-wrap: wrap;
         gap: 12px;
+        box-shadow: 0 2px 8px rgba(5, 46, 22, 0.08);
     }
 
-    .order-header .order-info h2 {
+    .ov-order-header .order-info h2 {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 20px;
         font-weight: 700;
@@ -118,7 +123,7 @@ $csrfToken = generateCsrfToken();
         margin: 0;
     }
 
-    .order-header .order-info .order-meta {
+    .ov-order-header .order-info .order-meta {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
@@ -127,21 +132,28 @@ $csrfToken = generateCsrfToken();
         margin-top: 4px;
     }
 
-    .order-header .order-info .order-meta span {
+    .ov-order-header .order-info .order-meta span {
         display: flex;
         align-items: center;
         gap: 4px;
     }
 
-    .detail-section {
+    /* Detail Section */
+    .ov-detail-section {
         background: white;
-        border: 1px solid #E5EDE7;
+        border: 1px solid rgba(20, 83, 45, 0.27);
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 16px;
+       box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+        transition: box-shadow 0.3s ease;
     }
 
-    .detail-section .section-title {
+    .ov-detail-section:hover {
+        box-shadow: 0 6px 16px rgba(5, 46, 22, 0.08);
+    }
+
+    .ov-detail-section .section-title {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 15px;
         font-weight: 600;
@@ -151,17 +163,18 @@ $csrfToken = generateCsrfToken();
         border-bottom: 2px solid #F0FDF4;
     }
 
-    .detail-row {
+    /* Detail Rows */
+    .ov-detail-row {
         display: flex;
         padding: 4px 0;
         border-bottom: 1px solid #F7FCF7;
     }
 
-    .detail-row:last-child {
+    .ov-detail-row:last-child {
         border-bottom: none;
     }
 
-    .detail-label {
+    .ov-detail-label {
         font-size: 13px;
         font-weight: 500;
         color: #6B7A7B;
@@ -169,13 +182,14 @@ $csrfToken = generateCsrfToken();
         flex-shrink: 0;
     }
 
-    .detail-value {
+    .ov-detail-value {
         font-size: 13px;
         color: #052E16;
         flex: 1;
     }
 
-    .badge-status {
+    /* Badges */
+    .ov-badge {
         display: inline-block;
         padding: 3px 10px;
         border-radius: 20px;
@@ -184,25 +198,49 @@ $csrfToken = generateCsrfToken();
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
+    .ov-badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
 
-    .product-item {
+    .ov-badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .ov-badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .ov-badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .ov-badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .ov-badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
+
+    /* Product Item */
+    .ov-product-item {
         display: flex;
-        align-items: center;
         gap: 12px;
         padding: 10px 0;
         border-bottom: 1px solid #F7FCF7;
     }
 
-    .product-item:last-child {
+    .ov-product-item:last-child {
         border-bottom: none;
     }
 
-    .product-item .product-thumb {
+    .ov-product-item .product-thumb {
         width: 40px;
         height: 40px;
         border-radius: 8px;
@@ -213,90 +251,91 @@ $csrfToken = generateCsrfToken();
         font-size: 16px;
         color: #6B7A7B;
         flex-shrink: 0;
-        border: 1px solid #E5EDE7;
+        border: 1px solid rgba(20, 83, 45, 0.08);
     }
 
-    .product-item .product-thumb img {
+    .ov-product-item .product-thumb img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         border-radius: 8px;
     }
 
-    .product-item .product-details {
+    .ov-product-item .product-details {
         flex: 1;
     }
 
-    .product-item .product-details .product-name {
+    .ov-product-item .product-details .product-name {
         font-weight: 500;
         color: #052E16;
     }
 
-    .product-item .product-details .product-sku {
+    .ov-product-item .product-details .product-sku {
         font-size: 12px;
         color: #6B7A7B;
     }
 
-    .product-item .product-price {
+    .ov-product-item .product-price {
         text-align: right;
     }
 
-    .product-item .product-price .price {
+    .ov-product-item .product-price .price {
         font-weight: 600;
         color: #14532D;
     }
 
-    .product-item .product-price .qty {
+    .ov-product-item .product-price .qty {
         font-size: 12px;
         color: #6B7A7B;
     }
 
-    .order-totals {
+    /* Order Totals */
+    .ov-order-totals {
         margin-top: 12px;
         padding-top: 12px;
-        border-top: 2px solid #E5EDE7;
+        border-top: 2px solid rgba(20, 83, 45, 0.08);
         text-align: right;
     }
 
-    .order-totals .total-row {
+    .ov-order-totals .total-row {
         display: flex;
         justify-content: flex-end;
         padding: 2px 0;
         font-size: 14px;
     }
 
-    .order-totals .total-row .label {
+    .ov-order-totals .total-row .label {
         color: #6B7A7B;
         width: 100px;
     }
 
-    .order-totals .total-row .value {
+    .ov-order-totals .total-row .value {
         width: 100px;
         text-align: right;
         font-weight: 500;
     }
 
-    .order-totals .total-row.grand-total {
+    .ov-order-totals .total-row.grand-total {
         font-size: 17px;
         font-weight: 700;
         color: #052E16;
         padding-top: 6px;
-        border-top: 2px solid #E5EDE7;
+        border-top: 2px solid rgba(20, 83, 45, 0.08);
         margin-top: 4px;
     }
 
-    .order-totals .total-row.grand-total .value {
+    .ov-order-totals .total-row.grand-total .value {
         color: #14532D;
     }
 
     /* Payment Progress */
-    .payment-progress-container {
+    .ov-payment-progress {
         margin-top: 10px;
         padding-top: 10px;
         border-top: 1px solid #F0FDF4;
     }
 
-    .payment-progress-container .progress-bar {
+    .ov-payment-progress .progress-bar {
         height: 6px;
         background: #E5EDE7;
         border-radius: 4px;
@@ -304,7 +343,7 @@ $csrfToken = generateCsrfToken();
         margin-top: 4px;
     }
 
-    .payment-progress-container .progress-bar .progress-fill {
+    .ov-payment-progress .progress-bar .progress-fill {
         height: 100%;
         border-radius: 4px;
         transition: width 0.5s ease;
@@ -312,11 +351,11 @@ $csrfToken = generateCsrfToken();
     }
 
     /* Installment List */
-    .installment-list {
+    .ov-installment-list {
         margin-top: 8px;
     }
 
-    .installment-item {
+    .ov-installment-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -325,23 +364,23 @@ $csrfToken = generateCsrfToken();
         border-bottom: 1px solid #F7FCF7;
     }
 
-    .installment-item:last-child {
+    .ov-installment-item:last-child {
         border-bottom: none;
     }
 
-    .installment-item .inst-number {
+    .ov-installment-item .inst-number {
         font-weight: 500;
         color: #052E16;
         min-width: 50px;
     }
 
-    .installment-item .inst-amount {
+    .ov-installment-item .inst-amount {
         font-weight: 600;
         color: #14532D;
         min-width: 80px;
     }
 
-    .installment-item .inst-receiver {
+    .ov-installment-item .inst-receiver {
         font-size: 11px;
         color: #6B7A7B;
         display: flex;
@@ -350,17 +389,17 @@ $csrfToken = generateCsrfToken();
         flex: 1;
     }
 
-    .installment-item .inst-receiver .receiver-agent {
+    .ov-installment-item .inst-receiver .receiver-agent {
         color: #7C3AED;
         font-weight: 500;
     }
 
-    .installment-item .inst-receiver .receiver-admin {
+    .ov-installment-item .inst-receiver .receiver-admin {
         color: #DC2626;
         font-weight: 500;
     }
 
-    .badge-installment {
+    .ov-badge-installment {
         display: inline-block;
         padding: 1px 8px;
         border-radius: 10px;
@@ -369,12 +408,27 @@ $csrfToken = generateCsrfToken();
         text-transform: capitalize;
     }
 
-    .badge-installment.pending { background: #FEF3C7; color: #92400E; }
-    .badge-installment.collected { background: #DBEAFE; color: #1E40AF; }
-    .badge-installment.submitted { background: #EDE9FE; color: #5B21B6; }
-    .badge-installment.confirmed { background: #DCFCE7; color: #065F46; }
+    .ov-badge-installment.pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
 
-    .receiver-badge {
+    .ov-badge-installment.collected {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .ov-badge-installment.submitted {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .ov-badge-installment.confirmed {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .ov-receiver-badge {
         display: inline-block;
         padding: 1px 10px;
         border-radius: 12px;
@@ -382,17 +436,18 @@ $csrfToken = generateCsrfToken();
         font-weight: 600;
     }
 
-    .receiver-badge.agent {
+    .ov-receiver-badge.agent {
         background: #EDE9FE;
         color: #5B21B6;
     }
 
-    .receiver-badge.admin {
+    .ov-receiver-badge.admin {
         background: #FEE2E2;
         color: #991B1B;
     }
 
-    .timeline-item {
+    /* Timeline */
+    .ov-timeline-item {
         display: flex;
         gap: 12px;
         padding: 8px 0;
@@ -400,11 +455,11 @@ $csrfToken = generateCsrfToken();
         align-items: flex-start;
     }
 
-    .timeline-item:last-child {
+    .ov-timeline-item:last-child {
         border-bottom: none;
     }
 
-    .timeline-item .timeline-icon {
+    .ov-timeline-item .timeline-icon {
         width: 30px;
         height: 30px;
         border-radius: 50%;
@@ -416,21 +471,22 @@ $csrfToken = generateCsrfToken();
         flex-shrink: 0;
     }
 
-    .timeline-item .timeline-content {
+    .ov-timeline-item .timeline-content {
         flex: 1;
     }
 
-    .timeline-item .timeline-content .timeline-text {
+    .ov-timeline-item .timeline-content .timeline-text {
         font-size: 13px;
         color: #052E16;
     }
 
-    .timeline-item .timeline-content .timeline-time {
+    .ov-timeline-item .timeline-content .timeline-time {
         font-size: 11px;
         color: #6B7A7B;
     }
 
-    .btn-action {
+    /* Buttons */
+    .ov-btn-action {
         padding: 6px 16px;
         border-radius: 6px;
         border: none;
@@ -444,46 +500,301 @@ $csrfToken = generateCsrfToken();
         cursor: pointer;
     }
 
-    .btn-action:hover { transform: translateY(-1px); }
+    .ov-btn-action:hover {
+        transform: translateY(-1px);
+    }
 
-    .btn-back { background: #F3F4F6; color: #4A5B5D; }
-    .btn-back:hover { background: #E5E7EB; }
+    .ov-btn-back {
+        background: #F3F4F6;
+        color: #4A5B5D;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
 
-    .btn-cancel { background: #FEE2E2; color: #DC2626; }
-    .btn-cancel:hover { background: #FECACA; }
+    .ov-btn-back:hover {
+        background: #E5E7EB;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .ov-btn-cancel {
+        background: #FEE2E2;
+        color: #DC2626;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .ov-btn-cancel:hover {
+        background: #FECACA;
+        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+    }
+
+    /* Header Actions */
+    .ov-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    /* Empty State */
+    .ov-empty-state {
+        color: #6B7A7B;
+        text-align: center;
+        padding: 12px 0;
+    }
+
+    .ov-empty-state i {
+        font-size: 20px;
+        display: block;
+        margin-bottom: 4px;
+        opacity: 0.5;
+    }
+
+    /* ===== RESPONSIVE ===== */
+
+    @media (max-width: 1024px) {
+        .ov-order-header .order-info h2 {
+            font-size: 18px;
+        }
+    }
 
     @media (max-width: 768px) {
-        .detail-row {
+        .ov-order-header {
+            padding: 14px 16px;
             flex-direction: column;
+            align-items: stretch;
+        }
+
+        .ov-order-header .order-info h2 {
+            font-size: 17px;
+        }
+
+        .ov-order-header .order-info .order-meta {
+            font-size: 13px;
+            gap: 8px;
+        }
+
+        .ov-header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .ov-header-actions .ov-btn-action {
+            padding: 8px 14px;
+            font-size: 12px;
+        }
+
+        .ov-detail-section {
+            padding: 14px 16px;
+        }
+
+        .ov-detail-row {
+            flex-direction: column;
+            padding: 6px 0;
+        }
+
+        .ov-detail-label {
+            width: 100%;
+            font-size: 12px;
+        }
+
+        .ov-detail-value {
+            font-size: 13px;
+            padding-top: 2px;
+        }
+
+        .ov-product-item {
+            flex-wrap: wrap;
             padding: 8px 0;
         }
-        .detail-label {
-            width: 100%;
+
+     
+
+        .ov-product-item .product-price .price {
+            display: inline-block;
         }
-        .product-item {
-            flex-wrap: wrap;
-        }
-        .product-item .product-price {
-            width: 100%;
-            text-align: left;
-            padding-left: 52px;
-        }
-        .order-totals .total-row {
+
+        .ov-order-totals .total-row {
             justify-content: space-between;
+            font-size: 13px;
         }
-        .order-totals .total-row .label {
+
+        .ov-order-totals .total-row .label {
             width: auto;
         }
-        .order-totals .total-row .value {
+
+        .ov-order-totals .total-row .value {
             width: auto;
         }
-        .installment-item {
+
+        .ov-order-totals .total-row.grand-total {
+            font-size: 15px;
+        }
+
+        .ov-installment-item {
             flex-wrap: wrap;
             gap: 4px;
+            padding: 6px 0;
         }
-        .installment-item .inst-receiver {
+
+        .ov-installment-item .inst-number {
+            min-width: 40px;
+            font-size: 11px;
+        }
+
+        .ov-installment-item .inst-amount {
+            min-width: 70px;
+            font-size: 12px;
+        }
+
+        .ov-installment-item .inst-receiver {
             width: 100%;
-            padding-left: 50px;
+            padding-left: 0;
+            font-size: 10px;
+        }
+
+        .ov-timeline-item .timeline-content .timeline-text {
+            font-size: 12px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .ov-order-header {
+            padding: 12px 14px;
+            border-radius: 10px;
+        }
+
+        .ov-order-header .order-info h2 {
+            font-size: 15px;
+        }
+
+        .ov-order-header .order-info .order-meta {
+            font-size: 12px;
+            gap: 6px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .ov-header-actions {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .ov-header-actions .ov-btn-action {
+            width: 100%;
+            justify-content: center;
+            padding: 10px;
+            font-size: 13px;
+            border-radius: 8px;
+            border: 1px solid gray;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .ov-detail-section {
+            padding: 12px 14px;
+            border-radius: 10px;
+        }
+
+        .ov-detail-section .section-title {
+            font-size: 14px;
+        }
+
+        .ov-detail-row {
+            padding: 5px 0;
+        }
+
+        .ov-detail-label {
+            font-size: 11px;
+        }
+
+        .ov-detail-value {
+            font-size: 12px;
+        }
+
+        .ov-product-item {
+            padding: 6px 0;
+            gap: 8px;
+        }
+
+        .ov-product-item .product-thumb {
+            width: 32px;
+            height: 32px;
+            font-size: 12px;
+        }
+
+        .ov-product-item .product-details .product-name {
+            font-size: 13px;
+        }
+
+        .ov-product-item .product-details .product-sku {
+            font-size: 10px;
+        }
+
+  
+
+        .ov-product-item .product-price .price {
+            font-size: 13px;
+        }
+
+        .ov-product-item .product-price .qty {
+            font-size: 11px;
+        }
+
+        .ov-order-totals .total-row {
+            font-size: 12px;
+        }
+
+        .ov-order-totals .total-row.grand-total {
+            font-size: 14px;
+        }
+
+        .ov-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+        }
+
+        .ov-badge-installment {
+            font-size: 9px;
+            padding: 1px 6px;
+        }
+
+        .ov-receiver-badge {
+            font-size: 9px;
+            padding: 1px 8px;
+        }
+
+        .ov-timeline-item {
+            gap: 8px;
+            padding: 6px 0;
+        }
+
+        .ov-timeline-item .timeline-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 10px;
+        }
+
+        .ov-timeline-item .timeline-content .timeline-text {
+            font-size: 12px;
+        }
+
+        .ov-timeline-item .timeline-content .timeline-time {
+            font-size: 10px;
+        }
+
+        .ov-payment-progress .progress-bar {
+            height: 4px;
+        }
+
+        .ov-empty-state i {
+            font-size: 16px;
+        }
+
+        /* Payment progress label */
+        .ov-payment-progress>div:first-child {
+            font-size: 11px;
+        }
+
+        /* Installment section header */
+        .ov-detail-section .section-title+div>div:first-child {
+            font-size: 11px;
         }
     }
 </style>
@@ -491,37 +802,37 @@ $csrfToken = generateCsrfToken();
 <div class="content-card" style="padding: 0; border: none; box-shadow: none; background: transparent;">
 
     <!-- Order Header -->
-    <div class="order-header">
+    <div class="ov-order-header">
         <div class="order-info">
             <h2>Order #<?php echo escapeHtml($order['order_number']); ?></h2>
             <div class="order-meta">
                 <span><i class="fas fa-calendar"></i> <?php echo formatDate($order['created_at']); ?></span>
                 <span>
                     <i class="fas fa-circle" style="color: <?php
-                        echo match ($order['status']) {
-                            'pending' => '#F59E0B',
-                            'confirmed' => '#3B82F6',
-                            'processing' => '#8B5CF6',
-                            'shipped' => '#06B6D4',
-                            'delivered' => '#22C55E',
-                            'cancelled' => '#EF4444',
-                            'returned' => '#F59E0B',
-                            default => '#6B7280'
-                        };
-                    ?>; font-size: 10px;"></i>
+                                                            echo match ($order['status']) {
+                                                                'pending' => '#F59E0B',
+                                                                'confirmed' => '#3B82F6',
+                                                                'processing' => '#8B5CF6',
+                                                                'shipped' => '#06B6D4',
+                                                                'delivered' => '#22C55E',
+                                                                'cancelled' => '#EF4444',
+                                                                'returned' => '#F59E0B',
+                                                                default => '#6B7280'
+                                                            };
+                                                            ?>; font-size: 10px;"></i>
                     <?php echo ucfirst($order['status']); ?>
                 </span>
                 <span><i class="fas fa-rupee-sign"></i> ₹ <?php echo number_format($order['total_amount'], 2); ?></span>
                 <span><i class="fas fa-box"></i> <?php echo $order['item_count']; ?> items</span>
             </div>
         </div>
-        <div style="display: flex; gap: 8px;">
-            <a href="orders.php" class="btn-action btn-back">
+        <div class="ov-header-actions">
+            <a href="orders.php" class="ov-btn-action ov-btn-back">
                 <i class="fas fa-arrow-left"></i> Back
             </a>
             <?php if ($order['status'] === 'pending'): ?>
                 <a href="orders.php?action=cancel&id=<?php echo $order['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                    class="btn-action btn-cancel"
+                    class="ov-btn-action ov-btn-cancel"
                     onclick="return confirm('Are you sure you want to cancel this order?')">
                     <i class="fas fa-times"></i> Cancel Order
                 </a>
@@ -530,14 +841,14 @@ $csrfToken = generateCsrfToken();
     </div>
 
     <!-- Order Items -->
-    <div class="detail-section">
+    <div class="ov-detail-section">
         <div class="section-title">
             <i class="fas fa-boxes" style="color: #16A34A;"></i>
             Order Items
         </div>
 
         <?php foreach ($orderItems as $item): ?>
-            <div class="product-item">
+            <div class="ov-product-item">
                 <div class="product-thumb">
                     <?php if (!empty($item['image']) && file_exists('../uploads/products/' . $item['image'])): ?>
                         <img src="../uploads/products/<?php echo escapeHtml($item['image']); ?>" alt="<?php echo escapeHtml($item['product_name']); ?>">
@@ -560,7 +871,7 @@ $csrfToken = generateCsrfToken();
         <?php endforeach; ?>
 
         <!-- Order Totals -->
-        <div class="order-totals">
+        <div class="ov-order-totals">
             <div class="total-row">
                 <span class="label">Subtotal</span>
                 <span class="value">₹ <?php echo number_format($subtotal, 2); ?></span>
@@ -585,58 +896,58 @@ $csrfToken = generateCsrfToken();
     </div>
 
     <!-- Order Information -->
-    <div class="detail-section">
+    <div class="ov-detail-section">
         <div class="section-title">
             <i class="fas fa-info-circle" style="color: #16A34A;"></i>
             Order Information
         </div>
-        <div class="detail-row">
-            <span class="detail-label">Order Status</span>
-            <span class="detail-value">
+        <div class="ov-detail-row">
+            <span class="ov-detail-label">Order Status</span>
+            <span class="ov-detail-value">
                 <?php
                 $statusColors = [
-                    'pending' => 'badge-warning',
-                    'confirmed' => 'badge-info',
-                    'processing' => 'badge-primary',
-                    'shipped' => 'badge-info',
-                    'delivered' => 'badge-success',
-                    'cancelled' => 'badge-danger',
-                    'returned' => 'badge-warning'
+                    'pending' => 'ov-badge-warning',
+                    'confirmed' => 'ov-badge-info',
+                    'processing' => 'ov-badge-primary',
+                    'shipped' => 'ov-badge-info',
+                    'delivered' => 'ov-badge-success',
+                    'cancelled' => 'ov-badge-danger',
+                    'returned' => 'ov-badge-warning'
                 ];
-                $color = $statusColors[$order['status']] ?? 'badge-secondary';
+                $color = $statusColors[$order['status']] ?? 'ov-badge-secondary';
                 ?>
-                <span class="badge-status <?php echo $color; ?>">
+                <span class="ov-badge <?php echo $color; ?>">
                     <?php echo ucfirst($order['status']); ?>
                 </span>
             </span>
         </div>
-        <div class="detail-row">
-            <span class="detail-label">Payment Status</span>
-            <span class="detail-value">
+        <div class="ov-detail-row">
+            <span class="ov-detail-label">Payment Status</span>
+            <span class="ov-detail-value">
                 <?php
                 $paymentColors = [
-                    'pending' => 'badge-warning',
-                    'paid' => 'badge-success',
-                    'failed' => 'badge-danger',
-                    'refunded' => 'badge-info'
+                    'pending' => 'ov-badge-warning',
+                    'paid' => 'ov-badge-success',
+                    'failed' => 'ov-badge-danger',
+                    'refunded' => 'ov-badge-info'
                 ];
-                $pColor = $paymentColors[$order['payment_status']] ?? 'badge-secondary';
+                $pColor = $paymentColors[$order['payment_status']] ?? 'ov-badge-secondary';
                 ?>
-                <span class="badge-status <?php echo $pColor; ?>">
+                <span class="ov-badge <?php echo $pColor; ?>">
                     <?php echo ucfirst($order['payment_status']); ?>
                 </span>
             </span>
         </div>
         <?php if ($order['payment_method']): ?>
-            <div class="detail-row">
-                <span class="detail-label">Payment Method</span>
-                <span class="detail-value"><?php echo ucfirst($order['payment_method']); ?></span>
+            <div class="ov-detail-row">
+                <span class="ov-detail-label">Payment Method</span>
+                <span class="ov-detail-value"><?php echo ucfirst($order['payment_method']); ?></span>
             </div>
         <?php endif; ?>
         <?php if ($order['delivery_notes']): ?>
-            <div class="detail-row">
-                <span class="detail-label">Delivery Notes</span>
-                <span class="detail-value"><?php echo escapeHtml($order['delivery_notes']); ?></span>
+            <div class="ov-detail-row">
+                <span class="ov-detail-label">Delivery Notes</span>
+                <span class="ov-detail-value"><?php echo escapeHtml($order['delivery_notes']); ?></span>
             </div>
         <?php endif; ?>
     </div>
@@ -645,138 +956,138 @@ $csrfToken = generateCsrfToken();
     <!-- COMPLETE PAYMENT INFORMATION WITH INSTALLMENTS -->
     <!-- ============================================ -->
     <?php if ($paymentInfo): ?>
-    <div class="detail-section">
-        <div class="section-title">
-            <i class="fas fa-credit-card" style="color: #16A34A;"></i>
-            Payment Details
-            <?php if ($paymentInfo['status'] === 'confirmed'): ?>
-                <span class="badge-status badge-success" style="margin-left: 8px;">
-                    <i class="fas fa-check-circle"></i> Completed
-                </span>
-            <?php elseif ($paymentInfo['status'] === 'pending' && $paymentInfo['paid_amount'] > 0): ?>
-                <span class="badge-status badge-warning" style="margin-left: 8px;">
-                    <i class="fas fa-clock"></i> Partial Payment
-                </span>
-            <?php endif; ?>
-        </div>
-
-        <!-- Payment Summary -->
-        <div class="detail-row">
-            <span class="detail-label">Total Amount</span>
-            <span class="detail-value" style="font-weight: 700; color: #14532D;">₹ <?php echo number_format($paymentInfo['amount'], 2); ?></span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Amount Paid</span>
-            <span class="detail-value" style="color: #16A34A; font-weight: 600;">
-                ₹ <?php echo number_format($paymentInfo['paid_amount'], 2); ?>
-                <?php if ($paymentInfo['paid_amount'] > 0): ?>
-                    <span style="font-size: 12px; color: #6B7A7B; margin-left: 8px;">
-                        (<?php echo round(($paymentInfo['paid_amount'] / $paymentInfo['amount']) * 100); ?>%)
+        <div class="ov-detail-section">
+            <div class="section-title">
+                <i class="fas fa-credit-card" style="color: #16A34A;"></i>
+                Payment Details
+                <?php if ($paymentInfo['status'] === 'confirmed'): ?>
+                    <span class="ov-badge ov-badge-success" style="margin-left: 8px;">
+                        <i class="fas fa-check-circle"></i> Completed
+                    </span>
+                <?php elseif ($paymentInfo['status'] === 'pending' && $paymentInfo['paid_amount'] > 0): ?>
+                    <span class="ov-badge ov-badge-warning" style="margin-left: 8px;">
+                        <i class="fas fa-clock"></i> Partial Payment
                     </span>
                 <?php endif; ?>
-            </span>
-        </div>
-        <?php if ($paymentInfo['remaining_amount'] > 0): ?>
-        <div class="detail-row">
-            <span class="detail-label">Remaining</span>
-            <span class="detail-value" style="color: #DC2626; font-weight: 600;">
-                ₹ <?php echo number_format($paymentInfo['remaining_amount'], 2); ?>
-                <?php if ($paymentInfo['status'] !== 'confirmed'): ?>
-                    <a href="payments.php" style="font-size: 12px; color: #16A34A; margin-left: 8px; text-decoration: none;">
-                        <i class="fas fa-arrow-right"></i> Pay Now
-                    </a>
-                <?php endif; ?>
-            </span>
-        </div>
-        <?php endif; ?>
+            </div>
 
-        <!-- Payment Progress Bar -->
-        <?php if ($paymentInfo['amount'] > 0): ?>
-        <div class="payment-progress-container">
-            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6B7A7B;">
-                <span>Payment Progress</span>
-                <span><?php echo round(($paymentInfo['paid_amount'] / $paymentInfo['amount']) * 100); ?>%</span>
+            <!-- Payment Summary -->
+            <div class="ov-detail-row">
+                <span class="ov-detail-label">Total Amount</span>
+                <span class="ov-detail-value" style="font-weight: 700; color: #14532D;">₹ <?php echo number_format($paymentInfo['amount'], 2); ?></span>
             </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: <?php echo round(($paymentInfo['paid_amount'] / $paymentInfo['amount']) * 100); ?>%;"></div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Installment History -->
-        <?php if (!empty($installments)): ?>
-        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #F0FDF4;">
-            <div style="font-size: 12px; font-weight: 600; color: #6B7A7B; margin-bottom: 6px;">
-                <i class="fas fa-list"></i> Installment History (<?php echo count($installments); ?> installments)
-            </div>
-            <div class="installment-list">
-                <?php foreach ($installments as $inst): ?>
-                <div class="installment-item">
-                    <span class="inst-number">#<?php echo $inst['installment_number']; ?></span>
-                    <span class="inst-amount">₹ <?php echo number_format($inst['amount'], 2); ?></span>
-                    <span class="inst-receiver">
-                        <?php 
-                        $receiverType = $inst['received_by'] ?? 'agent';
-                        $receiverName = $inst['received_by_name'] ?? ($receiverType === 'agent' ? 'Agent' : 'Admin');
-                        ?>
-                        <span class="receiver-badge <?php echo $receiverType; ?>">
-                            <i class="fas fa-<?php echo $receiverType === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
-                            <?php echo escapeHtml($receiverName); ?>
+            <div class="ov-detail-row">
+                <span class="ov-detail-label">Amount Paid</span>
+                <span class="ov-detail-value" style="color: #16A34A; font-weight: 600;">
+                    ₹ <?php echo number_format($paymentInfo['paid_amount'], 2); ?>
+                    <?php if ($paymentInfo['paid_amount'] > 0): ?>
+                        <span style="font-size: 12px; color: #6B7A7B; margin-left: 8px;">
+                            (<?php echo round(($paymentInfo['paid_amount'] / $paymentInfo['amount']) * 100); ?>%)
                         </span>
-                    </span>
-                    <span>
-                        <?php 
-                        $instStatusColors = [
-                            'pending' => 'pending',
-                            'collected' => 'collected',
-                            'submitted' => 'submitted',
-                            'confirmed' => 'confirmed'
-                        ];
-                        $instColor = $instStatusColors[$inst['status']] ?? 'pending';
-                        ?>
-                        <span class="badge-installment <?php echo $instColor; ?>">
-                            <?php echo ucfirst($inst['status']); ?>
-                        </span>
-                        <?php if ($inst['status'] === 'confirmed'): ?>
-                            <span style="font-size: 10px; color: #16A34A;">
-                                <i class="fas fa-check-circle"></i>
-                            </span>
+                    <?php endif; ?>
+                </span>
+            </div>
+            <?php if ($paymentInfo['remaining_amount'] > 0): ?>
+                <div class="ov-detail-row">
+                    <span class="ov-detail-label">Remaining</span>
+                    <span class="ov-detail-value" style="color: #DC2626; font-weight: 600;">
+                        ₹ <?php echo number_format($paymentInfo['remaining_amount'], 2); ?>
+                        <?php if ($paymentInfo['status'] !== 'confirmed'): ?>
+                            <a href="payments.php" style="font-size: 12px; color: #16A34A; margin-left: 8px; text-decoration: none;">
+                                <i class="fas fa-arrow-right"></i> Pay Now
+                            </a>
                         <?php endif; ?>
                     </span>
-                    <span style="font-size: 10px; color: #6B7A7B;">
-                        <?php echo formatDate($inst['payment_date']); ?>
-                    </span>
                 </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
+            <?php endif; ?>
 
-        <!-- Payment Method & Transaction -->
-        <?php if ($paymentInfo['payment_method']): ?>
-        <div class="detail-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #F0FDF4;">
-            <span class="detail-label">Payment Method</span>
-            <span class="detail-value"><?php echo ucfirst($paymentInfo['payment_method']); ?></span>
+            <!-- Payment Progress Bar -->
+            <?php if ($paymentInfo['amount'] > 0): ?>
+                <div class="ov-payment-progress">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6B7A7B;">
+                        <span>Payment Progress</span>
+                        <span><?php echo round(($paymentInfo['paid_amount'] / $paymentInfo['amount']) * 100); ?>%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: <?php echo round(($paymentInfo['paid_amount'] / $paymentInfo['amount']) * 100); ?>%;"></div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Installment History -->
+            <?php if (!empty($installments)): ?>
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #F0FDF4;">
+                    <div style="font-size: 12px; font-weight: 600; color: #6B7A7B; margin-bottom: 6px;">
+                        <i class="fas fa-list"></i> Installment History (<?php echo count($installments); ?> installments)
+                    </div>
+                    <div class="ov-installment-list">
+                        <?php foreach ($installments as $inst): ?>
+                            <div class="ov-installment-item">
+                                <span class="inst-number">#<?php echo $inst['installment_number']; ?></span>
+                                <span class="inst-amount">₹ <?php echo number_format($inst['amount'], 2); ?></span>
+                                <span class="inst-receiver">
+                                    <?php
+                                    $receiverType = $inst['received_by'] ?? 'agent';
+                                    $receiverName = $inst['received_by_name'] ?? ($receiverType === 'agent' ? 'Agent' : 'Admin');
+                                    ?>
+                                    <span class="ov-receiver-badge <?php echo $receiverType; ?>">
+                                        <i class="fas fa-<?php echo $receiverType === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
+                                        <?php echo escapeHtml($receiverName); ?>
+                                    </span>
+                                </span>
+                                <span>
+                                    <?php
+                                    $instStatusColors = [
+                                        'pending' => 'pending',
+                                        'collected' => 'collected',
+                                        'submitted' => 'submitted',
+                                        'confirmed' => 'confirmed'
+                                    ];
+                                    $instColor = $instStatusColors[$inst['status']] ?? 'pending';
+                                    ?>
+                                    <span class="ov-badge-installment <?php echo $instColor; ?>">
+                                        <?php echo ucfirst($inst['status']); ?>
+                                    </span>
+                                    <?php if ($inst['status'] === 'confirmed'): ?>
+                                        <span style="font-size: 10px; color: #16A34A;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </span>
+                                    <?php endif; ?>
+                                </span>
+                                <span style="font-size: 10px; color: #6B7A7B;">
+                                    <?php echo formatDate($inst['payment_date']); ?>
+                                </span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Payment Method & Transaction -->
+            <?php if ($paymentInfo['payment_method']): ?>
+                <div class="ov-detail-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #F0FDF4;">
+                    <span class="ov-detail-label">Payment Method</span>
+                    <span class="ov-detail-value"><?php echo ucfirst($paymentInfo['payment_method']); ?></span>
+                </div>
+            <?php endif; ?>
+            <?php if ($paymentInfo['transaction_id']): ?>
+                <div class="ov-detail-row">
+                    <span class="ov-detail-label">Transaction ID</span>
+                    <span class="ov-detail-value" style="font-family: monospace; font-size: 12px;"><?php echo escapeHtml($paymentInfo['transaction_id']); ?></span>
+                </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
-        <?php if ($paymentInfo['transaction_id']): ?>
-        <div class="detail-row">
-            <span class="detail-label">Transaction ID</span>
-            <span class="detail-value" style="font-family: monospace; font-size: 12px;"><?php echo escapeHtml($paymentInfo['transaction_id']); ?></span>
-        </div>
-        <?php endif; ?>
-    </div>
     <?php endif; ?>
 
     <!-- Shipping Address -->
     <?php if (!empty($order['shipping_address'])): ?>
-        <div class="detail-section">
+        <div class="ov-detail-section">
             <div class="section-title">
                 <i class="fas fa-map-marker-alt" style="color: #16A34A;"></i>
                 Shipping Address
             </div>
-            <div class="detail-row">
-                <span class="detail-value">
+            <div class="ov-detail-row">
+                <span class="ov-detail-value">
                     <?php echo escapeHtml($order['shipping_address']); ?>
                     <?php if (!empty($order['shipping_city']) || !empty($order['shipping_state'])): ?>
                         <br>
@@ -794,29 +1105,29 @@ $csrfToken = generateCsrfToken();
     <?php endif; ?>
 
     <!-- Order Timeline -->
-    <div class="detail-section" style="margin-bottom: 0;">
+    <div class="ov-detail-section" style="margin-bottom: 0;">
         <div class="section-title">
             <i class="fas fa-clock" style="color: #16A34A;"></i>
             Order Timeline
         </div>
 
         <?php if (empty($timeline)): ?>
-            <p style="color: #6B7A7B; text-align: center; padding: 12px 0;">
+            <p class="ov-empty-state">
                 <i class="fas fa-history" style="font-size: 20px; display: block; margin-bottom: 4px; opacity: 0.5;"></i>
                 No activity recorded for this order yet.
             </p>
         <?php else: ?>
             <?php foreach ($timeline as $activity): ?>
-                <div class="timeline-item">
+                <div class="ov-timeline-item">
                     <div class="timeline-icon">
                         <i class="fas fa-<?php
-                            echo match ($activity['action']) {
-                                'create' => 'plus',
-                                'update' => 'edit',
-                                'delete' => 'trash',
-                                default => 'circle'
-                            };
-                        ?>"></i>
+                                            echo match ($activity['action']) {
+                                                'create' => 'plus',
+                                                'update' => 'edit',
+                                                'delete' => 'trash',
+                                                default => 'circle'
+                                            };
+                                            ?>"></i>
                     </div>
                     <div class="timeline-content">
                         <div class="timeline-text">

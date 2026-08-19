@@ -241,6 +241,7 @@ $notificationCount = $pendingPayments;
             display: flex;
             align-items: center;
             gap: 16px;
+            min-width: fit-content;
         }
         
         .topbar-left .menu-toggle {
@@ -373,7 +374,7 @@ $notificationCount = $pendingPayments;
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 16px; }
             .topbar-left .menu-toggle { display: block; }
-            .topbar { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }
+            .topbar { padding: 12px 16px;  gap: 12px; position: sticky; top: 0; z-index: 12;}
             .topbar-right { width: 100%; justify-content: flex-end; }
         }
     </style>

@@ -7,14 +7,7 @@
  */
 
 $pageTitle = 'My Profile';
-
-// ============================================
-// STEP 1: Include configuration
-// ============================================
-
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../config/functions.php';
+require_once '../includes/admin_header.php';
 
 // ============================================
 // STEP 2: Start secure session
@@ -38,6 +31,10 @@ requireRole('admin');
 $db = getDB();
 
 $user = getCurrentUser();
+
+// Get complete user data with avatar
+$sql = "SELECT * FROM users WHERE id = ?";
+$userData = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
 $errors = [];
 $success = [];
@@ -128,27 +125,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $hasErrors = true;
         }
 
+        // ============================================
+        // HANDLE AVATAR UPLOAD - uploads/avatars/
+        // ============================================
+        $avatarFileName = null;
+        $avatarUploaded = false;
+
+        if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+            // Check if uploads/avatars directory exists
+            $uploadDir = '../uploads/avatars/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            // Upload and compress image
+            $uploadResult = uploadAndCompressImage(
+                $_FILES['avatar'],
+                $uploadDir,
+                70,     // Quality (70%)
+                500,    // Max width
+                500,    // Max height
+                false,  // No thumbnail needed
+                0,
+                0
+            );
+
+            if ($uploadResult['success']) {
+                $avatarFileName = $uploadResult['filename'];
+                $avatarUploaded = true;
+
+                // Delete old avatar if exists
+                if (!empty($userData['avatar']) && file_exists($uploadDir . $userData['avatar'])) {
+                    @unlink($uploadDir . $userData['avatar']);
+                }
+            } else {
+                $errors['avatar'] = $uploadResult['message'];
+                $hasErrors = true;
+            }
+        }
+
         if (!$hasErrors) {
 
-            $sql = "
-                UPDATE users
-                SET
-                    full_name = ?,
-                    email = ?,
-                    phone = ?,
-                    updated_at = NOW()
-                WHERE id = ?
-            ";
+            // Build update query dynamically
+            $updateFields = [];
+            $updateParams = [];
 
-            $db->query(
-                $sql,
-                [
-                    $fullName,
-                    $email,
-                    $phone,
-                    $_SESSION['user_id']
-                ]
-            );
+            $updateFields[] = "full_name = ?";
+            $updateParams[] = $fullName;
+
+            $updateFields[] = "email = ?";
+            $updateParams[] = $email;
+
+            $updateFields[] = "phone = ?";
+            $updateParams[] = $phone;
+
+            // Add avatar if uploaded
+            if ($avatarUploaded && $avatarFileName !== null) {
+                $updateFields[] = "avatar = ?";
+                $updateParams[] = $avatarFileName;
+            }
+
+            $updateFields[] = "updated_at = NOW()";
+
+            // Add user_id at the end
+            $updateParams[] = $_SESSION['user_id'];
+
+            $sql = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
+            $db->query($sql, $updateParams);
 
             $_SESSION['user_name']  = $fullName;
             $_SESSION['user_email'] = $email;
@@ -300,7 +343,6 @@ $csrfToken = generateCsrfToken();
 // STEP 7: ONLY NOW include admin header
 // ============================================
 
-require_once '../includes/admin_header.php';
 ?>
 
 <style>
@@ -316,6 +358,13 @@ require_once '../includes/admin_header.php';
         border-radius: 12px;
         padding: 24px;
         text-align: center;
+        box-shadow: 0 2px 6px rgba(5, 46, 22, 0.06);
+    }
+    
+    .profile-avatar-wrapper {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 16px;
     }
     
     .profile-avatar {
@@ -329,8 +378,22 @@ require_once '../includes/admin_header.php';
         font-size: 48px;
         font-weight: 700;
         color: white;
-        margin: 0 auto 16px;
         box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        overflow: hidden;
+        object-fit: cover;
+        border: 3px solid #16A34A;
+    }
+    
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .profile-avatar .avatar-text {
+        font-size: 48px;
+        font-weight: 700;
+        color: white;
     }
     
     .profile-sidebar .profile-name {
@@ -381,6 +444,7 @@ require_once '../includes/admin_header.php';
         border: 1px solid #E5EDE7;
         border-radius: 12px;
         padding: 24px;
+        box-shadow: 0 2px 6px rgba(5, 46, 22, 0.06);
     }
     
     .profile-card .card-title {
@@ -489,6 +553,38 @@ require_once '../includes/admin_header.php';
         gap: 16px;
     }
     
+    /* Avatar preview in form */
+    .avatar-preview-wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .avatar-preview-wrap .preview-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 2px dashed #E5EDE7;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F7FCF7;
+        flex-shrink: 0;
+    }
+    
+    .avatar-preview-wrap .preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .avatar-preview-wrap .preview-box .placeholder-icon {
+        font-size: 28px;
+        color: #6B7A7B;
+    }
+    
     @media (max-width: 1024px) {
         .profile-container {
             grid-template-columns: 1fr;
@@ -504,40 +600,71 @@ require_once '../includes/admin_header.php';
         .form-row {
             grid-template-columns: 1fr;
         }
+        .profile-avatar-wrapper {
+            width: 100px;
+            height: 100px;
+        }
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            font-size: 36px;
+        }
+        .profile-avatar .avatar-text {
+            font-size: 36px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .profile-sidebar {
+            padding: 16px;
+        }
+        .profile-card {
+            padding: 16px;
+        }
+        .avatar-preview-wrap {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
 </style>
 
 <div class="profile-container">
     <!-- Sidebar -->
     <div class="profile-sidebar">
-        <div class="profile-avatar">
-            <?php echo strtoupper(substr($user['full_name'] ?? 'A', 0, 2)); ?>
+        <div class="profile-avatar-wrapper">
+            <div class="profile-avatar">
+                <?php if (!empty($userData['avatar']) && file_exists('../uploads/avatars/' . $userData['avatar'])): ?>
+                    <img src="../uploads/avatars/<?php echo escapeHtml($userData['avatar']); ?>" alt="<?php echo escapeHtml($userData['full_name'] ?? 'Admin'); ?>">
+                <?php else: ?>
+                    <span class="avatar-text"><?php echo strtoupper(substr($userData['full_name'] ?? 'A', 0, 2)); ?></span>
+                <?php endif; ?>
+            </div>
         </div>
-        <div class="profile-name"><?php echo escapeHtml($user['full_name'] ?? 'Admin'); ?></div>
+        <div class="profile-name"><?php echo escapeHtml($userData['full_name'] ?? 'Admin'); ?></div>
         <div class="profile-role">Administrator</div>
         
         <div class="profile-meta">
             <div class="meta-item">
                 <span class="label">Username</span>
-                <span class="value"><?php echo escapeHtml($user['username'] ?? ''); ?></span>
+                <span class="value"><?php echo escapeHtml($userData['username'] ?? ''); ?></span>
             </div>
             <div class="meta-item">
                 <span class="label">Email</span>
-                <span class="value"><?php echo escapeHtml($user['email'] ?? ''); ?></span>
+                <span class="value"><?php echo escapeHtml($userData['email'] ?? ''); ?></span>
             </div>
             <div class="meta-item">
                 <span class="label">Phone</span>
-                <span class="value"><?php echo !empty($user['phone']) ? escapeHtml($user['phone']) : 'Not provided'; ?></span>
+                <span class="value"><?php echo !empty($userData['phone']) ? escapeHtml($userData['phone']) : 'Not provided'; ?></span>
             </div>
             <div class="meta-item">
                 <span class="label">Joined</span>
-                <span class="value"><?php echo formatDate($user['created_at'] ?? date('Y-m-d')); ?></span>
+                <span class="value"><?php echo formatDate($userData['created_at'] ?? date('Y-m-d')); ?></span>
             </div>
             <div class="meta-item">
                 <span class="label">Last Login</span>
                 <span class="value">
-                    <?php if (!empty($user['last_login'])): ?>
-                        <?php echo timeAgo($user['last_login']); ?>
+                    <?php if (!empty($userData['last_login'])): ?>
+                        <?php echo timeAgo($userData['last_login']); ?>
                     <?php else: ?>
                         Never
                     <?php endif; ?>
@@ -568,9 +695,39 @@ require_once '../includes/admin_header.php';
             </div>
             <?php endif; ?>
             
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data">
                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
                 <input type="hidden" name="action" value="update_profile">
+                
+                <!-- Avatar Upload -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-image" style="color: #16A34A;"></i>
+                        Profile Photo
+                    </label>
+                    <div class="avatar-preview-wrap">
+                        <div class="preview-box" id="avatarPreview">
+                            <?php if (!empty($userData['avatar']) && file_exists('../uploads/avatars/' . $userData['avatar'])): ?>
+                                <img src="../uploads/avatars/<?php echo escapeHtml($userData['avatar']); ?>" alt="Avatar">
+                            <?php else: ?>
+                                <i class="fas fa-user placeholder-icon"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div>
+                            <input type="file" id="avatarInputForm" name="avatar" accept="image/*" style="display: none;" onchange="previewAvatarForm(this)">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('avatarInputForm').click()">
+                                <i class="fas fa-upload"></i> Choose Image
+                            </button>
+                            <div class="form-hint" style="margin-top: 4px;">
+                                <i class="fas fa-info-circle"></i> 
+                                Allowed: JPG, PNG, GIF, WebP (Max 5MB) 
+                            </div>
+                            <?php if (isset($errors['avatar'])): ?>
+                                <div class="form-error"><?php echo escapeHtml($errors['avatar']); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -580,7 +737,7 @@ require_once '../includes/admin_header.php';
                             id="full_name" 
                             name="full_name" 
                             class="form-input <?php echo isset($errors['full_name']) ? 'error' : ''; ?>"
-                            value="<?php echo escapeHtml($user['full_name'] ?? ''); ?>"
+                            value="<?php echo escapeHtml($userData['full_name'] ?? ''); ?>"
                             required
                         >
                         <?php if (isset($errors['full_name'])): ?>
@@ -595,7 +752,7 @@ require_once '../includes/admin_header.php';
                             id="email" 
                             name="email" 
                             class="form-input <?php echo isset($errors['email']) ? 'error' : ''; ?>"
-                            value="<?php echo escapeHtml($user['email'] ?? ''); ?>"
+                            value="<?php echo escapeHtml($userData['email'] ?? ''); ?>"
                             required
                         >
                         <?php if (isset($errors['email'])): ?>
@@ -611,7 +768,7 @@ require_once '../includes/admin_header.php';
                         id="phone" 
                         name="phone" 
                         class="form-input <?php echo isset($errors['phone']) ? 'error' : ''; ?>"
-                        value="<?php echo escapeHtml($user['phone'] ?? ''); ?>"
+                        value="<?php echo escapeHtml($userData['phone'] ?? ''); ?>"
                         placeholder="Enter 10-digit phone number"
                     >
                     <?php if (isset($errors['phone'])): ?>
@@ -697,5 +854,19 @@ require_once '../includes/admin_header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Preview avatar from form upload
+function previewAvatarForm(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const previewBox = document.getElementById('avatarPreview');
+            previewBox.innerHTML = '<img src="' + e.target.result + '" alt="Avatar Preview">';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 
 <?php require_once '../includes/admin_footer.php'; ?>

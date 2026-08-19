@@ -1,8 +1,8 @@
 <?php
 /**
- * SAMRIDHI AGRO - Add Category
+ * SAMRIDHI AGRO - Edit Category
  * 
- * This page allows administrators to create new product categories.
+ * This page allows administrators to update existing category details.
  * 
  * @package SamridhiAgro
  * @subpackage Admin
@@ -15,38 +15,53 @@
 // ============================================
 
 // Set page title
-$pageTitle = 'Add Category';
+$pageTitle = 'Edit Category';
 
-require_once '../includes/admin_header.php';
+// Include configuration files
+require_once '../config/config.php';
+require_once '../config/database.php';
+require_once '../config/functions.php';
 
 // Ensure session is started
 if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-// ============================================
-// PERMISSION CHECK - Allow Admin OR Staff with permission
-// ============================================
-requirePermissionOrAdmin('category.create', 'category-add.php');
+// Require admin login and permission
+requireLogin();
+requireRole('admin');
+requirePermission('category.edit');
 
 // Get database instance
 $db = getDB();
 
-// Initialize variables
-$errors = [];
-$formData = [
-    'category_name' => '',
-    'category_slug' => '',
-    'description' => '',
-    'icon' => 'tag',
-    'parent_id' => 0,
-    'sort_order' => 0,
-    'status' => 'active'
-];
+// Get category ID from URL
+$categoryId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-// Get parent categories for dropdown (only active ones)
-$sql = "SELECT id, category_name FROM categories WHERE status = 'active' ORDER BY category_name";
-$parentCategories = $db->fetchAll($sql);
+// If no ID or invalid ID, redirect to categories list
+if ($categoryId <= 0) {
+    setFlashMessage('error', 'Invalid category ID.');
+    redirect('admin/categories.php');
+    exit;
+}
+
+// Get category data
+$sql = "SELECT * FROM categories WHERE id = ?";
+$category = $db->fetchOne($sql, [$categoryId]);
+
+// If category not found, redirect
+if (!$category) {
+    setFlashMessage('error', 'Category not found.');
+    redirect('admin/categories.php');
+    exit;
+}
+
+// Get parent categories for dropdown (excluding current category and its descendants)
+$sql = "SELECT id, category_name, parent_id 
+        FROM categories 
+        WHERE status = 'active' AND id != ? 
+        ORDER BY category_name";
+$parentCategories = $db->fetchAll($sql, [$categoryId]);
 
 // Common icons for dropdown
 $icons = [
@@ -72,12 +87,23 @@ $icons = [
     'star' => 'Star'
 ];
 
+// Initialize form data
+$formData = [
+    'category_name' => $category['category_name'],
+    'category_slug' => $category['category_slug'],
+    'description' => $category['description'] ?? '',
+    'icon' => $category['icon'] ?? 'tag',
+    'parent_id' => $category['parent_id'] ?? 0,
+    'sort_order' => $category['sort_order'] ?? 0,
+    'status' => $category['status']
+];
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token
     if (!isset($_POST[CSRF_TOKEN_NAME]) || !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])) {
         setFlashMessage('error', 'Invalid security token. Please try again.');
-        redirect('category-add.php');
+        redirect('admin/category-edit.php?id=' . $categoryId);
         exit;
     }
     
@@ -109,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasErrors = true;
     }
     
-    // Category Slug - required, unique
+    // Category Slug - required, unique (except current)
     if (empty($formData['category_slug'])) {
         $errors['category_slug'] = 'Category slug is required';
         $hasErrors = true;
@@ -117,20 +143,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['category_slug'] = 'Slug can only contain lowercase letters, numbers and hyphens';
         $hasErrors = true;
     } else {
-        $sql = "SELECT id FROM categories WHERE category_slug = ?";
-        $existing = $db->fetchOne($sql, [$formData['category_slug']]);
+        $sql = "SELECT id FROM categories WHERE category_slug = ? AND id != ?";
+        $existing = $db->fetchOne($sql, [$formData['category_slug'], $categoryId]);
         if ($existing) {
             $errors['category_slug'] = 'Slug already exists. Please use another.';
             $hasErrors = true;
         }
     }
     
-    // Parent ID - check if exists
+    // Parent ID - check if exists and not self
     if ($formData['parent_id'] > 0) {
+        // Check if parent exists
         $sql = "SELECT id FROM categories WHERE id = ? AND status = 'active'";
         $parent = $db->fetchOne($sql, [$formData['parent_id']]);
         if (!$parent) {
             $errors['parent_id'] = 'Selected parent category is not valid.';
+            $hasErrors = true;
+        }
+        
+        // Check if parent is not itself (prevent self-parenting)
+        if ($formData['parent_id'] == $categoryId) {
+            $errors['parent_id'] = 'A category cannot be its own parent.';
             $hasErrors = true;
         }
     }
@@ -147,15 +180,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasErrors = true;
     }
     
-    // If no errors, insert category
+    // If no errors, update category
     if (!$hasErrors) {
         try {
-            // Insert category
-            $sql = "INSERT INTO categories (
-                        category_name, category_slug, description, 
-                        icon, parent_id, sort_order, status, 
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+            // Update category
+            $sql = "UPDATE categories SET 
+                        category_name = ?,
+                        category_slug = ?,
+                        description = ?,
+                        icon = ?,
+                        parent_id = ?,
+                        sort_order = ?,
+                        status = ?,
+                        updated_at = NOW()
+                    WHERE id = ?";
             
             $db->query($sql, [
                 $formData['category_name'],
@@ -164,29 +202,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $formData['icon'],
                 $formData['parent_id'] > 0 ? $formData['parent_id'] : null,
                 $formData['sort_order'],
-                $formData['status']
+                $formData['status'],
+                $categoryId
             ]);
-            
-            $categoryId = $db->lastInsertId();
             
             // Log activity
             logActivity(
-                'create',
+                'update',
                 $_SESSION['user_id'],
                 'category',
-                'Created new category: ' . $formData['category_name']
+                'Updated category: ' . $formData['category_name']
             );
             
-            setFlashMessage('success', 'Category created successfully!');
+            setFlashMessage('success', 'Category updated successfully!');
             
-            // Redirect to category list
+            // Redirect to categories list
             redirect('admin/categories.php');
             exit;
             
         } catch (Exception $e) {
-            error_log('Category creation error: ' . $e->getMessage());
-            setFlashMessage('error', 'Failed to create category. Please try again.');
-            redirect('category-add.php');
+            error_log('Category update error: ' . $e->getMessage());
+            setFlashMessage('error', 'Failed to update category. Please try again.');
+            redirect('admin/category-edit.php?id=' . $categoryId);
             exit;
         }
     }
@@ -195,8 +232,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Generate CSRF token
 $csrfToken = generateCsrfToken();
 
-
+// ============================================
+// STEP 2: NOW include admin header (HTML starts here)
+// ============================================
+require_once '../includes/admin_header.php';
 ?>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
     .form-group {
@@ -249,6 +292,16 @@ $csrfToken = generateCsrfToken();
         margin-top: 4px;
     }
     
+    .icon-preview {
+        display: inline-block;
+        font-size: 24px;
+        padding: 8px 16px;
+        background: #F7FCF7;
+        border-radius: 8px;
+        border: 2px solid #E5EDE7;
+        margin-top: 4px;
+    }
+    
     .btn-primary {
         padding: 12px 32px;
         background: linear-gradient(135deg, #14532D, #16A34A);
@@ -285,26 +338,87 @@ $csrfToken = generateCsrfToken();
         background: #E5E7EB;
     }
     
-    .icon-preview {
-        display: inline-block;
-        font-size: 24px;
-        padding: 8px 16px;
+    .category-info {
         background: #F7FCF7;
-        border-radius: 8px;
-        border: 2px solid #E5EDE7;
-        margin-top: 4px;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        border: 1px solid #E5EDE7;
+    }
+    
+    .category-info .info-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        color: #4A5B5D;
+    }
+    
+    .category-info .info-item strong {
+        color: #052E16;
+    }
+    
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr !important;
+        }
+        .category-info {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
 </style>
 
 <div class="content-card">
     <div class="card-header">
         <h3 class="card-title">
-            <i class="fas fa-plus-circle" style="color: #16A34A;"></i>
-            Add New Category
+            <i class="fas fa-edit" style="color: #16A34A;"></i>
+            Edit Category
+            <span style="font-size: 14px; font-weight: 400; color: #6B7A7B; margin-left: 8px;">
+                #<?php echo $category['id']; ?> - <?php echo escapeHtml($category['category_name']); ?>
+            </span>
         </h3>
-        <a href="categories.php" class="card-action">
-            <i class="fas fa-arrow-left"></i> Back to Categories
-        </a>
+        <div style="display: flex; gap: 8px;">
+            <a href="categories.php" class="card-action">
+                <i class="fas fa-arrow-left"></i> Back to Categories
+            </a>
+        </div>
+    </div>
+    
+    <!-- Category Info -->
+    <div class="category-info">
+        <div class="info-item">
+            <i class="fas fa-hashtag" style="color: #6B7A7B;"></i>
+            <strong>ID:</strong> #<?php echo $category['id']; ?>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-calendar-plus" style="color: #6B7A7B;"></i>
+            <strong>Created:</strong> <?php echo formatDate($category['created_at']); ?>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-clock" style="color: #6B7A7B;"></i>
+            <strong>Last Updated:</strong> <?php echo formatDate($category['updated_at']); ?>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-<?php echo $category['icon'] ?? 'tag'; ?>" style="color: #16A34A;"></i>
+            <strong>Icon:</strong> <?php echo ucfirst($category['icon'] ?? 'tag'); ?>
+        </div>
+        <div class="info-item" style="margin-left: auto;">
+            <?php 
+            $statusColors = [
+                'active' => 'badge-success',
+                'inactive' => 'badge-secondary'
+            ];
+            $color = $statusColors[$category['status']] ?? 'badge-secondary';
+            ?>
+            <span class="badge-status <?php echo $color; ?>">
+                <?php echo ucfirst($category['status']); ?>
+            </span>
+        </div>
     </div>
     
     <?php if (!empty($errors)): ?>
@@ -324,7 +438,7 @@ $csrfToken = generateCsrfToken();
         <!-- CSRF Token -->
         <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <!-- Left Column -->
             <div>
                 <!-- Category Name -->
@@ -380,7 +494,7 @@ $csrfToken = generateCsrfToken();
                         id="description" 
                         name="description" 
                         class="form-input"
-                        rows="3"
+                        rows="4"
                         placeholder="Enter category description (optional)"
                     ><?php echo escapeHtml($formData['description']); ?></textarea>
                 </div>
@@ -461,10 +575,13 @@ $csrfToken = generateCsrfToken();
                         <i class="fas fa-toggle-on" style="color: #16A34A;"></i>
                         Status
                     </label>
-                    <select id="status" name="status" class="form-input">
+                    <select id="status" name="status" class="form-input <?php echo isset($errors['status']) ? 'error' : ''; ?>">
                         <option value="active" <?php echo $formData['status'] === 'active' ? 'selected' : ''; ?>>Active</option>
                         <option value="inactive" <?php echo $formData['status'] === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
                     </select>
+                    <?php if (isset($errors['status'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['status']); ?></div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -472,13 +589,13 @@ $csrfToken = generateCsrfToken();
         <!-- Form Actions -->
         <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #E5EDE7; display: flex; gap: 12px;">
             <button type="submit" class="btn-primary" id="submitBtn">
-                <i class="fas fa-save"></i> <span id="btnText">Create Category</span>
+                <i class="fas fa-save"></i> <span id="btnText">Update Category</span>
                 <span id="btnSpinner" style="display:none;">
                     <i class="fas fa-spinner fa-spin"></i>
                 </span>
             </button>
             
-            <a href="admin/categories.php" class="btn-secondary">
+            <a href="categories.php" class="btn-secondary">
                 <i class="fas fa-times"></i> Cancel
             </a>
         </div>
@@ -508,6 +625,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     iconSelect.addEventListener('change', function() {
         iconPreview.innerHTML = '<i class="fas fa-' + this.value + '"></i>';
+    });
+    
+    // SweetAlert confirmation for unsaved changes
+    let formChanged = false;
+    const form = document.getElementById('categoryForm');
+    const inputs = form.querySelectorAll('input, select, textarea');
+    
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            formChanged = true;
+        });
+    });
+    
+    // Confirm on page leave if changes unsaved
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+    
+    // Reset form changed flag on submit
+    form.addEventListener('submit', function() {
+        formChanged = false;
     });
 });
 </script>

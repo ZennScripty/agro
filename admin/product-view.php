@@ -399,7 +399,7 @@ require_once '../includes/admin_header.php';
             </div>
         </div>
         <div class="product-actions">
-            <a href="admin/product-edit.php?id=<?php echo $product['id']; ?>" class="btn-action-sm btn-view">
+            <a href="product-edit.php?id=<?php echo $product['id']; ?>" class="btn-action-sm btn-view">
                 <i class="fas fa-edit"></i> Edit
             </a>
             <a href="products.php" class="btn-action-sm btn-view">

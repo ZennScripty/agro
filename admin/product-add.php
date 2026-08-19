@@ -17,12 +17,7 @@
 // Set page title
 $pageTitle = 'Add Product';
 
-
-
-// Ensure session is started
-if (session_status() === PHP_SESSION_NONE) {
-    initSecureSession();
-}
+require_once '../includes/admin_header.php';
 
 // ============================================
 // PERMISSION CHECK - Allow Admin OR Staff with permission
@@ -192,73 +187,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasErrors = true;
     }
     
+    // ============================================
+    // HANDLE IMAGE UPLOAD WITH COMPRESSION
+    // ============================================
+    $imageName = '';
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $uploadResult = uploadAndCompressImage(
+            $_FILES['image'],
+            '../uploads/products/',
+            70,        // Quality (70%)
+            1920,      // Max width
+            1920,      // Max height
+            true,      // Create thumbnail
+            400,       // Thumb width
+            400        // Thumb height
+        );
+        
+        if ($uploadResult['success']) {
+            $imageName = $uploadResult['filename'];
+        } else {
+            $errors['image'] = $uploadResult['message'];
+            $hasErrors = true;
+        }
+    }
+    
     // If no errors, insert product
     if (!$hasErrors) {
         try {
-            // Handle image upload
-            $imageName = '';
-            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                $uploadResult = uploadFile($_FILES['image'], '../uploads/products/', ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
-                if ($uploadResult['success']) {
-                    $imageName = $uploadResult['filename'];
-                    
-                    // Create thumbnail
-                    $thumbPath = '../uploads/products/thumbs/' . $imageName;
-                    createThumbnail(
-                        $uploadResult['path'],
-                        $thumbPath,
-                        IMAGE_THUMB_WIDTH,
-                        IMAGE_THUMB_HEIGHT,
-                        true
-                    );
-                } else {
-                    $errors['image'] = $uploadResult['error'];
-                    $hasErrors = true;
-                }
-            }
+            // Insert product
+            $sql = "INSERT INTO products (
+                        product_name, product_slug, category_id, sku,
+                        description, unit, price, cost_price,
+                        quantity, min_quantity, image, status,
+                        is_featured, created_by, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
             
-            if (!$hasErrors) {
-                // Insert product
-                $sql = "INSERT INTO products (
-                            product_name, product_slug, category_id, sku,
-                            description, unit, price, cost_price,
-                            quantity, min_quantity, image, status,
-                            is_featured, created_by, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-                
-                $db->query($sql, [
-                    $formData['product_name'],
-                    $formData['product_slug'],
-                    $formData['category_id'],
-                    $formData['sku'],
-                    $formData['description'],
-                    $formData['unit'],
-                    $formData['price'],
-                    $formData['cost_price'],
-                    $formData['quantity'],
-                    $formData['min_quantity'],
-                    $imageName ?: null,
-                    $formData['status'],
-                    $formData['is_featured'],
-                    $_SESSION['user_id']
-                ]);
-                
-                $productId = $db->lastInsertId();
-                
-                // Log activity
-                logActivity(
-                    'create',
-                    $_SESSION['user_id'],
-                    'product',
-                    'Created new product: ' . $formData['product_name'] . ' (SKU: ' . $formData['sku'] . ')'
-                );
-                
-                setFlashMessage('success', 'Product created successfully!');
-                
-                // Redirect to product list
-                redirect('admin/products.php');
-                exit;
-            }
+            $db->query($sql, [
+                $formData['product_name'],
+                $formData['product_slug'],
+                $formData['category_id'],
+                $formData['sku'],
+                $formData['description'],
+                $formData['unit'],
+                $formData['price'],
+                $formData['cost_price'],
+                $formData['quantity'],
+                $formData['min_quantity'],
+                $imageName ?: null,
+                $formData['status'],
+                $formData['is_featured'],
+                $_SESSION['user_id']
+            ]);
+            
+            $productId = $db->lastInsertId();
+            
+            // Log activity
+            logActivity(
+                'create',
+                $_SESSION['user_id'],
+                'product',
+                'Created new product: ' . $formData['product_name'] . ' (SKU: ' . $formData['sku'] . ')'
+            );
+            
+            setFlashMessage('success', 'Product created successfully!');
+            
+            // Redirect to product list
+            redirect('admin/products.php');
+            exit;
             
         } catch (Exception $e) {
             error_log('Product creation error: ' . $e->getMessage());
@@ -272,10 +267,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Generate CSRF token
 $csrfToken = generateCsrfToken();
 
-// ============================================
-// STEP 2: NOW include admin header (HTML starts here)
-// ============================================
-require_once '../includes/admin_header.php';
 ?>
 
 <style>
@@ -444,7 +435,7 @@ require_once '../includes/admin_header.php';
             <i class="fas fa-plus-circle" style="color: #16A34A;"></i>
             Add New Product
         </h3>
-        <a href="admin/products.php" class="card-action">
+        <a href="products.php" class="card-action">
             <i class="fas fa-arrow-left"></i> Back to Products
         </a>
     </div>
@@ -723,7 +714,7 @@ require_once '../includes/admin_header.php';
                             </div>
                         <?php endif; ?>
                         <div style="font-size: 12px; color: #6B7A7B;">
-                            <i class="fas fa-info-circle"></i> Allowed: JPG, PNG, GIF, WebP
+                            <i class="fas fa-info-circle"></i> Allowed: JPG, PNG, GIF, WebP • Will be converted to WebP
                         </div>
                     </div>
                 </div>
