@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Agent Header Include
  * 
@@ -38,25 +39,26 @@ $notificationCount = 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo escapeHtml($pageTitle); ?> - Agent Portal</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/style.css">
-    
+
     <style>
         .dashboard-wrapper {
             display: flex;
             min-height: 100vh;
             background: #F7FCF7;
         }
-        
+
         .sidebar {
             width: 260px;
             background: linear-gradient(180deg, #052E16 0%, #14532D 100%);
@@ -72,7 +74,7 @@ $notificationCount = 0;
             transition: transform 0.3s ease;
             overflow-y: auto;
         }
-        
+
         .sidebar-brand {
             padding: 0 20px 24px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -80,7 +82,7 @@ $notificationCount = 0;
             align-items: center;
             gap: 12px;
         }
-        
+
         .sidebar-brand .brand-icon {
             width: 36px;
             height: 36px;
@@ -92,23 +94,23 @@ $notificationCount = 0;
             font-size: 18px;
             color: #22C55E;
         }
-        
+
         .sidebar-brand .brand-text {
             font-family: 'Space Grotesk', sans-serif;
             font-size: 18px;
             font-weight: 700;
             color: white;
         }
-        
+
         .sidebar-brand .brand-text span {
             color: #22C55E;
         }
-        
+
         .sidebar-menu {
             flex: 1;
             padding: 20px 12px;
         }
-        
+
         .sidebar-menu .menu-label {
             font-size: 11px;
             text-transform: uppercase;
@@ -118,7 +120,7 @@ $notificationCount = 0;
             margin-bottom: 12px;
             font-weight: 600;
         }
-        
+
         .sidebar-menu .menu-item {
             display: flex;
             align-items: center;
@@ -133,33 +135,33 @@ $notificationCount = 0;
             font-size: 14px;
             font-weight: 500;
         }
-        
+
         .sidebar-menu .menu-item:hover {
             background: rgba(255, 255, 255, 0.08);
             color: white;
         }
-        
+
         .sidebar-menu .menu-item.active {
             background: rgba(34, 197, 94, 0.15);
             color: #22C55E;
         }
-        
+
         .sidebar-menu .menu-item i {
             width: 20px;
             font-size: 16px;
         }
-        
+
         .sidebar-footer {
             padding: 16px 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         .sidebar-footer .user-info {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        
+
         .sidebar-footer .user-avatar {
             width: 40px;
             height: 40px;
@@ -174,38 +176,38 @@ $notificationCount = 0;
             flex-shrink: 0;
             border: 2px solid rgba(34, 197, 94, 0.3);
         }
-        
+
         .sidebar-footer .user-avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        
+
         .sidebar-footer .user-avatar .avatar-placeholder {
             font-size: 16px;
             color: #22C55E;
         }
-        
+
         .sidebar-footer .user-name {
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             font-weight: 600;
             color: white;
         }
-        
+
         .sidebar-footer .user-role {
             font-family: 'Inter', sans-serif;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.5);
         }
-        
+
         .main-content {
             margin-left: 260px;
             flex: 1;
             padding: 20px;
             min-height: 100vh;
         }
-        
+
         .topbar {
             display: flex;
             justify-content: space-between;
@@ -216,13 +218,13 @@ $notificationCount = 0;
             margin-bottom: 20px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
-        
+
         .topbar-left {
             display: flex;
             align-items: center;
             gap: 16px;
         }
-        
+
         .topbar-left .menu-toggle {
             display: none;
             background: none;
@@ -231,20 +233,20 @@ $notificationCount = 0;
             color: #14532D;
             cursor: pointer;
         }
-        
+
         .topbar-left .page-title {
             font-family: 'Space Grotesk', sans-serif;
             font-size: 20px;
             font-weight: 600;
             color: #052E16;
         }
-        
+
         .topbar-right {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        
+
         .btn-logout {
             font-family: 'Inter', sans-serif;
             font-size: 13px;
@@ -256,12 +258,12 @@ $notificationCount = 0;
             text-decoration: none;
             transition: all 0.3s ease;
         }
-        
+
         .btn-logout:hover {
             background: #FEE2E2;
             border-color: #DC2626;
         }
-        
+
         .content-card {
             background: white;
             border-radius: 12px;
@@ -269,36 +271,36 @@ $notificationCount = 0;
             border: 1px solid #E5EDE7;
             margin-bottom: 20px;
         }
-        
+
         .content-card .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 16px;
         }
-        
+
         .content-card .card-title {
             font-family: 'Space Grotesk', sans-serif;
             font-size: 16px;
             font-weight: 600;
             color: #052E16;
         }
-        
+
         .content-card .card-action {
             font-size: 13px;
             color: #16A34A;
             text-decoration: none;
             font-weight: 500;
         }
-        
+
         .content-card .card-action:hover {
             color: #14532D;
         }
-        
+
         .flash-messages {
             margin-bottom: 20px;
         }
-        
+
         .alert {
             padding: 12px 16px;
             border-radius: 10px;
@@ -310,17 +312,43 @@ $notificationCount = 0;
             gap: 10px;
             animation: slideDown 0.3s ease;
         }
-        
+
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
-        .alert-success { background: #DCFCE7; color: #065F46; border: 1px solid #BBF7D0; }
-        .alert-error { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
-        .alert-warning { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
-        .alert-info { background: #DBEAFE; color: #1E40AF; border: 1px solid #BFDBFE; }
-        
+
+        .alert-success {
+            background: #DCFCE7;
+            color: #065F46;
+            border: 1px solid #BBF7D0;
+        }
+
+        .alert-error {
+            background: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #FECACA;
+        }
+
+        .alert-warning {
+            background: #FEF3C7;
+            color: #92400E;
+            border: 1px solid #FDE68A;
+        }
+
+        .alert-info {
+            background: #DBEAFE;
+            color: #1E40AF;
+            border: 1px solid #BFDBFE;
+        }
+
         .alert .close-btn {
             margin-left: auto;
             background: none;
@@ -331,11 +359,11 @@ $notificationCount = 0;
             opacity: 0.6;
             padding: 0 4px;
         }
-        
+
         .alert .close-btn:hover {
             opacity: 1;
         }
-        
+
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -346,28 +374,37 @@ $notificationCount = 0;
             background: rgba(0, 0, 0, 0.4);
             z-index: 999;
         }
-        
-        .sidebar-overlay.active { display: block; }
-        
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
             }
+
             .sidebar.open {
                 transform: translateX(0);
             }
+
             .main-content {
                 margin-left: 0;
                 padding: 16px;
             }
+
             .topbar-left .menu-toggle {
                 display: block;
             }
+
             .topbar {
                 padding: 12px 16px;
-                flex-wrap: wrap;
                 gap: 12px;
+                position: sticky;
+                top: 0;
+                z-index: 12;
             }
+
             .topbar-right {
                 width: 100%;
                 justify-content: flex-end;
@@ -375,22 +412,23 @@ $notificationCount = 0;
         }
     </style>
 </head>
+
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
+
     <div class="dashboard-wrapper">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
                 <div class="brand-icon"><i class="fas fa-seedling"></i></div>
                 <div class="brand-text">Samridhi<span>Agro</span></div>
             </div>
-            
+
             <nav class="sidebar-menu">
                 <div class="menu-label">Main</div>
                 <a href="dashboard.php" class="menu-item <?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>">
                     <i class="fas fa-th-large"></i> Dashboard
                 </a>
-                
+
                 <div class="menu-label" style="margin-top: 20px;">Management</div>
                 <a href="shops.php" class="menu-item <?php echo $currentPage === 'shops.php' ? 'active' : ''; ?>">
                     <i class="fas fa-store"></i> My Shops
@@ -404,7 +442,7 @@ $notificationCount = 0;
                 <a href="shop-payments.php" class="menu-item <?php echo $currentPage === 'shop-payments.php' ? 'active' : ''; ?>">
                     <i class="fas fa-rupee-sign"></i> Shop Payments
                 </a>
-                
+
                 <div class="menu-label" style="margin-top: 20px;">Finance</div>
                 <a href="commission.php" class="menu-item <?php echo $currentPage === 'commission.php' ? 'active' : ''; ?>">
                     <i class="fas fa-percentage"></i> Commission
@@ -412,13 +450,13 @@ $notificationCount = 0;
                 <a href="earnings.php" class="menu-item <?php echo $currentPage === 'earnings.php' ? 'active' : ''; ?>">
                     <i class="fas fa-rupee-sign"></i> Earnings
                 </a>
-                
+
                 <div class="menu-label" style="margin-top: 20px;">Account</div>
                 <a href="profile.php" class="menu-item <?php echo $currentPage === 'profile.php' ? 'active' : ''; ?>">
                     <i class="fas fa-user-circle"></i> My Profile
                 </a>
             </nav>
-            
+
             <div class="sidebar-footer">
                 <div class="user-info">
                     <div class="user-avatar">
@@ -435,7 +473,7 @@ $notificationCount = 0;
                 </div>
             </div>
         </aside>
-        
+
         <main class="main-content">
             <div class="topbar">
                 <div class="topbar-left">
@@ -446,28 +484,12 @@ $notificationCount = 0;
                     <a href="logout.php" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
-            
+
             <?php
             $flashMessages = getFlashMessages();
             if (!empty($flashMessages)):
             ?>
-            <div class="flash-messages">
-                <?php foreach ($flashMessages as $type => $messages): ?>
-                    <?php foreach ($messages as $message): ?>
-                    <div class="alert alert-<?php echo $type; ?>">
-                        <i class="fas fa-<?php 
-                            echo match($type) {
-                                'success' => 'check-circle',
-                                'error' => 'exclamation-circle',
-                                'warning' => 'exclamation-triangle',
-                                'info' => 'info-circle',
-                                default => 'circle'
-                            };
-                        ?>"></i>
-                        <span><?php echo escapeHtml($message); ?></span>
-                        <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endforeach; ?>
-            </div>
+                <script>
+                    window.__flashMessages = <?php echo json_encode($flashMessages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+                </script>
             <?php endif; ?>

@@ -369,326 +369,7 @@ $csrfToken = generateCsrfToken();
 
 ?>
 
-<style>
-    /* ===== EDIT SHOP PAGE STYLES ===== */
-    
-    .form-group {
-        margin-bottom: 16px;
-    }
-    
-    .form-label {
-        display: block;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        font-weight: 600;
-        color: #14532D;
-        margin-bottom: 6px;
-    }
-    
-    .form-input {
-        width: 100%;
-        padding: 10px 14px;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        border: 2px solid #E5EDE7;
-        border-radius: 8px;
-        background: white;
-        transition: all 0.3s ease;
-        color: #052E16;
-        box-sizing: border-box;
-    }
-    
-    .form-input:focus {
-        outline: none;
-        border-color: #16A34A;
-        box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
-    }
-    
-    .form-input.error {
-        border-color: #DC2626;
-        background: rgba(220, 38, 38, 0.05);
-    }
-    
-    .form-input:disabled {
-        background: #F3F4F6;
-        cursor: not-allowed;
-    }
-    
-    .form-error {
-        color: #DC2626;
-        font-size: 13px;
-        font-family: 'Inter', sans-serif;
-        margin-top: 4px;
-    }
-    
-    .form-hint {
-        font-size: 12px;
-        color: #6B7A7B;
-        margin-top: 4px;
-    }
-    
-    .btn-primary {
-        padding: 12px 32px;
-        background: linear-gradient(135deg, #14532D, #16A34A);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-family: 'Inter', sans-serif;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(22, 163, 74, 0.3);
-    }
-    
-    .btn-secondary {
-        padding: 12px 24px;
-        background: #F3F4F6;
-        color: #4A5B5D;
-        border: none;
-        border-radius: 10px;
-        font-family: 'Inter', sans-serif;
-        font-size: 15px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    .btn-secondary:hover {
-        background: #E5E7EB;
-    }
-    
-    .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        color: #4A5B5D;
-    }
-    
-    .checkbox-group input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        accent-color: #16A34A;
-        cursor: pointer;
-    }
-    
-    .card-action {
-        font-size: 13px;
-        color: #16A34A;
-        text-decoration: none;
-        font-weight: 500;
-        transition: color 0.2s ease;
-        padding: 6px 12px;
-        border-radius: 6px;
-        background: #F0FDF4;
-    }
-    
-    .card-action:hover {
-        color: #14532D;
-        background: #DCFCE7;
-    }
-    
-    .card-action i {
-        margin-right: 4px;
-    }
-    
-    .error-box {
-        background: #FEE2E2;
-        border: 1px solid #FECACA;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-    
-    .error-box .error-title {
-        color: #991B1B;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    
-    .error-box .error-list {
-        margin: 0;
-        padding-left: 20px;
-        color: #991B1B;
-    }
-    
-    .password-section {
-        background: #F7FCF7;
-        padding: 16px;
-        border-radius: 12px;
-        margin-top: 8px;
-        border: 1px solid rgba(20, 83, 45, 0.06);
-    }
-    
-    .password-section .password-toggle {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-    
-    .password-section .password-info {
-        font-size: 13px;
-        color: #6B7A7B;
-        margin-top: 8px;
-    }
-    
-    .password-section .password-info i {
-        color: #16A34A;
-    }
-    
-    .form-actions {
-        margin-top: 24px;
-        padding-top: 20px;
-        border-top: 1px solid #E5EDE7;
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-    
-    .btn-generate {
-        padding: 10px 16px;
-        background: #F3F4F6;
-        border: 2px solid #E5EDE7;
-        border-radius: 8px;
-        cursor: pointer;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        transition: all 0.3s ease;
-        white-space: nowrap;
-        color: #4A5B5D;
-    }
-    
-    .btn-generate:hover {
-        background: #E5E7EB;
-        border-color: #16A34A;
-        color: #14532D;
-    }
-    
-    .input-group {
-        display: flex;
-        gap: 8px;
-    }
-    
-    .input-group .form-input {
-        flex: 1;
-    }
-    
-    /* ===== RESPONSIVE ===== */
-    
-    @media (max-width: 1024px) {
-        .form-grid {
-            grid-template-columns: 1fr !important;
-        }
-        
-        .form-grid .right-column {
-            margin-top: 0;
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .form-grid {
-            grid-template-columns: 1fr !important;
-            gap: 12px !important;
-        }
-        
-        .city-state-pincode {
-            grid-template-columns: 1fr !important;
-            gap: 0 !important;
-        }
-        
-        .password-fields {
-            grid-template-columns: 1fr !important;
-            gap: 12px !important;
-        }
-        
-        .form-actions {
-            flex-direction: column;
-        }
-        
-        .form-actions .btn-primary,
-        .form-actions .btn-secondary {
-            width: 100%;
-            text-align: center;
-            justify-content: center;
-        }
-        
-        .card-header {
-            flex-direction: column;
-            align-items: flex-start !important;
-            gap: 10px;
-        }
-        
-        .card-header .header-actions {
-            width: 100%;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        
-        .card-header .header-actions .card-action {
-            flex: 1;
-            text-align: center;
-            padding: 8px 12px;
-        }
-        
-        .input-group {
-            flex-direction: column;
-        }
-        
-        .input-group .btn-generate {
-            width: 100%;
-            justify-content: center;
-        }
-        
-        .password-section .password-toggle {
-            flex-wrap: wrap;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .content-card {
-            padding: 12px 14px !important;
-        }
-        
-        .form-input {
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-        
-        .form-label {
-            font-size: 13px;
-        }
-        
-        .btn-primary,
-        .btn-secondary {
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .error-box {
-            padding: 12px;
-        }
-        
-        .error-box .error-list {
-            padding-left: 16px;
-            font-size: 13px;
-        }
-        
-        .password-section {
-            padding: 12px;
-        }
-    }
-</style>
-
+<!-- Rest of the HTML remains same -->
 <div class="content-card">
     <div class="card-header">
         <h3 class="card-title">
@@ -698,7 +379,7 @@ $csrfToken = generateCsrfToken();
                 #<?php echo $shop['id']; ?> - <?php echo escapeHtml($shop['shop_name']); ?>
             </span>
         </h3>
-        <div class="header-actions" style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px;">
             <a href="shop-view.php?id=<?php echo $shop['id']; ?>" class="card-action">
                 <i class="fas fa-eye"></i> View
             </a>
@@ -709,11 +390,11 @@ $csrfToken = generateCsrfToken();
     </div>
     
     <?php if (!empty($errors)): ?>
-    <div class="error-box">
-        <p class="error-title">
+    <div style="background: #FEE2E2; border: 1px solid #FECACA; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <p style="color: #991B1B; font-weight: 600; margin-bottom: 8px;">
             <i class="fas fa-exclamation-circle"></i> Please fix the following errors:
         </p>
-        <ul class="error-list">
+        <ul style="margin: 0; padding-left: 20px; color: #991B1B;">
             <?php foreach ($errors as $field => $error): ?>
                 <li><?php echo escapeHtml($error); ?></li>
             <?php endforeach; ?>
@@ -754,7 +435,7 @@ $csrfToken = generateCsrfToken();
                         <i class="fas fa-id-badge" style="color: #16A34A;"></i>
                         Shop Code <span style="color: #DC2626;">*</span>
                     </label>
-                    <div class="input-group">
+                    <div style="display: flex; gap: 8px;">
                         <input 
                             type="text" 
                             id="shop_code" 
@@ -763,8 +444,19 @@ $csrfToken = generateCsrfToken();
                             value="<?php echo escapeHtml($formData['shop_code']); ?>"
                             placeholder="Enter shop code"
                             required
+                            style="flex: 1;"
                         >
-                        <button type="button" class="btn-generate" onclick="generateShopCode()">
+                        <button type="button" onclick="generateShopCode()" style="
+                            padding: 10px 16px;
+                            background: #F3F4F6;
+                            border: 2px solid #E5EDE7;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-family: 'Inter', sans-serif;
+                            font-size: 14px;
+                            transition: all 0.3s ease;
+                            white-space: nowrap;
+                        ">
                             <i class="fas fa-sync"></i> Generate
                         </button>
                     </div>
@@ -857,7 +549,7 @@ $csrfToken = generateCsrfToken();
             </div>
             
             <!-- Right Column -->
-            <div class="right-column">
+            <div>
                 <!-- Phone -->
                 <div class="form-group">
                     <label class="form-label" for="phone">
@@ -893,7 +585,7 @@ $csrfToken = generateCsrfToken();
                 </div>
                 
                 <!-- City, State, Pincode -->
-                <div class="city-state-pincode" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                     <div class="form-group">
                         <label class="form-label" for="city">City</label>
                         <input 
@@ -991,8 +683,8 @@ $csrfToken = generateCsrfToken();
         </div>
         
         <!-- Password Change Section -->
-        <div class="password-section">
-            <div class="password-toggle">
+        <div style="background: #F7FCF7; padding: 16px; border-radius: 12px; margin-top: 8px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                 <label class="checkbox-group" style="margin: 0;">
                     <input type="checkbox" name="change_password" id="change_password" value="1">
                     <span>Change Password</span>
@@ -1000,7 +692,7 @@ $csrfToken = generateCsrfToken();
             </div>
             
             <div id="passwordSection" style="display: none;">
-                <div class="password-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label class="form-label" for="password">New Password <span style="color: #DC2626;">*</span></label>
                         <input 
@@ -1027,14 +719,14 @@ $csrfToken = generateCsrfToken();
                 </div>
             </div>
             
-            <div class="password-info" id="passwordInfo">
-                <i class="fas fa-info-circle"></i>
+            <div id="passwordInfo" style="font-size: 13px; color: #6B7A7B; margin-top: 8px;">
+                <i class="fas fa-info-circle" style="color: #16A34A;"></i>
                 Check the box above to change the shop owner's password.
             </div>
         </div>
         
         <!-- Form Actions -->
-        <div class="form-actions">
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #E5EDE7; display: flex; gap: 12px;">
             <button type="submit" class="btn-primary" id="submitBtn">
                 <i class="fas fa-save"></i> <span id="btnText">Update Shop</span>
                 <span id="btnSpinner" style="display:none;">

@@ -135,13 +135,14 @@ for ($i = 5; $i >= 0; $i--) {
     }
 
     .widget-card {
-        background: white;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
         border-radius: 12px;
         padding: 16px 18px;
         border: 1px solid #E5EDE7;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
 
     .widget-card:hover {
@@ -243,7 +244,8 @@ for ($i = 5; $i >= 0; $i--) {
     }
 
     .chart-card {
-        background: white;
+           background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+    box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         border-radius: 12px;
         padding: 20px 24px;
         border: 1px solid #E5EDE7;
@@ -270,7 +272,8 @@ for ($i = 5; $i >= 0; $i--) {
     }
 
     .content-card {
-        background: white;
+           background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+    box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         border-radius: 12px;
         padding: 20px 24px;
         border: 1px solid #E5EDE7;
@@ -398,11 +401,7 @@ for ($i = 5; $i >= 0; $i--) {
         }
     }
 
-    @media (max-width: 480px) {
-        .widgets-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+
 </style>
 
 <div class="content-card" style="padding: 0; border: none; box-shadow: none; background: transparent;">

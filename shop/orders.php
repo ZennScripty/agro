@@ -9,7 +9,7 @@
  * @package SamridhiAgro
  * @subpackage Shop
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 // Set page title
@@ -28,6 +28,50 @@ $db = getDB();
 // Get shop data
 $sql = "SELECT s.* FROM shops s WHERE s.user_id = ?";
 $shop = $db->fetchOne($sql, [$_SESSION['user_id']]);
+
+// ============================================
+// HANDLE ORDER CANCELLATION
+// ============================================
+if (isset($_GET['action']) && $_GET['action'] === 'cancel' && isset($_GET['id'])) {
+    $orderId = (int)$_GET['id'];
+    $csrfToken = $_GET['csrf'] ?? '';
+    
+    if (!verifyCsrfToken($csrfToken)) {
+        setFlashMessage('error', 'Invalid security token.');
+        redirect('shop/orders.php');
+        exit;
+    }
+    
+    // Get order details
+    $sql = "SELECT o.* FROM orders o WHERE o.id = ? AND o.shop_id = ?";
+    $order = $db->fetchOne($sql, [$orderId, $shop['id']]);
+    
+    if ($order && $order['status'] === 'pending') {
+        try {
+            // Update order status to cancelled only
+            $sql = "UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = ?";
+            $db->query($sql, [$orderId]);
+            
+            logActivity(
+                'update',
+                $_SESSION['user_id'],
+                'order',
+                'Cancelled order #' . $order['order_number']
+            );
+            
+            setFlashMessage('success', 'Order cancelled successfully!');
+            
+        } catch (Exception $e) {
+            error_log('Order cancellation error: ' . $e->getMessage());
+            setFlashMessage('error', 'Failed to cancel order. Please try again.');
+        }
+    } else {
+        setFlashMessage('error', 'Order not found or cannot be cancelled.');
+    }
+    
+    redirect('shop/orders.php');
+    exit;
+}
 
 // ============================================
 // GET ORDERS LIST
@@ -703,9 +747,11 @@ $csrfToken = generateCsrfToken();
                         <i class="fas fa-eye"></i> View Details
                     </a>
                     <?php if ($order['status'] === 'pending'): ?>
-                        <a href="orders.php?action=cancel&id=<?php echo $order['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                            class="orders-btn-action orders-btn-cancel btsd"
-                            onclick="return confirm('Are you sure you want to cancel this order?')">
+                        <a href="javascript:void(0)" 
+                           class="orders-btn-action orders-btn-cancel btsd cancel-order-btn"
+                           data-order-id="<?php echo $order['id']; ?>"
+                           data-order-number="<?php echo escapeHtml($order['order_number']); ?>"
+                           data-csrf="<?php echo $csrfToken; ?>">
                             <i class="fas fa-times"></i> Cancel Order
                         </a>
                     <?php endif; ?>
@@ -718,5 +764,86 @@ $csrfToken = generateCsrfToken();
         <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<!-- SweetAlert2 Cancel Order Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cancel order buttons
+    document.querySelectorAll('.cancel-order-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const orderId = this.dataset.orderId;
+            const orderNumber = this.dataset.orderNumber;
+            const csrfToken = this.dataset.csrf;
+            
+            // Show SweetAlert confirmation
+            Swal.fire({
+                title: 'Cancel Order?',
+                html: `
+                    <div style="text-align: left; padding: 10px 0;">
+                        <p style="font-size: 15px; color: #374151; margin-bottom: 8px;">
+                            Are you sure you want to cancel order <strong>#${orderNumber}</strong>?
+                        </p>
+                        <p style="font-size: 13px; color: #6B7A7B;">
+                            <i class="fas fa-info-circle" style="color: #F59E0B;"></i>
+                            This action will cancel the order and cannot be undone.
+                        </p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#DC2626',
+                cancelButtonColor: '#6B7A7B',
+                confirmButtonText: 'Yes, Cancel Order',
+                cancelButtonText: 'No, Keep Order',
+                backdrop: 'rgba(0,0,0,0.4)',
+                customClass: {
+                    container: 'swal-center',
+                    popup: 'swal-center-popup'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading
+                    Swal.fire({
+                        title: 'Cancelling Order...',
+                        text: 'Please wait',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        },
+                        backdrop: 'rgba(0,0,0,0.4)',
+                        customClass: {
+                            container: 'swal-center',
+                            popup: 'swal-center-popup'
+                        }
+                    });
+                    
+                    // Redirect to cancel URL
+                    window.location.href = 'orders.php?action=cancel&id=' + orderId + '&csrf=' + csrfToken;
+                }
+            });
+        });
+    });
+});
+
+// SweetAlert Center CSS
+document.addEventListener('DOMContentLoaded', function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .swal-center {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: rgba(0,0,0,0.5) !important;
+        }
+        .swal-center-popup {
+            margin: 0 !important;
+            transform: none !important;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/shop_footer.php'; ?>

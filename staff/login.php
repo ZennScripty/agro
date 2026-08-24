@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         setFlashMessage('success', 'Welcome back, ' . $_SESSION['user_name'] . '!');
                         
                         // ✅ FIXED: Redirect to dashboard (same folder)
-                        redirect('dashboard.php');
+                        redirect('staff/dashboard.php');
                         exit;
                     } else {
                         // Logout inactive staff

@@ -831,11 +831,11 @@ $csrfToken = generateCsrfToken();
                 <i class="fas fa-arrow-left"></i> Back
             </a>
             <?php if ($order['status'] === 'pending'): ?>
-                <a href="orders.php?action=cancel&id=<?php echo $order['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                <!-- <a href="orders.php?action=cancel&id=<?php echo $order['id']; ?>&csrf=<?php echo $csrfToken; ?>"
                     class="ov-btn-action ov-btn-cancel"
                     onclick="return confirm('Are you sure you want to cancel this order?')">
                     <i class="fas fa-times"></i> Cancel Order
-                </a>
+                </a> -->
             <?php endif; ?>
         </div>
     </div>

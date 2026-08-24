@@ -215,3 +215,72 @@
     });
   }
 })();
+
+(function () {
+    // Payment-success jaisa font/style match karne ke liye
+    const style = document.createElement('style');
+    style.textContent = `
+        .sa-flash-popup {
+            font-family: 'Inter', sans-serif;
+            border-radius: 14px;
+        }
+        .sa-flash-popup .swal2-title {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+(function () {
+    if (typeof Swal === 'undefined') return;
+    if (!window.__flashMessages) return;
+
+    // Type-wise icon aur title mapping
+    const config = {
+        success: { icon: 'success', title: 'Success!',  color: '#16A34A' },
+        error:   { icon: 'error',   title: 'Error!',     color: '#DC2626' },
+        warning: { icon: 'warning', title: 'Warning!',   color: '#F59E0B' },
+        info:    { icon: 'info',    title: 'Info',       color: '#2563EB' }
+    };
+
+    // Sab messages ek queue me
+    const queue = [];
+    Object.keys(window.__flashMessages).forEach(function (type) {
+        (window.__flashMessages[type] || []).forEach(function (message) {
+            queue.push({ type: type, message: message });
+        });
+    });
+
+    function showNext(index) {
+        if (index >= queue.length) return;
+
+        const item = queue[index];
+        const cfg = config[item.type] || config.info;
+
+        Swal.fire({
+            icon: cfg.icon,
+            title: cfg.title,
+            text: item.message,
+            confirmButtonText: 'OK',
+            confirmButtonColor: cfg.color,
+            timer: 2000,               // 3 second baad auto-hide
+            timerProgressBar: true,    // niche progress bar dikhega
+            showConfirmButton: false,  // button hata diya, sirf auto-hide
+            allowOutsideClick: true,
+            allowEscapeKey: true,
+            customClass: {
+                popup: 'sa-flash-popup'
+            },
+            didOpen: function (el) {
+                // Hover karne pe timer pause ho jaye (user padh sake)
+                // el.addEventListener('mouseenter', Swal.stopTimer);
+                // el.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+        }).then(function () {
+            showNext(index + 1);
+        });
+    }
+
+    showNext(0);
+    window.__flashMessages = null;
+})();

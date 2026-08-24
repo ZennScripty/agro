@@ -6,7 +6,7 @@
  * 
  * @package SamridhiAgro
  * @subpackage Includes
- * @version 1.1.0
+ * @version 1.1.1
  */
 
 // Include all required files
@@ -26,7 +26,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 // Get current user data
 $currentUser = getCurrentUser();
 
-// Get staff data
+// Get staff data with avatar
 $db = getDB();
 $sql = "SELECT u.*, sp.department, sp.designation 
         FROM users u 
@@ -241,13 +241,27 @@ if ($canViewPayments) {
         }
         
         .sidebar-footer .user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: rgba(34, 197, 94, 0.2);
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 16px;
+            color: #22C55E;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .sidebar-footer .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .sidebar-footer .user-avatar .avatar-placeholder {
             font-size: 16px;
             color: #22C55E;
         }
@@ -547,7 +561,13 @@ if ($canViewPayments) {
             
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-avatar">
+                        <?php if (!empty($staff['avatar']) && file_exists('../uploads/avatars/' . $staff['avatar'])): ?>
+                            <img src="../uploads/avatars/<?php echo escapeHtml($staff['avatar']); ?>" alt="<?php echo escapeHtml($staff['full_name'] ?? 'Staff'); ?>">
+                        <?php else: ?>
+                            <i class="fas fa-user avatar-placeholder"></i>
+                        <?php endif; ?>
+                    </div>
                     <div>
                         <div class="user-name"><?php echo escapeHtml($staff['full_name'] ?? 'Staff'); ?></div>
                         <div class="user-role"><?php echo escapeHtml($staff['designation'] ?? 'Staff Member'); ?></div>
@@ -571,23 +591,7 @@ if ($canViewPayments) {
             $flashMessages = getFlashMessages();
             if (!empty($flashMessages)):
             ?>
-            <div class="flash-messages">
-                <?php foreach ($flashMessages as $type => $messages): ?>
-                    <?php foreach ($messages as $message): ?>
-                    <div class="alert alert-<?php echo $type; ?>">
-                        <i class="fas fa-<?php 
-                            echo match($type) {
-                                'success' => 'check-circle',
-                                'error' => 'exclamation-circle',
-                                'warning' => 'exclamation-triangle',
-                                'info' => 'info-circle',
-                                default => 'circle'
-                            };
-                        ?>"></i>
-                        <span><?php echo escapeHtml($message); ?></span>
-                        <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endforeach; ?>
-            </div>
+                <script>
+                    window.__flashMessages = <?php echo json_encode($flashMessages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+                </script>
             <?php endif; ?>

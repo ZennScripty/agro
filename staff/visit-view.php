@@ -7,7 +7,7 @@
  * @package SamridhiAgro
  * @subpackage Staff
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 // Set page title
@@ -32,9 +32,13 @@ if ($visitId <= 0) {
     exit;
 }
 
-// Get visit details
+// ============================================
+// FIXED: Removed a.agent_code (doesn't exist in users table)
+// agent_code is in agents table, not users table
+// ============================================
 $sql = "SELECT sv.*, 
-        a.full_name as agent_name, a.agent_code,
+        a.full_name as agent_name,
+        ag.agent_code,
         s.shop_name, s.shop_code,
         u.full_name as staff_name
         FROM staff_visits sv
@@ -288,10 +292,12 @@ $csrfToken = generateCsrfToken();
             <span class="detail-label">Agent Name</span>
             <span class="detail-value"><?php echo escapeHtml($visit['agent_name']); ?></span>
         </div>
+        <?php if (!empty($visit['agent_code'])): ?>
         <div class="detail-row">
             <span class="detail-label">Agent Code</span>
             <span class="detail-value"><?php echo escapeHtml($visit['agent_code']); ?></span>
         </div>
+        <?php endif; ?>
         <?php endif; ?>
         <?php if ($visit['shop_name']): ?>
         <div class="detail-row">

@@ -818,27 +818,11 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
             </div>
             
             <!-- Flash Messages -->
-            <?php
+             <?php
             $flashMessages = getFlashMessages();
             if (!empty($flashMessages)):
             ?>
-            <div class="flash-messages">
-                <?php foreach ($flashMessages as $type => $messages): ?>
-                    <?php foreach ($messages as $message): ?>
-                    <div class="alert alert-<?php echo $type; ?>">
-                        <i class="fas fa-<?php 
-                            echo match($type) {
-                                'success' => 'check-circle',
-                                'error' => 'exclamation-circle',
-                                'warning' => 'exclamation-triangle',
-                                'info' => 'info-circle',
-                                default => 'circle'
-                            };
-                        ?> alert-icon"></i>
-                        <span><?php echo escapeHtml($message); ?></span>
-                        <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endforeach; ?>
-            </div>
+                <script>
+                    window.__flashMessages = <?php echo json_encode($flashMessages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+                </script>
             <?php endif; ?>

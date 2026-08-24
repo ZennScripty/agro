@@ -8,7 +8,7 @@
  * @package SamridhiAgro
  * @subpackage Staff
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 // Set page title
@@ -24,7 +24,7 @@ requireRole('staff');
 // Get database instance
 $db = getDB();
 
-// Get staff data
+// Get staff data with avatar
 $sql = "SELECT u.*, sp.department, sp.designation, sp.joining_date 
         FROM users u 
         LEFT JOIN staff_profiles sp ON u.id = sp.user_id 
@@ -82,9 +82,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $hasErrors = true;
         }
         
+        // ============================================
+        // HANDLE AVATAR UPLOAD - uploads/avatars/
+        // ============================================
+        $avatarFileName = null;
+        $avatarUploaded = false;
+        
+        if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+            // Check if uploads/avatars directory exists
+            $uploadDir = '../uploads/avatars/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
+            // Upload and compress image
+            $uploadResult = uploadAndCompressImage(
+                $_FILES['avatar'],
+                $uploadDir,
+                70,     // Quality (70%)
+                500,    // Max width
+                500,    // Max height
+                false,  // No thumbnail needed
+                0,
+                0
+            );
+            
+            if ($uploadResult['success']) {
+                $avatarFileName = $uploadResult['filename'];
+                $avatarUploaded = true;
+                
+                // Delete old avatar if exists
+                if (!empty($staff['avatar']) && file_exists($uploadDir . $staff['avatar'])) {
+                    @unlink($uploadDir . $staff['avatar']);
+                }
+            } else {
+                $errors['avatar'] = $uploadResult['message'];
+                $hasErrors = true;
+            }
+        }
+        
         if (!$hasErrors) {
-            $sql = "UPDATE users SET full_name = ?, email = ?, phone = ?, updated_at = NOW() WHERE id = ?";
-            $db->query($sql, [$fullName, $email, $phone, $_SESSION['user_id']]);
+            // Build update query dynamically
+            $updateFields = [];
+            $updateParams = [];
+            
+            $updateFields[] = "full_name = ?";
+            $updateParams[] = $fullName;
+            
+            $updateFields[] = "email = ?";
+            $updateParams[] = $email;
+            
+            $updateFields[] = "phone = ?";
+            $updateParams[] = $phone;
+            
+            // Add avatar if uploaded
+            if ($avatarUploaded && $avatarFileName !== null) {
+                $updateFields[] = "avatar = ?";
+                $updateParams[] = $avatarFileName;
+            }
+            
+            $updateFields[] = "updated_at = NOW()";
+            
+            // Add user_id at the end
+            $updateParams[] = $_SESSION['user_id'];
+            
+            $sql = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
+            $db->query($sql, $updateParams);
             
             $_SESSION['user_name'] = $fullName;
             $_SESSION['user_email'] = $email;
@@ -166,6 +229,13 @@ $csrfToken = generateCsrfToken();
         border-radius: 12px;
         padding: 24px;
         text-align: center;
+        box-shadow: 0 2px 6px rgba(5, 46, 22, 0.06);
+    }
+    
+    .profile-avatar-wrapper {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 12px;
     }
     
     .profile-avatar {
@@ -179,8 +249,22 @@ $csrfToken = generateCsrfToken();
         font-size: 40px;
         font-weight: 700;
         color: white;
-        margin: 0 auto 12px;
         box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        overflow: hidden;
+        object-fit: cover;
+        border: 3px solid #16A34A;
+    }
+    
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .profile-avatar .avatar-text {
+        font-size: 40px;
+        font-weight: 700;
+        color: white;
     }
     
     .profile-sidebar .profile-name {
@@ -231,6 +315,7 @@ $csrfToken = generateCsrfToken();
         border: 1px solid #E5EDE7;
         border-radius: 12px;
         padding: 24px;
+        box-shadow: 0 2px 6px rgba(5, 46, 22, 0.06);
     }
     
     .profile-card .card-title {
@@ -287,6 +372,12 @@ $csrfToken = generateCsrfToken();
         margin-top: 4px;
     }
     
+    .form-hint {
+        font-size: 12px;
+        color: #6B7A7B;
+        margin-top: 4px;
+    }
+    
     .btn-primary {
         padding: 10px 28px;
         background: linear-gradient(135deg, #14532D, #16A34A);
@@ -305,22 +396,99 @@ $csrfToken = generateCsrfToken();
         box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
     }
     
+    .btn-secondary {
+        padding: 10px 24px;
+        background: #F3F4F6;
+        color: #4A5B5D;
+        border: none;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: #E5E7EB;
+    }
+    
     .form-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
     }
     
+    /* Avatar preview in form */
+    .avatar-preview-wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .avatar-preview-wrap .preview-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 2px dashed #E5EDE7;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F7FCF7;
+        flex-shrink: 0;
+    }
+    
+    .avatar-preview-wrap .preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .avatar-preview-wrap .preview-box .placeholder-icon {
+        font-size: 28px;
+        color: #6B7A7B;
+    }
+    
     @media (max-width: 1024px) {
         .profile-container {
             grid-template-columns: 1fr;
         }
-   
+        .profile-sidebar {
+            max-width: 400px;
+            margin: 0 auto;
+        }
     }
     
     @media (max-width: 768px) {
         .form-row {
             grid-template-columns: 1fr;
+        }
+        .profile-avatar-wrapper {
+            width: 80px;
+            height: 80px;
+        }
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            font-size: 32px;
+        }
+        .profile-avatar .avatar-text {
+            font-size: 32px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .profile-sidebar {
+            padding: 16px;
+        }
+        .profile-card {
+            padding: 16px;
+        }
+        .avatar-preview-wrap {
+            flex-direction: column;
+            align-items: flex-start;
         }
     }
 </style>
@@ -328,8 +496,14 @@ $csrfToken = generateCsrfToken();
 <div class="profile-container">
     <!-- Sidebar -->
     <div class="profile-sidebar">
-        <div class="profile-avatar">
-            <?php echo strtoupper(substr($staff['full_name'] ?? 'S', 0, 2)); ?>
+        <div class="profile-avatar-wrapper">
+            <div class="profile-avatar">
+                <?php if (!empty($staff['avatar']) && file_exists('../uploads/avatars/' . $staff['avatar'])): ?>
+                    <img src="../uploads/avatars/<?php echo escapeHtml($staff['avatar']); ?>" alt="<?php echo escapeHtml($staff['full_name'] ?? 'Staff'); ?>">
+                <?php else: ?>
+                    <span class="avatar-text"><?php echo strtoupper(substr($staff['full_name'] ?? 'S', 0, 2)); ?></span>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="profile-name"><?php echo escapeHtml($staff['full_name'] ?? 'Staff'); ?></div>
         <div class="profile-role">
@@ -397,9 +571,39 @@ $csrfToken = generateCsrfToken();
             </div>
             <?php endif; ?>
             
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data">
                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
                 <input type="hidden" name="action" value="update_profile">
+                
+                <!-- Avatar Upload -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-image" style="color: #16A34A;"></i>
+                        Profile Photo
+                    </label>
+                    <div class="avatar-preview-wrap">
+                        <div class="preview-box" id="avatarPreview">
+                            <?php if (!empty($staff['avatar']) && file_exists('../uploads/avatars/' . $staff['avatar'])): ?>
+                                <img src="../uploads/avatars/<?php echo escapeHtml($staff['avatar']); ?>" alt="Avatar">
+                            <?php else: ?>
+                                <i class="fas fa-user placeholder-icon"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div>
+                            <input type="file" id="avatarInputForm" name="avatar" accept="image/*" style="display: none;" onchange="previewAvatarForm(this)">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('avatarInputForm').click()">
+                                <i class="fas fa-upload"></i> Choose Image
+                            </button>
+                            <div class="form-hint" style="margin-top: 4px;">
+                                <i class="fas fa-info-circle"></i> 
+                                Allowed: JPG, PNG, GIF, WebP (Max 5MB) • Will be converted to WebP
+                            </div>
+                            <?php if (isset($errors['avatar'])): ?>
+                                <div class="form-error"><?php echo escapeHtml($errors['avatar']); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -481,5 +685,19 @@ $csrfToken = generateCsrfToken();
         </div>
     </div>
 </div>
+
+<script>
+// Preview avatar from form upload
+function previewAvatarForm(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const previewBox = document.getElementById('avatarPreview');
+            previewBox.innerHTML = '<img src="' + e.target.result + '" alt="Avatar Preview">';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 
 <?php require_once __DIR__ . '/../includes/staff_footer.php'; ?>
