@@ -239,6 +239,7 @@ $notificationCount = 0;
             font-size: 20px;
             font-weight: 600;
             color: #052E16;
+            min-width: fit-content;
         }
 
         .topbar-right {
@@ -450,8 +451,10 @@ $notificationCount = 0;
                 <a href="earnings.php" class="menu-item <?php echo $currentPage === 'earnings.php' ? 'active' : ''; ?>">
                     <i class="fas fa-rupee-sign"></i> Earnings
                 </a>
-
-                <div class="menu-label" style="margin-top: 20px;">Account</div>
+                <div class="menu-label" style="margin-top: 20px;">Attendence</div>
+                <a href="attendence.php" class="menu-item <?php echo $currentPage === 'attendence.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-clock"></i> Attendence
+                </a>
                 <a href="profile.php" class="menu-item <?php echo $currentPage === 'profile.php' ? 'active' : ''; ?>">
                     <i class="fas fa-user-circle"></i> My Profile
                 </a>

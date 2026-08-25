@@ -14,8 +14,7 @@
 // Include configuration and security
 require_once '../config/config.php';
 require_once '../config/database.php';
-require_once '../includes/functions.php';
-require_once '../includes/security.php';
+require_once '../config/functions.php';
 
 // Log the logout activity if user is logged in
 if (isLoggedIn()) {
@@ -34,4 +33,4 @@ destroySession();
 setFlashMessage('info', 'You have been successfully logged out.');
 
 // Redirect to login page
-redirect('login.php');
+redirect('');

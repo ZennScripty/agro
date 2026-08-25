@@ -5,7 +5,7 @@
  * This page allows agents to check-in/out from anywhere.
  * 
  * @package SamridhiAgro
- * @subpackage Agent
+ * @subpackage Agenta
  * @author Samridhi Agro Team
  * @version 1.0.0
  */

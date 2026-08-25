@@ -483,7 +483,7 @@ if ($canViewPayments) {
                 <div class="menu-label" style="margin-top: 20px;">My Work</div>
                 
                 <?php if ($canViewAttendance): ?>
-                <a href="attendance.php" class="menu-item <?php echo $currentPage === 'attendance.php' ? 'active' : ''; ?>">
+                <a href="attendence.php" class="menu-item <?php echo $currentPage === 'attendence.php' ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-check"></i> Attendance
                 </a>
                 <?php endif; ?>

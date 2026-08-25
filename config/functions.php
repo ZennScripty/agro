@@ -1808,11 +1808,11 @@ function calculateDistance($lat1, $lng1, $lat2, $lng2) {
  * Record attendance check-in
  * 
  * @param int $userId User ID
- * @param string $location Location name
- * @param float $lat Latitude
- * @param float $lng Longitude
- * @param string $ip IP address
- * @return array ['success' => bool, 'message' => string, 'attendance_id' => int]
+ * @param string|null $location Location name
+ * @param float|null $lat Latitude
+ * @param float|null $lng Longitude
+ * @param string|null $ip IP address
+ * @return array ['success' => bool, 'message' => string, 'attendance_id' => int|null]
  */
 function recordAttendanceCheckIn($userId, $location = null, $lat = null, $lng = null, $ip = null) {
     $db = getDB();
@@ -1832,13 +1832,18 @@ function recordAttendanceCheckIn($userId, $location = null, $lat = null, $lng = 
     $user = $db->fetchOne($sql, [$userId]);
     $userType = $user['role'] ?? 'staff';
     
-    // Check location for staff
-    if ($userType === 'staff' && $lat && $lng) {
+    // Check location for staff (agents can check-in from anywhere)
+    if ($userType === 'staff' && $lat !== null && $lng !== null) {
         $locationCheck = canCheckInFromLocation($userId, $lat, $lng);
         if (!$locationCheck['allowed']) {
             return ['success' => false, 'message' => $locationCheck['message']];
         }
     }
+    
+    // Prepare location data - use null if not provided
+    $checkInLocation = $location !== null ? $location : null;
+    $checkInLat = $lat !== null ? $lat : null;
+    $checkInLng = $lng !== null ? $lng : null;
     
     // Insert attendance
     $sql = "INSERT INTO attendance (user_id, user_type, date, check_in_time, check_in_location, check_in_lat, check_in_lng, check_in_ip, status, created_at) 
@@ -1848,9 +1853,9 @@ function recordAttendanceCheckIn($userId, $location = null, $lat = null, $lng = 
         $userId,
         $userType,
         $today,
-        $location,
-        $lat,
-        $lng,
+        $checkInLocation,
+        $checkInLat,
+        $checkInLng,
         $ip
     ]);
     
@@ -1865,10 +1870,10 @@ function recordAttendanceCheckIn($userId, $location = null, $lat = null, $lng = 
  * Record attendance check-out
  * 
  * @param int $userId User ID
- * @param string $location Location name
- * @param float $lat Latitude
- * @param float $lng Longitude
- * @param string $ip IP address
+ * @param string|null $location Location name
+ * @param float|null $lat Latitude
+ * @param float|null $lng Longitude
+ * @param string|null $ip IP address
  * @return array ['success' => bool, 'message' => string]
  */
 function recordAttendanceCheckOut($userId, $location = null, $lat = null, $lng = null, $ip = null) {
@@ -1876,13 +1881,18 @@ function recordAttendanceCheckOut($userId, $location = null, $lat = null, $lng =
     $today = date('Y-m-d');
     $ip = $ip ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     
-    // Check if checked in today
+    // Check if checked in today and not checked out
     $sql = "SELECT id, check_in_time FROM attendance WHERE user_id = ? AND date = ? AND check_out_time IS NULL";
     $existing = $db->fetchOne($sql, [$userId, $today]);
     
     if (!$existing) {
-        return ['success' => false, 'message' => 'You have not checked in today'];
+        return ['success' => false, 'message' => 'You have not checked in today or already checked out'];
     }
+    
+    // Prepare location data - use null if not provided
+    $checkOutLocation = $location !== null ? $location : null;
+    $checkOutLat = $lat !== null ? $lat : null;
+    $checkOutLng = $lng !== null ? $lng : null;
     
     // Update attendance
     $sql = "UPDATE attendance SET 
@@ -1893,20 +1903,14 @@ function recordAttendanceCheckOut($userId, $location = null, $lat = null, $lng =
             check_out_ip = ?
             WHERE id = ?";
     
-    $db->query($sql, [$location, $lat, $lng, $ip, $existing['id']]);
+    $db->query($sql, [$checkOutLocation, $checkOutLat, $checkOutLng, $ip, $existing['id']]);
     
     logActivity('check_out', $userId, 'attendance', 'Checked out at ' . ($location ?? 'Unknown location'));
     
     return ['success' => true, 'message' => 'Check-out successful!'];
 }
 
-/**
- * Get attendance summary for user
- * 
- * @param int $userId User ID
- * @param int $days Number of days to look back
- * @return array Attendance summary
- */
+
 function getAttendanceSummary($userId, $days = 30) {
     $db = getDB();
     
