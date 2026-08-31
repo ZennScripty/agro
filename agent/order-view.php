@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Agent Order View
  * 
@@ -104,6 +105,7 @@ $csrfToken = generateCsrfToken();
         margin-bottom: 20px;
         flex-wrap: wrap;
         gap: 12px;
+        border:0.5px solid #16A34A;
     }
 
     .order-header .order-info h2 {
@@ -130,11 +132,18 @@ $csrfToken = generateCsrfToken();
     }
 
     .detail-section {
-        background: white;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         border: 1px solid #E5EDE7;
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 16px;
+    }
+
+    .detail-section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        border-color: #16A34A;
     }
 
     .detail-section .section-title {
@@ -155,6 +164,11 @@ $csrfToken = generateCsrfToken();
 
     .detail-row:last-child {
         border-bottom: none;
+    }
+
+    .orderinfo {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
     }
 
     .detail-label {
@@ -180,11 +194,30 @@ $csrfToken = generateCsrfToken();
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
 
     .payment-badge {
         display: inline-block;
@@ -193,10 +226,26 @@ $csrfToken = generateCsrfToken();
         font-size: 11px;
         font-weight: 600;
     }
-    .payment-badge.pending { background: #FEF3C7; color: #92400E; }
-    .payment-badge.collected { background: #DBEAFE; color: #1E40AF; }
-    .payment-badge.submitted { background: #EDE9FE; color: #5B21B6; }
-    .payment-badge.confirmed { background: #DCFCE7; color: #065F46; }
+
+    .payment-badge.pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .payment-badge.collected {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .payment-badge.submitted {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .payment-badge.confirmed {
+        background: #DCFCE7;
+        color: #065F46;
+    }
 
     .product-item {
         display: flex;
@@ -359,23 +408,29 @@ $csrfToken = generateCsrfToken();
             flex-direction: column;
             padding: 8px 0;
         }
+
         .detail-label {
             width: 100%;
         }
+
         .product-item {
             flex-wrap: wrap;
         }
+
         .product-item .product-price {
             width: 100%;
             text-align: left;
             padding-left: 52px;
         }
+
         .order-totals .total-row {
             justify-content: space-between;
         }
+
         .order-totals .total-row .label {
             width: auto;
         }
+
         .order-totals .total-row .value {
             width: auto;
         }
@@ -392,17 +447,17 @@ $csrfToken = generateCsrfToken();
                 <span><i class="fas fa-calendar"></i> <?php echo formatDate($order['created_at']); ?></span>
                 <span>
                     <i class="fas fa-circle" style="color: <?php
-                        echo match ($order['status']) {
-                            'pending' => '#F59E0B',
-                            'confirmed' => '#3B82F6',
-                            'processing' => '#8B5CF6',
-                            'shipped' => '#06B6D4',
-                            'delivered' => '#22C55E',
-                            'cancelled' => '#EF4444',
-                            'returned' => '#F59E0B',
-                            default => '#6B7280'
-                        };
-                    ?>; font-size: 10px;"></i>
+                                                            echo match ($order['status']) {
+                                                                'pending' => '#F59E0B',
+                                                                'confirmed' => '#3B82F6',
+                                                                'processing' => '#8B5CF6',
+                                                                'shipped' => '#06B6D4',
+                                                                'delivered' => '#22C55E',
+                                                                'cancelled' => '#EF4444',
+                                                                'returned' => '#F59E0B',
+                                                                default => '#6B7280'
+                                                            };
+                                                            ?>; font-size: 10px;"></i>
                     <?php echo ucfirst($order['status']); ?>
                 </span>
                 <span><i class="fas fa-rupee-sign"></i> ₹ <?php echo number_format($order['total_amount'], 2); ?></span>
@@ -476,74 +531,78 @@ $csrfToken = generateCsrfToken();
             <i class="fas fa-info-circle" style="color: #16A34A;"></i>
             Order Information
         </div>
-        <div class="detail-row">
-            <span class="detail-label">Order Status</span>
-            <span class="detail-value">
-                <?php
-                $statusColors = [
-                    'pending' => 'badge-warning',
-                    'confirmed' => 'badge-info',
-                    'processing' => 'badge-primary',
-                    'shipped' => 'badge-info',
-                    'delivered' => 'badge-success',
-                    'cancelled' => 'badge-danger',
-                    'returned' => 'badge-warning'
-                ];
-                $color = $statusColors[$order['status']] ?? 'badge-secondary';
-                ?>
-                <span class="badge-status <?php echo $color; ?>">
-                    <?php echo ucfirst($order['status']); ?>
-                </span>
-            </span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Payment Status</span>
-            <span class="detail-value">
-                <?php if ($order['payment_id']): ?>
-                    <span class="payment-badge <?php echo $order['payment_status']; ?>">
-                        <?php echo ucfirst($order['payment_status']); ?>
+        <div class="orderinfo">
+
+            <div class="detail-row">
+                <span class="detail-label">Order Status</span>
+                <span class="detail-value">
+                    <?php
+                    $statusColors = [
+                        'pending' => 'badge-warning',
+                        'confirmed' => 'badge-info',
+                        'processing' => 'badge-primary',
+                        'shipped' => 'badge-info',
+                        'delivered' => 'badge-success',
+                        'cancelled' => 'badge-danger',
+                        'returned' => 'badge-warning'
+                    ];
+                    $color = $statusColors[$order['status']] ?? 'badge-secondary';
+                    ?>
+                    <span class="badge-status <?php echo $color; ?>">
+                        <?php echo ucfirst($order['status']); ?>
                     </span>
-                <?php else: ?>
-                    <span class="badge-status badge-warning">No Payment</span>
+                </span>
+            </div>
+
+            <div class="detail-row">
+                <span class="detail-label">Payment Status</span>
+                <span class="detail-value">
+                    <?php if ($order['payment_id']): ?>
+                        <span class="payment-badge <?php echo $order['payment_status']; ?>">
+                            <?php echo ucfirst($order['payment_status']); ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="badge-status badge-warning">No Payment</span>
+                    <?php endif; ?>
+                </span>
+            </div>
+            <?php if ($order['payment_amount']): ?>
+                <div class="detail-row">
+                    <span class="detail-label">Order Amount</span>
+                    <span class="detail-value" style="font-weight: 700; color: #14532D;">₹ <?php echo number_format($order['payment_amount'], 2); ?></span>
+                </div>
+                <?php if ($order['paid_amount'] > 0): ?>
+                    <div class="detail-row">
+                        <span class="detail-label">Amount Paid</span>
+                        <span class="detail-value" style="color: #16A34A; font-weight: 600;">₹ <?php echo number_format($order['paid_amount'], 2); ?></span>
+                    </div>
                 <?php endif; ?>
-            </span>
+                <?php if ($order['remaining_amount'] > 0): ?>
+                    <div class="detail-row">
+                        <span class="detail-label">Remaining</span>
+                        <span class="detail-value" style="color: #DC2626; font-weight: 600;">₹ <?php echo number_format($order['remaining_amount'], 2); ?></span>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+            <?php if ($order['payment_method']): ?>
+                <div class="detail-row">
+                    <span class="detail-label">Payment Method</span>
+                    <span class="detail-value"><?php echo ucfirst($order['payment_method']); ?></span>
+                </div>
+            <?php endif; ?>
+            <?php if ($order['transaction_id']): ?>
+                <div class="detail-row">
+                    <span class="detail-label">Transaction ID</span>
+                    <span class="detail-value" style="font-family: monospace;"><?php echo escapeHtml($order['transaction_id']); ?></span>
+                </div>
+            <?php endif; ?>
+            <?php if ($order['delivery_notes']): ?>
+                <div class="detail-row">
+                    <span class="detail-label">Delivery Notes</span>
+                    <span class="detail-value"><?php echo escapeHtml($order['delivery_notes']); ?></span>
+                </div>
+            <?php endif; ?>
         </div>
-        <?php if ($order['payment_amount']): ?>
-        <div class="detail-row">
-            <span class="detail-label">Order Amount</span>
-            <span class="detail-value" style="font-weight: 700; color: #14532D;">₹ <?php echo number_format($order['payment_amount'], 2); ?></span>
-        </div>
-        <?php if ($order['paid_amount'] > 0): ?>
-        <div class="detail-row">
-            <span class="detail-label">Amount Paid</span>
-            <span class="detail-value" style="color: #16A34A; font-weight: 600;">₹ <?php echo number_format($order['paid_amount'], 2); ?></span>
-        </div>
-        <?php endif; ?>
-        <?php if ($order['remaining_amount'] > 0): ?>
-        <div class="detail-row">
-            <span class="detail-label">Remaining</span>
-            <span class="detail-value" style="color: #DC2626; font-weight: 600;">₹ <?php echo number_format($order['remaining_amount'], 2); ?></span>
-        </div>
-        <?php endif; ?>
-        <?php endif; ?>
-        <?php if ($order['payment_method']): ?>
-        <div class="detail-row">
-            <span class="detail-label">Payment Method</span>
-            <span class="detail-value"><?php echo ucfirst($order['payment_method']); ?></span>
-        </div>
-        <?php endif; ?>
-        <?php if ($order['transaction_id']): ?>
-        <div class="detail-row">
-            <span class="detail-label">Transaction ID</span>
-            <span class="detail-value" style="font-family: monospace;"><?php echo escapeHtml($order['transaction_id']); ?></span>
-        </div>
-        <?php endif; ?>
-        <?php if ($order['delivery_notes']): ?>
-        <div class="detail-row">
-            <span class="detail-label">Delivery Notes</span>
-            <span class="detail-value"><?php echo escapeHtml($order['delivery_notes']); ?></span>
-        </div>
-        <?php endif; ?>
     </div>
 
     <!-- Shipping Address -->
@@ -588,13 +647,13 @@ $csrfToken = generateCsrfToken();
                 <div class="timeline-item">
                     <div class="timeline-icon">
                         <i class="fas fa-<?php
-                            echo match ($activity['action']) {
-                                'create' => 'plus',
-                                'update' => 'edit',
-                                'delete' => 'trash',
-                                default => 'circle'
-                            };
-                        ?>"></i>
+                                            echo match ($activity['action']) {
+                                                'create' => 'plus',
+                                                'update' => 'edit',
+                                                'delete' => 'trash',
+                                                default => 'circle'
+                                            };
+                                            ?>"></i>
                     </div>
                     <div class="timeline-content">
                         <div class="timeline-text">

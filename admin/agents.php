@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Agent Management
  * 
@@ -45,11 +46,11 @@ $db = getDB();
 // Handle approve/reject
 if (isset($_GET['action']) && in_array($_GET['action'], ['approve', 'reject']) && isset($_GET['id'])) {
     requirePermission('agent.approve');
-    
+
     $agentId = (int)$_GET['id'];
     $action = $_GET['action'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
@@ -58,45 +59,45 @@ if (isset($_GET['action']) && in_array($_GET['action'], ['approve', 'reject']) &
                 JOIN users u ON a.user_id = u.id 
                 WHERE a.id = ?";
         $agent = $db->fetchOne($sql, [$agentId]);
-        
+
         if ($agent) {
             $newStatus = $action === 'approve' ? 'approved' : 'rejected';
             $statusMessage = $action === 'approve' ? 'approved' : 'rejected';
-            
+
             // Update agent status
             $sql = "UPDATE agents SET status = ?, approved_by = ?, approved_at = NOW() WHERE id = ?";
             $db->query($sql, [$newStatus, $_SESSION['user_id'], $agentId]);
-            
+
             // Update user status (activate if approved)
             if ($action === 'approve') {
                 $sql = "UPDATE users SET status = 'active' WHERE id = ?";
                 $db->query($sql, [$agent['user_id']]);
             }
-            
+
             logActivity(
                 'update',
                 $_SESSION['user_id'],
                 'agent',
                 'Agent ' . $statusMessage . ': ' . $agent['full_name']
             );
-            
+
             setFlashMessage('success', 'Agent ' . $statusMessage . ' successfully.');
         } else {
             setFlashMessage('error', 'Agent not found.');
         }
     }
-    
-    redirect('agents.php');
+
+    redirect('admin/agents.php');
     exit;
 }
 
 // Handle toggle status (activate/deactivate)
 if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id'])) {
     requirePermission('agent.edit');
-    
+
     $agentId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
@@ -105,44 +106,44 @@ if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id'])
                 JOIN users u ON a.user_id = u.id 
                 WHERE a.id = ?";
         $agent = $db->fetchOne($sql, [$agentId]);
-        
+
         if ($agent) {
             $newStatus = $agent['status'] === 'approved' ? 'suspended' : 'approved';
             $statusMessage = $agent['status'] === 'approved' ? 'suspended' : 'activated';
-            
+
             // Update agent status
             $sql = "UPDATE agents SET status = ? WHERE id = ?";
             $db->query($sql, [$newStatus, $agentId]);
-            
+
             // Update user status
             $userStatus = $newStatus === 'approved' ? 'active' : 'suspended';
             $sql = "UPDATE users SET status = ? WHERE id = ?";
             $db->query($sql, [$userStatus, $agent['user_id']]);
-            
+
             logActivity(
                 'update',
                 $_SESSION['user_id'],
                 'agent',
                 'Agent ' . $statusMessage . ': ' . $agent['full_name']
             );
-            
+
             setFlashMessage('success', 'Agent ' . $statusMessage . ' successfully.');
         } else {
             setFlashMessage('error', 'Agent not found.');
         }
     }
-    
-    redirect('agents.php');
+
+    redirect('admin/agents.php');
     exit;
 }
 
 // Handle delete
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     requirePermission('agent.delete');
-    
+
     $agentId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
@@ -151,30 +152,30 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
                 JOIN users u ON a.user_id = u.id 
                 WHERE a.id = ?";
         $agent = $db->fetchOne($sql, [$agentId]);
-        
+
         if ($agent) {
             // Soft delete - update status
             $sql = "UPDATE agents SET status = 'suspended' WHERE id = ?";
             $db->query($sql, [$agentId]);
-            
+
             // Suspend user
             $sql = "UPDATE users SET status = 'suspended' WHERE id = ?";
             $db->query($sql, [$agent['user_id']]);
-            
+
             logActivity(
                 'delete',
                 $_SESSION['user_id'],
                 'agent',
                 'Deleted agent: ' . $agent['full_name']
             );
-            
+
             setFlashMessage('success', 'Agent deleted successfully.');
         } else {
             setFlashMessage('error', 'Agent not found.');
         }
     }
-    
-    redirect('agents.php');
+
+    redirect('admin/agents.php');
     exit;
 }
 
@@ -217,9 +218,17 @@ $result = $db->fetchOne($sql, $params);
 $totalAgents = $result['total'] ?? 0;
 
 // Get agent records
-$sql = "SELECT a.*, u.full_name, u.username, u.email, u.phone, u.status as user_status,
-        u.created_at as user_created_at, u.last_login,
-        u2.full_name as approved_by_name
+$sql = "SELECT 
+        a.*,
+        u.id AS user_id,
+        u.full_name,
+        u.username,
+        u.email,
+        u.phone,
+        u.status AS user_status,
+        u.created_at AS user_created_at,
+        u.last_login,
+        u2.full_name AS approved_by_name
         FROM agents a 
         JOIN users u ON a.user_id = u.id 
         LEFT JOIN users u2 ON a.approved_by = u2.id
@@ -256,13 +265,27 @@ require_once '../includes/admin_header.php';
         color: white;
         flex-shrink: 0;
     }
-    
-    .agent-avatar.active { background: #16A34A; }
-    .agent-avatar.pending { background: #F59E0B; }
-    .agent-avatar.rejected { background: #DC2626; }
-    .agent-avatar.suspended { background: #6B7A7B; }
-    .agent-avatar.approved { background: #16A34A; }
-    
+
+    .agent-avatar.active {
+        background: #16A34A;
+    }
+
+    .agent-avatar.pending {
+        background: #F59E0B;
+    }
+
+    .agent-avatar.rejected {
+        background: #DC2626;
+    }
+
+    .agent-avatar.suspended {
+        background: #6B7A7B;
+    }
+
+    .agent-avatar.approved {
+        background: #16A34A;
+    }
+
     .badge-status {
         display: inline-block;
         padding: 4px 12px;
@@ -271,14 +294,37 @@ require_once '../includes/admin_header.php';
         font-weight: 600;
         text-transform: capitalize;
     }
-    
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
-    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
-    
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
+
     .btn-action {
         width: 32px;
         height: 32px;
@@ -292,28 +338,64 @@ require_once '../includes/admin_header.php';
         cursor: pointer;
         font-size: 13px;
     }
-    
+
     .btn-action:hover {
         transform: translateY(-2px);
     }
-    
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-    .btn-view:hover { background: #BFDBFE; }
-    
-    .btn-edit { background: #EDE9FE; color: #7C3AED; }
-    .btn-edit:hover { background: #DDD6FE; }
-    
-    .btn-approve { background: #DCFCE7; color: #16A34A; }
-    .btn-approve:hover { background: #BBF7D0; }
-    
-    .btn-reject { background: #FEE2E2; color: #DC2626; }
-    .btn-reject:hover { background: #FECACA; }
-    
-    .btn-toggle { background: #FEF3C7; color: #D97706; }
-    .btn-toggle:hover { background: #FDE68A; }
-    
-    .btn-delete { background: #FEE2E2; color: #DC2626; }
-    .btn-delete:hover { background: #FECACA; }
+
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .btn-view:hover {
+        background: #BFDBFE;
+    }
+
+    .btn-edit {
+        background: #EDE9FE;
+        color: #7C3AED;
+    }
+
+    .btn-edit:hover {
+        background: #DDD6FE;
+    }
+
+    .btn-approve {
+        background: #DCFCE7;
+        color: #16A34A;
+    }
+
+    .btn-approve:hover {
+        background: #BBF7D0;
+    }
+
+    .btn-reject {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-reject:hover {
+        background: #FECACA;
+    }
+
+    .btn-toggle {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+
+    .btn-toggle:hover {
+        background: #FDE68A;
+    }
+
+    .btn-delete {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-delete:hover {
+        background: #FECACA;
+    }
 </style>
 
 <div class="content-card">
@@ -347,15 +429,15 @@ require_once '../includes/admin_header.php';
             </a>
         </div>
     </div>
-    
+
     <!-- Search and Filter -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
         <form method="GET" action="" style="flex: 1; min-width: 200px; display: flex; gap: 12px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 180px; position: relative;">
-                <input 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search by name, email, company, code..." 
+                <input
+                    type="text"
+                    name="search"
+                    placeholder="Search by name, email, company, code..."
                     value="<?php echo escapeHtml($search); ?>"
                     style="
                         width: 100%;
@@ -366,8 +448,7 @@ require_once '../includes/admin_header.php';
                         font-size: 14px;
                         transition: all 0.3s ease;
                         background: white;
-                    "
-                >
+                    ">
                 <i class="fas fa-search" style="
                     position: absolute;
                     left: 14px;
@@ -406,7 +487,7 @@ require_once '../includes/admin_header.php';
                 <i class="fas fa-filter"></i> Filter
             </button>
             <?php if (!empty($search) || $status !== 'all'): ?>
-            <a href="agents.php" style="
+                <a href="agents.php" style="
                 padding: 10px 16px;
                 background: #F3F4F6;
                 color: #4A5B5D;
@@ -417,12 +498,12 @@ require_once '../includes/admin_header.php';
                 text-decoration: none;
                 transition: all 0.3s ease;
             ">
-                <i class="fas fa-times"></i> Clear
-            </a>
+                    <i class="fas fa-times"></i> Clear
+                </a>
             <?php endif; ?>
         </form>
     </div>
-    
+
     <!-- Agent Table -->
     <div class="table-wrapper">
         <table class="table-custom">
@@ -440,134 +521,141 @@ require_once '../includes/admin_header.php';
             </thead>
             <tbody>
                 <?php if (empty($agentList)): ?>
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
-                        <i class="fas fa-user-slash" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
-                        No agents found
-                        <?php if (!empty($search) || $status !== 'all'): ?>
-                        <br><span style="font-size: 13px;">Try adjusting your search or filters</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                            <i class="fas fa-user-slash" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
+                            No agents found
+                            <?php if (!empty($search) || $status !== 'all'): ?>
+                                <br><span style="font-size: 13px;">Try adjusting your search or filters</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 <?php else: ?>
-                <?php foreach ($agentList as $agent): ?>
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="agent-avatar <?php echo $agent['status']; ?>">
-                                <?php echo strtoupper(substr($agent['full_name'], 0, 2)); ?>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: #052E16;"><?php echo escapeHtml($agent['full_name']); ?></div>
-                                <div style="font-size: 12px; color: #6B7A7B;"><?php echo escapeHtml($agent['username']); ?></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #14532D;">
-                            <?php echo escapeHtml($agent['agent_code']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php if (!empty($agent['company_name'])): ?>
-                            <?php echo escapeHtml($agent['company_name']); ?>
-                        <?php else: ?>
-                            <span style="color: #6B7A7B; font-size: 13px;">N/A</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <div style="font-size: 13px;">
-                            <?php if (!empty($agent['email'])): ?>
-                                <div><i class="fas fa-envelope" style="color: #6B7A7B; width: 14px;"></i> <?php echo escapeHtml($agent['email']); ?></div>
-                            <?php endif; ?>
-                            <?php if (!empty($agent['phone'])): ?>
-                                <div><i class="fas fa-phone" style="color: #6B7A7B; width: 14px;"></i> <?php echo escapeHtml($agent['phone']); ?></div>
-                            <?php endif; ?>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="font-weight: 600; color: #14532D;">
-                            <?php echo $agent['commission_rate'] > 0 ? number_format($agent['commission_rate'], 2) . '%' : 'N/A'; ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php 
-                        $statusColors = [
-                            'pending' => 'badge-warning',
-                            'approved' => 'badge-success',
-                            'rejected' => 'badge-danger',
-                            'suspended' => 'badge-secondary'
-                        ];
-                        $color = $statusColors[$agent['status']] ?? 'badge-secondary';
-                        ?>
-                        <span class="badge-status <?php echo $color; ?>">
-                            <?php echo ucfirst($agent['status']); ?>
-                        </span>
-                    </td>
-                    <td><?php echo formatDate($agent['created_at']); ?></td>
-                    <td style="text-align: center;">
-                        <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                            <!-- View Details -->
-                            <a href="agent-view.php?id=<?php echo $agent['id']; ?>" 
-                               class="btn-action btn-view" 
-                               title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            
-                            <!-- Edit -->
-                            <a href="agent-edit.php?id=<?php echo $agent['id']; ?>" 
-                               class="btn-action btn-edit" 
-                               title="Edit Agent">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            
-                            <?php if ($agent['status'] === 'pending'): ?>
-                                <!-- Approve -->
-                                <a href="agents.php?action=approve&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                                   class="btn-action btn-approve" 
-                                   title="Approve Agent"
-                                   onclick="return confirm('Are you sure you want to approve this agent?')">
-                                    <i class="fas fa-check"></i>
-                                </a>
-                                
-                                <!-- Reject -->
-                                <a href="agents.php?action=reject&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                                   class="btn-action btn-reject" 
-                                   title="Reject Agent"
-                                   onclick="return confirm('Are you sure you want to reject this agent?')">
-                                    <i class="fas fa-times"></i>
-                                </a>
-                            <?php else: ?>
-                                <!-- Toggle Status (Activate/Deactivate) -->
-                                <a href="agents.php?action=toggle&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                                   class="btn-action btn-toggle" 
-                                   title="<?php echo $agent['status'] === 'approved' ? 'Suspend' : 'Activate'; ?>"
-                                   onclick="return confirm('Are you sure you want to <?php echo $agent['status'] === 'approved' ? 'suspend' : 'activate'; ?> this agent?')">
-                                    <i class="fas fa-<?php echo $agent['status'] === 'approved' ? 'pause' : 'play'; ?>"></i>
-                                </a>
-                            <?php endif; ?>
-                            
-                            <!-- Delete -->
-                            <a href="agents.php?action=delete&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                               class="btn-action btn-delete" 
-                               title="Delete Agent"
-                               onclick="return confirm('Are you sure you want to delete this agent? This action cannot be undone.')">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
+                    <?php foreach ($agentList as $agent): ?>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="agent-avatar <?php echo $agent['status']; ?>">
+                                        <?php echo strtoupper(substr($agent['full_name'], 0, 2)); ?>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600; color: #052E16;"><?php echo escapeHtml($agent['full_name']); ?></div>
+                                        <div style="font-size: 12px; color: #6B7A7B;"><?php echo escapeHtml($agent['username']); ?></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #14532D;">
+                                    <?php echo escapeHtml($agent['agent_code']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if (!empty($agent['company_name'])): ?>
+                                    <?php echo escapeHtml($agent['company_name']); ?>
+                                <?php else: ?>
+                                    <span style="color: #6B7A7B; font-size: 13px;">N/A</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <div style="font-size: 13px;">
+                                    <?php if (!empty($agent['email'])): ?>
+                                        <div><i class="fas fa-envelope" style="color: #6B7A7B; width: 14px;"></i> <?php echo escapeHtml($agent['email']); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($agent['phone'])): ?>
+                                        <div><i class="fas fa-phone" style="color: #6B7A7B; width: 14px;"></i> <?php echo escapeHtml($agent['phone']); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; color: #14532D;">
+                                    <?php echo $agent['commission_rate'] > 0 ? number_format($agent['commission_rate'], 2) . '%' : 'N/A'; ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php
+                                $statusColors = [
+                                    'pending' => 'badge-warning',
+                                    'approved' => 'badge-success',
+                                    'rejected' => 'badge-danger',
+                                    'suspended' => 'badge-secondary'
+                                ];
+                                $color = $statusColors[$agent['status']] ?? 'badge-secondary';
+                                ?>
+                                <span class="badge-status <?php echo $color; ?>">
+                                    <?php echo ucfirst($agent['status']); ?>
+                                </span>
+                            </td>
+                            <td><?php echo formatDate($agent['created_at']); ?></td>
+                            <td style="text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+                                    <!-- View Details -->
+                                    <a href="agent-view.php?id=<?php echo $agent['id']; ?>"
+                                        class="btn-action btn-view"
+                                        title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    <!-- Edit -->
+                                    <a href="agent-edit.php?id=<?php echo $agent['id']; ?>"
+                                        class="btn-action btn-edit"
+                                        title="Edit Agent">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <!-- View Attendance -->
+                                    <!-- <a href="attendance-manage.php?id=<?php echo (int)$agent['user_id']; ?>"
+                                        class="btn-action btn-attendance"
+                                        title="View Attendance"
+                                        style="width: 32px; height: 32px; border-radius: 8px; border: none;  background: #DBEAFE; color: #2563EB;  display: inline-flex;  align-items: center; justify-content: center;  text-decoration: none; transition: all 0.3s ease; cursor: pointer; ">
+
+                                        <i class="fas fa-calendar-check"></i>
+                                    </a> -->
+                                    <?php if ($agent['status'] === 'pending'): ?>
+                                        <!-- Approve -->
+                                        <a href="agents.php?action=approve&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-approve"
+                                            title="Approve Agent"
+                                            onclick="return confirm('Are you sure you want to approve this agent?')">
+                                            <i class="fas fa-check"></i>
+                                        </a>
+
+                                        <!-- Reject -->
+                                        <a href="agents.php?action=reject&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-reject"
+                                            title="Reject Agent"
+                                            onclick="return confirm('Are you sure you want to reject this agent?')">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <!-- Toggle Status (Activate/Deactivate) -->
+                                        <a href="agents.php?action=toggle&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-toggle"
+                                            title="<?php echo $agent['status'] === 'approved' ? 'Suspend' : 'Activate'; ?>"
+                                            onclick="return confirm('Are you sure you want to <?php echo $agent['status'] === 'approved' ? 'suspend' : 'activate'; ?> this agent?')">
+                                            <i class="fas fa-<?php echo $agent['status'] === 'approved' ? 'pause' : 'play'; ?>"></i>
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <!-- Delete -->
+                                    <a href="agents.php?action=delete&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                        class="btn-action btn-delete"
+                                        title="Delete Agent"
+                                        onclick="return confirm('Are you sure you want to delete this agent? This action cannot be undone.')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
-    
+
     <!-- Pagination -->
     <?php if ($totalPages > 1): ?>
-    <div style="margin-top: 20px;">
-        <?php echo $pagination; ?>
-    </div>
+        <div style="margin-top: 20px;">
+            <?php echo $pagination; ?>
+        </div>
     <?php endif; ?>
 </div>
 

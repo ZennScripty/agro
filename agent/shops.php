@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Agent Shops Management
  * 
@@ -124,40 +125,193 @@ $csrfToken = generateCsrfToken();
 ?>
 
 <style>
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-    .stat-card { background: white; border: 1px solid #E5EDE7; border-radius: 10px; padding: 12px 16px; text-align: center; }
-    .stat-card .stat-number { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700; }
-    .stat-card .stat-label { font-family: 'Inter', sans-serif; font-size: 12px; color: #6B7A7B; }
-    .stat-card.total .stat-number { color: #14532D; }
-    .stat-card.approved .stat-number { color: #16A34A; }
-    .stat-card.pending .stat-number { color: #F59E0B; }
-    .stat-card.suspended .stat-number { color: #DC2626; }
-    
-    .shop-card { background: white; border: 1px solid #E5EDE7; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; transition: all 0.3s ease; }
-    .shop-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .shop-card .shop-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
-    .shop-card .shop-name { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: #052E16; }
-    .shop-card .shop-code { font-size: 13px; color: #6B7A7B; }
-    .shop-card .shop-company { font-size: 13px; color: #7C3AED; font-weight: 500; margin-top: 2px; }
-    .shop-card .shop-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0FDF4; }
-    .shop-card .shop-stats .stat-item { text-align: center; }
-    .shop-card .shop-stats .stat-item .stat-value { font-weight: 600; color: #14532D; }
-    .shop-card .shop-stats .stat-item .stat-label { font-size: 11px; color: #6B7A7B; }
-    .shop-card .shop-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-    
-    .badge-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
-    
-    .btn-action { padding: 4px 12px; border-radius: 6px; border: none; font-size: 12px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: all 0.3s ease; cursor: pointer; }
-    .btn-action:hover { transform: translateY(-1px); }
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-    .btn-orders { background: #EDE9FE; color: #7C3AED; }
-    .btn-payments { background: #DCFCE7; color: #16A34A; }
-    .btn-history { background: #FEF3C7; color: #D97706; }
-    .btn-toggle { background: #F3F4F6; color: #4A5B5D; }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E5EDE7;
+        border-radius: 10px;
+        padding: 12px 16px;
+        text-align: center;
+         background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+    }
+
+    .stat-card .stat-number {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+    }
+
+    .stat-card .stat-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        color: #6B7A7B;
+    }
+
+    .stat-card.total .stat-number {
+        color: #14532D;
+    }
+
+    .stat-card.approved .stat-number {
+        color: #16A34A;
+    }
+
+    .stat-card.pending .stat-number {
+        color: #F59E0B;
+    }
+
+    .stat-card.suspended .stat-number {
+        color: #DC2626;
+    }
+
+    .shop-card {
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        border: 1px solid #E5EDE7;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+    }
+
+    .shop-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .shop-card .shop-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .shop-card .shop-name {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        color: #052E16;
+    }
+
+    .shop-card .shop-code {
+        font-size: 13px;
+        color: #6B7A7B;
+    }
+
+    .shop-card .shop-company {
+        font-size: 13px;
+        color: #7C3AED;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+
+    .shop-card .shop-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #F0FDF4;
+    }
+
+    .shop-card .shop-stats .stat-item {
+        text-align: center;
+    }
+
+    .shop-card .shop-stats .stat-item .stat-value {
+        font-weight: 600;
+        color: #14532D;
+    }
+
+    .shop-card .shop-stats .stat-item .stat-label {
+        font-size: 11px;
+        color: #6B7A7B;
+    }
+
+    .shop-card .shop-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .badge-status {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
+
+    .btn-action {
+        padding: 4px 12px;
+        border-radius: 6px;
+        border: none;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-1px);
+    }
+
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .btn-orders {
+        background: #EDE9FE;
+        color: #7C3AED;
+    }
+
+    .btn-payments {
+        background: #DCFCE7;
+        color: #16A34A;
+    }
+
+    .btn-history {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+
+    .btn-toggle {
+        background: #F3F4F6;
+        color: #4A5B5D;
+    }
 </style>
 
 <div class="content-card">
@@ -171,15 +325,27 @@ $csrfToken = generateCsrfToken();
             <i class="fas fa-plus"></i> Create Shop
         </a>
     </div>
-    
+
     <!-- Statistics -->
     <div class="stats-grid">
-        <div class="stat-card total"><div class="stat-number"><?php echo $shopStats['total'] ?? 0; ?></div><div class="stat-label">Total Shops</div></div>
-        <div class="stat-card approved"><div class="stat-number"><?php echo $shopStats['approved'] ?? 0; ?></div><div class="stat-label">Approved</div></div>
-        <div class="stat-card pending"><div class="stat-number"><?php echo $shopStats['pending'] ?? 0; ?></div><div class="stat-label">Pending</div></div>
-        <div class="stat-card suspended"><div class="stat-number"><?php echo $shopStats['suspended'] ?? 0; ?></div><div class="stat-label">Suspended</div></div>
+        <div class="stat-card total">
+            <div class="stat-number"><?php echo $shopStats['total'] ?? 0; ?></div>
+            <div class="stat-label">Total Shops</div>
+        </div>
+        <div class="stat-card approved">
+            <div class="stat-number"><?php echo $shopStats['approved'] ?? 0; ?></div>
+            <div class="stat-label">Approved</div>
+        </div>
+        <div class="stat-card pending">
+            <div class="stat-number"><?php echo $shopStats['pending'] ?? 0; ?></div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card suspended">
+            <div class="stat-number"><?php echo $shopStats['suspended'] ?? 0; ?></div>
+            <div class="stat-label">Suspended</div>
+        </div>
     </div>
-    
+
     <!-- Search -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px;">
         <form method="GET" action="" style="flex: 1; display: flex; gap: 12px; flex-wrap: wrap;">
@@ -197,13 +363,13 @@ $csrfToken = generateCsrfToken();
                 <i class="fas fa-filter"></i> Filter
             </button>
             <?php if (!empty($search) || $status !== 'all'): ?>
-            <a href="shops.php" style="padding: 10px 16px; background: #F3F4F6; color: #4A5B5D; border: none; border-radius: 10px; text-decoration: none;">
-                <i class="fas fa-times"></i> Clear
-            </a>
+                <a href="shops.php" style="padding: 10px 16px; background: #F3F4F6; color: #4A5B5D; border: none; border-radius: 10px; text-decoration: none;">
+                    <i class="fas fa-times"></i> Clear
+                </a>
             <?php endif; ?>
         </form>
     </div>
-    
+
     <!-- Shop List -->
     <?php if (empty($shopList)): ?>
         <div style="text-align: center; padding: 40px; color: #6B7A7B;">
@@ -212,87 +378,87 @@ $csrfToken = generateCsrfToken();
         </div>
     <?php else: ?>
         <?php foreach ($shopList as $shop): ?>
-        <div class="shop-card">
-            <div class="shop-header">
-                <div>
-                    <div class="shop-name"><?php echo escapeHtml($shop['shop_name']); ?></div>
-                    <div class="shop-code">
-                        Code: <?php echo escapeHtml($shop['shop_code']); ?> 
-                        | Owner: <?php echo escapeHtml($shop['owner_name']); ?>
-                        | <?php echo escapeHtml($shop['city'] ?? 'N/A'); ?>
+            <div class="shop-card">
+                <div class="shop-header">
+                    <div>
+                        <div class="shop-name"><?php echo escapeHtml($shop['shop_name']); ?></div>
+                        <div class="shop-code">
+                            Code: <?php echo escapeHtml($shop['shop_code']); ?>
+                            | Owner: <?php echo escapeHtml($shop['owner_name']); ?>
+                            | <?php echo escapeHtml($shop['city'] ?? 'N/A'); ?>
+                        </div>
+                        <?php if (!empty($shop['agent_company_name'])): ?>
+                            <div class="shop-company">
+                                <i class="fas fa-building"></i> Company: <?php echo escapeHtml($shop['agent_company_name']); ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
-                    <?php if (!empty($shop['agent_company_name'])): ?>
-                    <div class="shop-company">
-                        <i class="fas fa-building"></i> Company: <?php echo escapeHtml($shop['agent_company_name']); ?>
+                    <div>
+                        <?php
+                        $statusColors = [
+                            'approved' => 'badge-success',
+                            'pending' => 'badge-warning',
+                            'suspended' => 'badge-danger',
+                            'rejected' => 'badge-secondary'
+                        ];
+                        $color = $statusColors[$shop['status']] ?? 'badge-secondary';
+                        ?>
+                        <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($shop['status']); ?></span>
+                        <?php if ($shop['delivery_available']): ?>
+                            <span class="badge-status" style="background: #DBEAFE; color: #1E40AF;">🚚 Delivery</span>
+                        <?php endif; ?>
                     </div>
+                </div>
+
+                <div class="shop-stats">
+                    <div class="stat-item">
+                        <div class="stat-value"><?php echo number_format($shop['order_count'] ?? 0); ?></div>
+                        <div class="stat-label">Orders</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">₹ <?php echo number_format($shop['total_revenue'] ?? 0, 0); ?></div>
+                        <div class="stat-label">Revenue</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">₹ <?php echo number_format($shop['commission_earned'] ?? 0, 0); ?></div>
+                        <div class="stat-label">Commission</div>
+                    </div>
+                    <?php if (($shop['pending_orders'] ?? 0) > 0): ?>
+                        <div class="stat-item" style="border-left: 2px solid #F59E0B;">
+                            <div class="stat-value" style="color: #F59E0B;"><?php echo $shop['pending_orders']; ?></div>
+                            <div class="stat-label">Pending Orders</div>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (($shop['pending_payments'] ?? 0) > 0): ?>
+                        <div class="stat-item" style="border-left: 2px solid #DC2626;">
+                            <div class="stat-value" style="color: #DC2626;"><?php echo $shop['pending_payments']; ?></div>
+                            <div class="stat-label">Pending Payments</div>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($shop['working_hours_start']) && !empty($shop['working_hours_end'])): ?>
+                        <div class="stat-item">
+                            <div class="stat-value"><?php echo date('h:i A', strtotime($shop['working_hours_start'])); ?> - <?php echo date('h:i A', strtotime($shop['working_hours_end'])); ?></div>
+                            <div class="stat-label">Working Hours</div>
+                        </div>
                     <?php endif; ?>
                 </div>
-                <div>
-                    <?php 
-                    $statusColors = [
-                        'approved' => 'badge-success',
-                        'pending' => 'badge-warning',
-                        'suspended' => 'badge-danger',
-                        'rejected' => 'badge-secondary'
-                    ];
-                    $color = $statusColors[$shop['status']] ?? 'badge-secondary';
-                    ?>
-                    <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($shop['status']); ?></span>
-                    <?php if ($shop['delivery_available']): ?>
-                        <span class="badge-status" style="background: #DBEAFE; color: #1E40AF;">🚚 Delivery</span>
+
+                <div class="shop-actions">
+                    <a href="shop-view.php?id=<?php echo $shop['id']; ?>" class="btn-action btn-view"><i class="fas fa-eye"></i> View</a>
+                    <a href="orders.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-orders"><i class="fas fa-shopping-cart"></i> Orders</a>
+                    <a href="shop-payments.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-payments"><i class="fas fa-rupee-sign"></i> Payments</a>
+                    <a href="shop-history.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-history"><i class="fas fa-history"></i> History</a>
+                    <?php if ($shop['status'] === 'approved'): ?>
+                        <a href="shops.php?action=toggle&id=<?php echo $shop['id']; ?>&csrf=<?php echo $csrfToken; ?>" class="btn-action btn-toggle" onclick="return confirm('Toggle shop status?')"><i class="fas fa-pause"></i> Suspend</a>
+                    <?php elseif ($shop['status'] === 'suspended'): ?>
+                        <a href="shops.php?action=toggle&id=<?php echo $shop['id']; ?>&csrf=<?php echo $csrfToken; ?>" class="btn-action btn-toggle" onclick="return confirm('Activate this shop?')"><i class="fas fa-play"></i> Activate</a>
                     <?php endif; ?>
                 </div>
             </div>
-            
-            <div class="shop-stats">
-                <div class="stat-item">
-                    <div class="stat-value"><?php echo number_format($shop['order_count'] ?? 0); ?></div>
-                    <div class="stat-label">Orders</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">₹ <?php echo number_format($shop['total_revenue'] ?? 0, 0); ?></div>
-                    <div class="stat-label">Revenue</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">₹ <?php echo number_format($shop['commission_earned'] ?? 0, 0); ?></div>
-                    <div class="stat-label">Commission</div>
-                </div>
-                <?php if (($shop['pending_orders'] ?? 0) > 0): ?>
-                <div class="stat-item" style="border-left: 2px solid #F59E0B;">
-                    <div class="stat-value" style="color: #F59E0B;"><?php echo $shop['pending_orders']; ?></div>
-                    <div class="stat-label">Pending Orders</div>
-                </div>
-                <?php endif; ?>
-                <?php if (($shop['pending_payments'] ?? 0) > 0): ?>
-                <div class="stat-item" style="border-left: 2px solid #DC2626;">
-                    <div class="stat-value" style="color: #DC2626;"><?php echo $shop['pending_payments']; ?></div>
-                    <div class="stat-label">Pending Payments</div>
-                </div>
-                <?php endif; ?>
-                <?php if (!empty($shop['working_hours_start']) && !empty($shop['working_hours_end'])): ?>
-                <div class="stat-item">
-                    <div class="stat-value"><?php echo date('h:i A', strtotime($shop['working_hours_start'])); ?> - <?php echo date('h:i A', strtotime($shop['working_hours_end'])); ?></div>
-                    <div class="stat-label">Working Hours</div>
-                </div>
-                <?php endif; ?>
-            </div>
-            
-            <div class="shop-actions">
-                <a href="shop-view.php?id=<?php echo $shop['id']; ?>" class="btn-action btn-view"><i class="fas fa-eye"></i> View</a>
-                <a href="orders.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-orders"><i class="fas fa-shopping-cart"></i> Orders</a>
-                <a href="shop-payments.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-payments"><i class="fas fa-rupee-sign"></i> Payments</a>
-                <a href="shop-history.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-history"><i class="fas fa-history"></i> History</a>
-                <?php if ($shop['status'] === 'approved'): ?>
-                <a href="shops.php?action=toggle&id=<?php echo $shop['id']; ?>&csrf=<?php echo $csrfToken; ?>" class="btn-action btn-toggle" onclick="return confirm('Toggle shop status?')"><i class="fas fa-pause"></i> Suspend</a>
-                <?php elseif ($shop['status'] === 'suspended'): ?>
-                <a href="shops.php?action=toggle&id=<?php echo $shop['id']; ?>&csrf=<?php echo $csrfToken; ?>" class="btn-action btn-toggle" onclick="return confirm('Activate this shop?')"><i class="fas fa-play"></i> Activate</a>
-                <?php endif; ?>
-            </div>
-        </div>
         <?php endforeach; ?>
-        
+
         <?php if ($totalPages > 1): ?>
-        <div style="margin-top: 20px;"><?php echo $pagination; ?></div>
+            <div style="margin-top: 20px;"><?php echo $pagination; ?></div>
         <?php endif; ?>
     <?php endif; ?>
 </div>

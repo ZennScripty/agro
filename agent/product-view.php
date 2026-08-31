@@ -68,6 +68,8 @@ $csrfToken = generateCsrfToken();
         align-items: center;
         justify-content: center;
         min-height: 300px;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
     
     .product-detail-image img {
@@ -178,10 +180,12 @@ $csrfToken = generateCsrfToken();
         .product-detail-info .product-meta {
             grid-template-columns: 1fr;
         }
+     
     }
 </style>
 
-<div class="content-card">
+        
+<div class="content-card" style="border:0.5px solid  #16A34A;">
     <div class="card-header">
         <h3 class="card-title">
             <i class="fas fa-box" style="color: #16A34A;"></i>

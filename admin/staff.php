@@ -73,7 +73,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id'])
         }
     }
 
-    redirect('staff.php');
+    redirect('admin/staff.php');
     exit;
 }
 
@@ -114,7 +114,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
         }
     }
 
-    redirect('staff.php');
+    redirect('admin/staff.php');
     exit;
 }
 
@@ -378,7 +378,7 @@ require_once '../includes/admin_header.php';
                                         <i class="fas fa-edit" style="font-size: 13px;"></i>
                                     </a>
                                     <!-- View Attendance -->
-                                    <a href="staff-attendance.php?id=<?php echo $staff['id']; ?>"
+                                    <!-- <a href="attendance-manage.php?id=<?php echo $staff['id']; ?>"
                                         class="btn-action btn-attendance"
                                         title="View Attendance"
                                         style="
@@ -396,49 +396,9 @@ require_once '../includes/admin_header.php';
         cursor: pointer;
    ">
                                         <i class="fas fa-calendar-check" style="font-size: 13px;"></i>
-                                    </a>
+                                    </a> -->
 
-                                    <!-- View Visits -->
-                                    <a href="staff-visits.php?id=<?php echo $staff['id']; ?>"
-                                        class="btn-action btn-visits"
-                                        title="View Visits"
-                                        style="
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: none;
-        background: #EDE9FE;
-        color: #7C3AED;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        cursor: pointer;
-   ">
-                                        <i class="fas fa-route" style="font-size: 13px;"></i>
-                                    </a>
 
-                                    <!-- View Leads -->
-                                    <a href="staff-leads.php?id=<?php echo $staff['id']; ?>"
-                                        class="btn-action btn-leads"
-                                        title="View Leads"
-                                        style="
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: none;
-        background: #FEF3C7;
-        color: #D97706;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        cursor: pointer;
-   ">
-                                        <i class="fas fa-bullhorn" style="font-size: 13px;"></i>
-                                    </a>
                                     <!-- Permissions Button -->
                                     <a href="staff-permissions.php?id=<?php echo $staff['id']; ?>"
                                         class="btn-action btn-permissions"

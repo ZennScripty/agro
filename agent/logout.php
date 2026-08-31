@@ -33,5 +33,5 @@ destroySession();
 setFlashMessage('info', 'You have been successfully logged out.');
 
 // Redirect to login page
-redirect('login.php');
+redirect('');
 exit;

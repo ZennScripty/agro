@@ -22,7 +22,8 @@ define('APP_SHORT_NAME', 'SAGRO');
 define('APP_ENV', 'development'); // development | production | staging
 
 // Application URLs
-define('SITE_URL', 'http://localhost/agro/');
+// define('SITE_URL', 'http://localhost/agro/');
+define('SITE_URL', 'http://192.168.1.4/agro/');
 define('ADMIN_URL', SITE_URL . 'admin/');
 define('STAFF_URL', SITE_URL . 'staff/');
 define('AGENT_URL', SITE_URL . 'agent/');
@@ -337,5 +338,5 @@ if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     // header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
-    header('Permissions-Policy: geolocation=(self), microphone=(), camera=()');
+    header('Permissions-Policy: geolocation=(self), microphone=(self), camera=(self)');
 }

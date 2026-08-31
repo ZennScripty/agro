@@ -8,7 +8,7 @@
  * @package SamridhiAgro
  * @subpackage Shop
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // Set page title
@@ -38,6 +38,13 @@ $shop = $db->fetchOne($sql, [$_SESSION['user_id']]);
 // Initialize variables
 $errors = [];
 $success = [];
+
+// ============================================
+// GET LOCATION FROM DATABASE
+// ============================================
+$shopLatitude = $shop['latitude'] ?? null;
+$shopLongitude = $shop['longitude'] ?? null;
+$locationSet = ($shopLatitude !== null && $shopLongitude !== null);
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -72,6 +79,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Get weekend days from checkboxes
         $weekendDays = isset($_POST['weekend_days']) ? implode(',', $_POST['weekend_days']) : '';
+        
+        // ============================================
+        // GET LOCATION FROM FORM
+        // ============================================
+        $latitude = isset($_POST['latitude']) && $_POST['latitude'] !== '' ? (float)$_POST['latitude'] : null;
+        $longitude = isset($_POST['longitude']) && $_POST['longitude'] !== '' ? (float)$_POST['longitude'] : null;
         
         // Validation
         $hasErrors = false;
@@ -134,6 +147,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (!empty($workingHoursStart) && !empty($workingHoursEnd) && $workingHoursStart >= $workingHoursEnd) {
             $errors['working_hours'] = 'Closing time must be after opening time';
+            $hasErrors = true;
+        }
+        
+        // Validate location - if both fields are provided, they should be valid numbers
+        if ($latitude !== null && ($latitude < -90 || $latitude > 90)) {
+            $errors['latitude'] = 'Latitude must be between -90 and 90';
+            $hasErrors = true;
+        }
+        if ($longitude !== null && ($longitude < -180 || $longitude > 180)) {
+            $errors['longitude'] = 'Longitude must be between -180 and 180';
             $hasErrors = true;
         }
         
@@ -204,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
             $db->query($sql, $updateParams);
             
-            // Update shop
+            // Update shop with location
             $sql = "UPDATE shops SET 
                     shop_name = ?,
                     shop_type = ?,
@@ -219,6 +242,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     working_hours_start = ?,
                     working_hours_end = ?,
                     weekend_days = ?,
+                    latitude = ?,
+                    longitude = ?,
                     updated_at = NOW()
                     WHERE user_id = ?";
             $db->query($sql, [
@@ -235,6 +260,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $workingHoursStart ?: null,
                 $workingHoursEnd ?: null,
                 $weekendDays,
+                $latitude,
+                $longitude,
                 $_SESSION['user_id']
             ]);
             
@@ -242,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_name'] = $fullName;
             $_SESSION['user_email'] = $email;
             
-            logActivity('update', $_SESSION['user_id'], 'profile', 'Updated shop profile');
+            logActivity('update', $_SESSION['user_id'], 'profile', 'Updated shop profile with location');
             
             setFlashMessage('success', 'Profile updated successfully!');
             redirect('shop/profile.php');
@@ -328,6 +355,9 @@ if (!empty($shop['weekend_days'])) {
     $selectedWeekendDays = explode(',', $shop['weekend_days']);
 }
 ?>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
     .profile-container {
@@ -526,6 +556,35 @@ if (!empty($shop['weekend_days'])) {
         background: #E5E7EB;
     }
     
+    .btn-location {
+        padding: 10px 20px;
+        background: #2563EB;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-location:hover {
+        background: #1D4ED8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .btn-location:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
     .form-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -610,6 +669,64 @@ if (!empty($shop['weekend_days'])) {
         color: #6B7A7B;
     }
     
+    /* Location Section */
+    .location-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-top: 8px;
+    }
+    
+    .location-status {
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .location-status.success {
+        background: #DCFCE7;
+        color: #065F46;
+        border: 1px solid #BBF7D0;
+    }
+    
+    .location-status.error {
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FECACA;
+    }
+    
+    .location-status.warning {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+    }
+    
+    .location-status.info {
+        background: #DBEAFE;
+        color: #1E40AF;
+        border: 1px solid #BFDBFE;
+    }
+    
+    .location-coords {
+        font-family: monospace;
+        font-weight: 600;
+        color: #14532D;
+        font-size: 13px;
+        padding: 4px 8px;
+        background: #F7FCF7;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
     @media (max-width: 1024px) {
         .profile-container {
             grid-template-columns: 1fr;
@@ -638,6 +755,13 @@ if (!empty($shop['weekend_days'])) {
         .weekend-grid {
             grid-template-columns: repeat(2, 1fr);
         }
+        .location-container {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .location-status {
+            width: 100%;
+        }
     }
     
     @media (max-width: 480px) {
@@ -647,7 +771,6 @@ if (!empty($shop['weekend_days'])) {
         .profile-card {
             padding: 16px;
         }
-  
         .weekend-grid {
             grid-template-columns: 1fr 1fr;
         }
@@ -713,6 +836,14 @@ if (!empty($shop['weekend_days'])) {
                 <span class="label">Phone</span>
                 <span class="value"><?php echo !empty($shop['phone']) ? escapeHtml($shop['phone']) : 'Not provided'; ?></span>
             </div>
+            <?php if ($shop['latitude'] && $shop['longitude']): ?>
+            <div class="meta-item">
+                <span class="label">Location</span>
+                <span class="value" style="font-size: 11px; font-family: monospace;">
+                    <?php echo number_format($shop['latitude'], 6); ?>, <?php echo number_format($shop['longitude'], 6); ?>
+                </span>
+            </div>
+            <?php endif; ?>
             <div class="meta-item">
                 <span class="label">Joined</span>
                 <span class="value"><?php echo formatDate($shop['created_at'] ?? date('Y-m-d')); ?></span>
@@ -752,9 +883,11 @@ if (!empty($shop['weekend_days'])) {
             </div>
             <?php endif; ?>
             
-            <form method="POST" action="" enctype="multipart/form-data">
+            <form method="POST" action="" enctype="multipart/form-data" id="profileForm">
                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
                 <input type="hidden" name="action" value="update_profile">
+                <input type="hidden" name="latitude" id="latitude" value="<?php echo $shop['latitude'] ?? ''; ?>">
+                <input type="hidden" name="longitude" id="longitude" value="<?php echo $shop['longitude'] ?? ''; ?>">
                 
                 <!-- Avatar Upload -->
                 <div class="form-group">
@@ -888,6 +1021,52 @@ if (!empty($shop['weekend_days'])) {
                     </div>
                 </div>
                 
+                <!-- ============================================
+                SHOP LOCATION SECTION
+                ============================================ -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-map-marker-alt" style="color: #16A34A;"></i>
+                        Shop Location
+                        <span style="font-weight: 400; font-size: 12px; color: #6B7A7B;">
+                            (Optional - Helps agents find your shop)
+                        </span>
+                    </label>
+                    
+                    <div class="location-container">
+                        <button type="button" class="btn-location" id="getLocationBtn">
+                            <i class="fas fa-crosshairs"></i> Get Current Location
+                        </button>
+                        
+                        <?php if ($locationSet): ?>
+                            <div class="location-status success" id="locationStatus">
+                                <i class="fas fa-check-circle"></i> 
+                                Location saved: 
+                                <span class="location-coords">
+                                    <?php echo number_format($shopLatitude, 6); ?>, <?php echo number_format($shopLongitude, 6); ?>
+                                </span>
+                            </div>
+                        <?php else: ?>
+                            <div class="location-status info" id="locationStatus">
+                                <i class="fas fa-info-circle"></i> 
+                                No location set. Click "Get Current Location" to add your shop location.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div id="locationDetails" style="font-size: 13px; color: #6B7A7B; margin-top: 6px;"></div>
+                    
+                    <?php if (isset($errors['latitude'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['latitude']); ?></div>
+                    <?php endif; ?>
+                    <?php if (isset($errors['longitude'])): ?>
+                        <div class="form-error"><?php echo escapeHtml($errors['longitude']); ?></div>
+                    <?php endif; ?>
+                    
+                    
+                </div>
+                
+                <!-- Working Hours -->
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label" for="working_hours_start">Opening Time</label>
@@ -931,7 +1110,7 @@ if (!empty($shop['weekend_days'])) {
                     </div>
                 </div>
                 
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn-primary" id="submitBtn">
                     <i class="fas fa-save"></i> Update Shop Profile
                 </button>
             </form>
@@ -987,7 +1166,9 @@ if (!empty($shop['weekend_days'])) {
 </div>
 
 <script>
-// Preview avatar from form upload
+// ============================================
+// AVATAR PREVIEW
+// ============================================
 function previewAvatarForm(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -998,6 +1179,90 @@ function previewAvatarForm(input) {
         reader.readAsDataURL(input.files[0]);
     }
 }
+
+// ============================================
+// LOCATION - GET CURRENT LOCATION
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    const getLocationBtn = document.getElementById('getLocationBtn');
+    const locationStatus = document.getElementById('locationStatus');
+    const locationDetails = document.getElementById('locationDetails');
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    
+    // Store original status HTML if location already set
+    let originalStatusHTML = locationStatus ? locationStatus.innerHTML : '';
+    
+    getLocationBtn.addEventListener('click', function() {
+        if (!navigator.geolocation) {
+            locationStatus.className = 'location-status error';
+            locationStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> Your browser does not support GPS location.';
+            return;
+        }
+        
+        getLocationBtn.disabled = true;
+        getLocationBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching location...';
+        
+        locationStatus.className = 'location-status warning';
+        locationStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting location...';
+        locationDetails.innerHTML = '';
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const acc = position.coords.accuracy || 0;
+                
+                // Set hidden fields
+                latInput.value = lat;
+                lngInput.value = lng;
+                
+                // Update status
+                locationStatus.className = 'location-status success';
+                locationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Location captured successfully: ' +
+                    '<span class="location-coords">' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</span>';
+                
+                locationDetails.innerHTML = 'Accuracy: ± ' + acc.toFixed(0) + ' meters';
+                
+                getLocationBtn.disabled = false;
+                getLocationBtn.innerHTML = '<i class="fas fa-sync"></i> Refresh Location';
+                
+                // Auto-submit form after location capture
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Location Captured!',
+                    text: 'Shop location has been captured. Save the form to update your profile.',
+                    timer: 3000,
+                    showConfirmButton: true,
+                    confirmButtonColor: '#16A34A',
+                    confirmButtonText: 'OK'
+                });
+            },
+            function(error) {
+                let message = 'Location access denied. Please enable location in browser settings.';
+                if (error.code === error.TIMEOUT) {
+                    message = 'Location request timed out. Please try again.';
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    message = 'GPS signal unavailable. Please move to an open area.';
+                }
+                locationStatus.className = 'location-status error';
+                locationStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + message;
+                locationDetails.innerHTML = '';
+                
+                getLocationBtn.disabled = false;
+                getLocationBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Get Current Location';
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Location Error',
+                    text: message,
+                    confirmButtonColor: '#DC2626'
+                });
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    });
+});
 </script>
 
 <?php require_once __DIR__ . '/../includes/shop_footer.php'; ?>

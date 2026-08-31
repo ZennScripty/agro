@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Agent Products
  * 
@@ -111,31 +112,41 @@ $csrfToken = generateCsrfToken();
         gap: 12px;
         margin-bottom: 20px;
     }
-    
+
     .stat-card {
         background: white;
         border: 1px solid #E5EDE7;
         border-radius: 10px;
         padding: 12px 16px;
         text-align: center;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
-    
+
     .stat-card .stat-number {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 22px;
         font-weight: 700;
     }
-    
+
     .stat-card .stat-label {
         font-family: 'Inter', sans-serif;
         font-size: 12px;
         color: #6B7A7B;
     }
-    
-    .stat-card.total .stat-number { color: #14532D; }
-    .stat-card.low-stock .stat-number { color: #D97706; }
-    .stat-card.out-of-stock .stat-number { color: #DC2626; }
-    
+
+    .stat-card.total .stat-number {
+        color: #14532D;
+    }
+
+    .stat-card.low-stock .stat-number {
+        color: #D97706;
+    }
+
+    .stat-card.out-of-stock .stat-number {
+        color: #DC2626;
+    }
+
     .product-card {
         background: white;
         border: 1px solid #E5EDE7;
@@ -145,13 +156,15 @@ $csrfToken = generateCsrfToken();
         height: 100%;
         display: flex;
         flex-direction: column;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
-    
+
     .product-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
-    
+
     .product-card .product-image {
         width: 100%;
         height: 180px;
@@ -166,13 +179,13 @@ $csrfToken = generateCsrfToken();
         margin-bottom: 12px;
         overflow: hidden;
     }
-    
+
     .product-card .product-image img {
         width: 100%;
         height: 100%;
         object-fit: cover;
     }
-    
+
     .product-card .product-name {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 16px;
@@ -180,35 +193,43 @@ $csrfToken = generateCsrfToken();
         color: #052E16;
         margin-bottom: 4px;
     }
-    
+
     .product-card .product-category {
         font-size: 12px;
         color: #6B7A7B;
         margin-bottom: 8px;
     }
-    
+
     .product-card .product-price {
         font-size: 18px;
         font-weight: 700;
         color: #14532D;
         margin-bottom: 4px;
     }
-    
+
     .product-card .product-stock {
         font-size: 13px;
         margin-bottom: 12px;
     }
-    
-    .product-card .product-stock .in-stock { color: #16A34A; }
-    .product-card .product-stock .low-stock { color: #D97706; }
-    .product-card .product-stock .out-of-stock { color: #DC2626; }
-    
+
+    .product-card .product-stock .in-stock {
+        color: #16A34A;
+    }
+
+    .product-card .product-stock .low-stock {
+        color: #D97706;
+    }
+
+    .product-card .product-stock .out-of-stock {
+        color: #DC2626;
+    }
+
     .product-card .product-actions {
         margin-top: auto;
         display: flex;
         gap: 8px;
     }
-    
+
     .product-card .product-actions .btn-view {
         flex: 1;
         padding: 8px;
@@ -224,18 +245,18 @@ $csrfToken = generateCsrfToken();
         text-align: center;
         transition: all 0.3s ease;
     }
-    
+
     .product-card .product-actions .btn-view:hover {
         background: #052E16;
         transform: translateY(-1px);
     }
-    
+
     .product-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 20px;
     }
-    
+
     .badge-status {
         display: inline-block;
         padding: 2px 10px;
@@ -243,24 +264,43 @@ $csrfToken = generateCsrfToken();
         font-size: 11px;
         font-weight: 600;
     }
-    
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
     @media (max-width: 768px) {
         .product-grid {
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         }
+
         .stats-grid {
             grid-template-columns: repeat(3, 1fr);
         }
+           .product-card .product-price, .product-card .product-name{
+            font-size: 12px;
+        }
+        .product-card .product-stock,  .product-category {
+            font-size: 8px;
+        }
     }
-    
+
     @media (max-width: 480px) {
         .product-grid {
             grid-template-columns: repeat(2, 1fr);
         }
+
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
@@ -277,7 +317,7 @@ $csrfToken = generateCsrfToken();
             </span>
         </h3>
     </div>
-    
+
     <!-- Statistics -->
     <div class="stats-grid">
         <div class="stat-card total">
@@ -293,15 +333,15 @@ $csrfToken = generateCsrfToken();
             <div class="stat-label">Out of Stock</div>
         </div>
     </div>
-    
+
     <!-- Search and Filter -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
         <form method="GET" action="" style="flex: 1; min-width: 200px; display: flex; gap: 12px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 180px; position: relative;">
-                <input 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search products..." 
+                <input
+                    type="text"
+                    name="search"
+                    placeholder="Search products..."
                     value="<?php echo escapeHtml($search); ?>"
                     style="
                         width: 100%;
@@ -312,8 +352,7 @@ $csrfToken = generateCsrfToken();
                         font-size: 14px;
                         transition: all 0.3s ease;
                         background: white;
-                    "
-                >
+                    ">
                 <i class="fas fa-search" style="
                     position: absolute;
                     left: 14px;
@@ -322,7 +361,7 @@ $csrfToken = generateCsrfToken();
                     color: #6B7A7B;
                 "></i>
             </div>
-            
+
             <select name="category" style="
                 padding: 10px 16px;
                 border: 2px solid #E5EDE7;
@@ -340,7 +379,7 @@ $csrfToken = generateCsrfToken();
                     </option>
                 <?php endforeach; ?>
             </select>
-            
+
             <button type="submit" style="
                 padding: 10px 24px;
                 background: #14532D;
@@ -355,9 +394,9 @@ $csrfToken = generateCsrfToken();
             ">
                 <i class="fas fa-filter"></i> Filter
             </button>
-            
+
             <?php if (!empty($search) || $category > 0): ?>
-            <a href="products.php" style="
+                <a href="products.php" style="
                 padding: 10px 16px;
                 background: #F3F4F6;
                 color: #4A5B5D;
@@ -368,12 +407,12 @@ $csrfToken = generateCsrfToken();
                 text-decoration: none;
                 transition: all 0.3s ease;
             ">
-                <i class="fas fa-times"></i> Clear
-            </a>
+                    <i class="fas fa-times"></i> Clear
+                </a>
             <?php endif; ?>
         </form>
     </div>
-    
+
     <!-- Products Grid -->
     <?php if (empty($productList)): ?>
         <div style="text-align: center; padding: 40px; color: #6B7A7B;">
@@ -394,7 +433,7 @@ $csrfToken = generateCsrfToken();
                             <i class="fas fa-box"></i>
                         <?php endif; ?>
                     </div>
-                    
+
                     <div class="product-name"><?php echo escapeHtml($product['product_name']); ?></div>
                     <div class="product-category">
                         <?php if ($product['category_name']): ?>
@@ -406,9 +445,9 @@ $csrfToken = generateCsrfToken();
                             SKU: <?php echo escapeHtml($product['sku']); ?>
                         </span>
                     </div>
-                    
+
                     <div class="product-price">₹ <?php echo number_format($product['price'], 2); ?></div>
-                    
+
                     <div class="product-stock">
                         <?php if ($product['quantity'] > $product['min_quantity']): ?>
                             <span class="in-stock"><i class="fas fa-check-circle"></i> In Stock</span>
@@ -424,7 +463,7 @@ $csrfToken = generateCsrfToken();
                             <span class="out-of-stock"><i class="fas fa-times-circle"></i> Out of Stock</span>
                         <?php endif; ?>
                     </div>
-                    
+
                     <div class="product-actions">
                         <a href="product-view.php?id=<?php echo $product['id']; ?>" class="btn-view">
                             <i class="fas fa-eye"></i> View Details
@@ -433,12 +472,12 @@ $csrfToken = generateCsrfToken();
                 </div>
             <?php endforeach; ?>
         </div>
-        
+
         <!-- Pagination -->
         <?php if ($totalPages > 1): ?>
-        <div style="margin-top: 20px;">
-            <?php echo $pagination; ?>
-        </div>
+            <div style="margin-top: 20px;">
+                <?php echo $pagination; ?>
+            </div>
         <?php endif; ?>
     <?php endif; ?>
 </div>

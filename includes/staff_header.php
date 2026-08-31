@@ -317,6 +317,7 @@ if ($canViewPayments) {
             font-size: 20px;
             font-weight: 600;
             color: #052E16;
+            min-width: fit-content;
         }
         
         .topbar-right {
@@ -459,7 +460,6 @@ if ($canViewPayments) {
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 16px; }
             .topbar-left .menu-toggle { display: block; }
-            .topbar { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }
             .topbar-right { width: 100%; justify-content: flex-end; }
         }
     </style>

@@ -11,7 +11,7 @@
  * @package SamridhiAgro
  * @subpackage Staff
  * @author Samridhi Agro Team
- * @version 3.1.0
+ * @version 3.2.0
  */
 
 $pageTitle = 'My Attendance';
@@ -62,12 +62,13 @@ $db = getDB();
 
 // ============================================
 // LOAD ADMIN ATTENDANCE SETTINGS
-// (same settings table admin/attendance-settings.php writes to)
 // ============================================
 
 $sql = "SELECT * FROM attendance_settings";
 $allSettings = $db->fetchAll($sql);
+
 $settings = [];
+
 foreach ($allSettings as $s) {
     $settings[$s['setting_key']] = $s['setting_value'];
 }
@@ -79,24 +80,46 @@ $checkOutEndTime    = $settings['check_out_end_time'] ?? '23:59:00';
 $workHours          = $settings['work_hours'] ?? '8.00';
 $requireGeolocation = ($settings['allow_geolocation'] ?? '1') == '1';
 $geoRadius          = (int)($settings['geolocation_radius'] ?? 500);
-$officeLat          = isset($settings['office_lat']) ? (float)$settings['office_lat'] : 28.6139;
-$officeLng          = isset($settings['office_lng']) ? (float)$settings['office_lng'] : 77.2090;
+$officeLat          = isset($settings['office_lat'])
+    ? (float)$settings['office_lat']
+    : 28.6139;
+$officeLng          = isset($settings['office_lng'])
+    ? (float)$settings['office_lng']
+    : 77.2090;
 
-// Weekly holidays configured by admin (e.g. "Sunday" or "Sunday,Saturday")
+// Weekly holidays configured by admin
+// Example: "Sunday" or "Sunday,Saturday"
 $weeklyHolidays = [];
+
 if (!empty($settings['weekly_holidays'])) {
-    $weeklyHolidays = array_map('trim', explode(',', $settings['weekly_holidays']));
+    $weeklyHolidays = array_map(
+        'trim',
+        explode(',', $settings['weekly_holidays'])
+    );
 }
-$dayFullNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+$dayFullNames = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+];
 
 /**
  * Haversine distance between two lat/lng points, in meters.
- * Used to enforce the admin-configured office geofence for staff check-in.
  */
 if (!function_exists('calculateDistanceMeters')) {
-    function calculateDistanceMeters($lat1, $lon1, $lat2, $lon2)
-    {
-        $earthRadius = 6371000; // meters
+
+    function calculateDistanceMeters(
+        $lat1,
+        $lon1,
+        $lat2,
+        $lon2
+    ) {
+        $earthRadius = 6371000;
 
         $lat1 = deg2rad((float)$lat1);
         $lon1 = deg2rad((float)$lon1);
@@ -106,8 +129,16 @@ if (!function_exists('calculateDistanceMeters')) {
         $dLat = $lat2 - $lat1;
         $dLon = $lon2 - $lon1;
 
-        $a = sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dLon / 2) ** 2;
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $a =
+            sin($dLat / 2) ** 2 +
+            cos($lat1) *
+            cos($lat2) *
+            sin($dLon / 2) ** 2;
+
+        $c = 2 * atan2(
+            sqrt($a),
+            sqrt(1 - $a)
+        );
 
         return $earthRadius * $c;
     }
@@ -136,7 +167,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? trim($_POST['location'])
         : null;
 
-    // CSRF validation
+    // ============================================
+    // CSRF VALIDATION
+    // ============================================
+
     if (
         !isset($_POST[CSRF_TOKEN_NAME]) ||
         !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])
@@ -152,45 +186,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ============================================
     // ENFORCE OFFICE GEOFENCE FOR CHECK-IN
-    // (server-side — the real source of truth; the client-side
-    // check in JS below is only for a fast, friendly warning)
     // ============================================
+
     if ($action === 'check_in' && $requireGeolocation) {
 
         if ($lat === null || $lng === null) {
+
             echo json_encode([
                 'success' => false,
                 'message' => 'Location is required to check-in. Please allow location access and try again.'
             ]);
+
             exit;
         }
 
-        $distance = calculateDistanceMeters($officeLat, $officeLng, $lat, $lng);
+        $distance = calculateDistanceMeters(
+            $officeLat,
+            $officeLng,
+            $lat,
+            $lng
+        );
 
         if ($distance > $geoRadius) {
+
             echo json_encode([
                 'success' => false,
-                'message' => 'You are ' . round($distance) . 'm away from the office. Check-in is only allowed within ' . $geoRadius . 'm of the office location.'
+                'message' =>
+                'You are ' .
+                    round($distance) .
+                    'm away from the office. Check-in is only allowed within ' .
+                    $geoRadius .
+                    'm of the office location.'
             ]);
+
             exit;
         }
     }
 
+    // ============================================
     // CHECK IN
+    // ============================================
+
     if ($action === 'check_in') {
 
-        // ============================================
-        // ENFORCE CHECK-IN TIME WINDOW
-        // ============================================
+        // Enforce check-in time window
         $currentTime = date('H:i:s');
 
-        if ($currentTime < $checkInStartTime || $currentTime > $checkInEndTime) {
+        if (
+            $currentTime < $checkInStartTime ||
+            $currentTime > $checkInEndTime
+        ) {
+
             echo json_encode([
                 'success' => false,
-                'message' => 'Check-in is only allowed between ' .
-                    date('h:i A', strtotime($checkInStartTime)) . ' and ' .
-                    date('h:i A', strtotime($checkInEndTime)) . '.'
+                'message' =>
+                'Check-in is only allowed between ' .
+                    date('h:i A', strtotime($checkInStartTime)) .
+                    ' and ' .
+                    date('h:i A', strtotime($checkInEndTime)) .
+                    '.'
             ]);
+
             exit;
         }
 
@@ -203,30 +259,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         echo json_encode(
             $result,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            JSON_UNESCAPED_UNICODE |
+                JSON_UNESCAPED_SLASHES
         );
 
         exit;
     }
 
+    // ============================================
     // CHECK OUT
+    // ============================================
+
     if ($action === 'check_out') {
 
-        // ============================================
-        // ENFORCE CHECK-OUT TIME WINDOW
-        // (mirrors the admin-configured check-in window above —
-        // this was previously validated only for check-in)
-        // ============================================
+        // Enforce check-out time window
         $currentTime = date('H:i:s');
 
-        if ($currentTime < $checkOutStartTime || $currentTime > $checkOutEndTime) {
+        if (
+            $currentTime < $checkOutStartTime ||
+            $currentTime > $checkOutEndTime
+        ) {
+
             echo json_encode([
                 'success' => false,
-                'message' => 'Check-out is only allowed between ' .
-                    date('h:i A', strtotime($checkOutStartTime)) . ' and ' .
+                'message' =>
+                'Check-out is only allowed between ' .
+                    date('h:i A', strtotime($checkOutStartTime)) .
+                    ' and ' .
                     date('h:i A', strtotime($checkOutEndTime)) .
                     '.'
             ]);
+
             exit;
         }
 
@@ -239,11 +302,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         echo json_encode(
             $result,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            JSON_UNESCAPED_UNICODE |
+                JSON_UNESCAPED_SLASHES
         );
 
         exit;
     }
+
+    // ============================================
+    // INVALID ACTION
+    // ============================================
 
     echo json_encode([
         'success' => false,
@@ -260,90 +328,279 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Now it is safe to load the HTML header
 require_once __DIR__ . '/../includes/staff_header.php';
 
-// Get staff data
-$sql = "SELECT u.*, sp.department, sp.designation 
-        FROM users u 
-        LEFT JOIN staff_profiles sp ON u.id = sp.user_id 
+// ============================================
+// GET STAFF DATA
+// ============================================
+
+$sql = "SELECT u.*, sp.department, sp.designation
+        FROM users u
+        LEFT JOIN staff_profiles sp
+            ON u.id = sp.user_id
         WHERE u.id = ?";
-$staff = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
-// Get today's attendance
+$staff = $db->fetchOne(
+    $sql,
+    [$_SESSION['user_id']]
+);
+
+// ============================================
+// GET CURRENT TODAY ATTENDANCE
+// ============================================
+
 $today = date('Y-m-d');
-$sql = "SELECT * FROM attendance WHERE user_id = ? AND date = ?";
-$todayAttendance = $db->fetchOne($sql, [$_SESSION['user_id'], $today]);
 
-// Get attendance history (last 30 days)
-$sql = "SELECT * FROM attendance 
-        WHERE user_id = ? 
-        ORDER BY date DESC 
-        LIMIT 30";
-$attendanceHistory = $db->fetchAll($sql, [$_SESSION['user_id']]);
+$sql = "SELECT *
+        FROM attendance
+        WHERE user_id = ?
+        AND date = ?";
+
+$todayAttendance = $db->fetchOne(
+    $sql,
+    [
+        $_SESSION['user_id'],
+        $today
+    ]
+);
+
+// ============================================
+// GET CURRENT SELECTED MONTH / YEAR
+// ============================================
+
+$month = isset($_GET['month'])
+    ? (int)$_GET['month']
+    : (int)date('m');
+
+$year = isset($_GET['year'])
+    ? (int)$_GET['year']
+    : (int)date('Y');
+
+// ============================================
+// VALIDATE MONTH AND YEAR
+// ============================================
+
+if ($month < 1 || $month > 12) {
+    $month = (int)date('m');
+}
+
+if ($year < 2000 || $year > 2100) {
+    $year = (int)date('Y');
+}
+
+// ============================================
+// MONTH DATE RANGE
+// ============================================
+
+$monthStart = sprintf(
+    '%04d-%02d-01',
+    $year,
+    $month
+);
+
+$monthEnd = date(
+    'Y-m-t',
+    strtotime($monthStart)
+);
+
+// ============================================
+// GET ATTENDANCE FOR SELECTED MONTH
+// ============================================
+//
+// IMPORTANT:
+// Earlier this was LIMIT 30, which meant statistics
+// were based on last 30 attendance records.
+//
+// Now attendance is fetched for the selected month.
+// This makes calendar + statistics consistent.
+//
+
+$sql = "SELECT *
+        FROM attendance
+        WHERE user_id = ?
+        AND date BETWEEN ? AND ?
+        ORDER BY date DESC";
+
+$attendanceHistory = $db->fetchAll(
+    $sql,
+    [
+        $_SESSION['user_id'],
+        $monthStart,
+        $monthEnd
+    ]
+);
 
 // ============================================
 // HOLIDAY CALENDAR DATA
 // ============================================
 
-// Get current month and year for calendar
-$month = isset($_GET['month']) ? (int)$_GET['month'] : date('m');
-$year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
-
-// Validate month and year
-if ($month < 1 || $month > 12) {
-    $month = date('m');
-}
-if ($year < 2000 || $year > 2100) {
-    $year = date('Y');
-}
-
-// Get holidays for current month
-$sql = "SELECT holiday_date, holiday_name, holiday_type, description 
-        FROM holidays 
-        WHERE MONTH(holiday_date) = ? AND YEAR(holiday_date) = ? AND status = 'active'
+// Get holidays for current selected month
+$sql = "SELECT
+            holiday_date,
+            holiday_name,
+            holiday_type,
+            description
+        FROM holidays
+        WHERE MONTH(holiday_date) = ?
+        AND YEAR(holiday_date) = ?
+        AND status = 'active'
         ORDER BY holiday_date ASC";
-$holidays = $db->fetchAll($sql, [$month, $year]);
 
-// Get all holidays for current month (for calendar)
-$sql = "SELECT holiday_date, holiday_name, holiday_type, description 
-        FROM holidays 
-        WHERE MONTH(holiday_date) = ? AND YEAR(holiday_date) = ? AND status = 'active'";
-$holidayCalendar = $db->fetchAll($sql, [$month, $year]);
+$holidays = $db->fetchAll(
+    $sql,
+    [
+        $month,
+        $year
+    ]
+);
 
-// Generate CSRF token
-$csrfToken = generateCsrfToken();
+// Get all holidays for current month
+$sql = "SELECT
+            holiday_date,
+            holiday_name,
+            holiday_type,
+            description
+        FROM holidays
+        WHERE MONTH(holiday_date) = ?
+        AND YEAR(holiday_date) = ?
+        AND status = 'active'";
 
-// Calculate statistics
-$totalDays = count($attendanceHistory);
+$holidayCalendar = $db->fetchAll(
+    $sql,
+    [
+        $month,
+        $year
+    ]
+);
+
+// ============================================
+// CONVERT HOLIDAYS TO ASSOCIATIVE ARRAY
+// ============================================
+
+$holidayDates = [];
+
+foreach ($holidayCalendar as $h) {
+
+    $holidayDates[$h['holiday_date']] = $h;
+}
+
+// ============================================
+// CALCULATE WORKING DAYS
+// ============================================
+//
+// Working Day:
+// 1. Not weekly holiday
+// 2. Not an active holiday
+//
+// Example:
+// Month has 31 days
+// Sunday = weekly holiday
+// 4 Sundays
+// 2 other holidays
+//
+// Working Days = 31 - 4 - 2 = 25
+//
+
+$daysInMonth = (int)date(
+    't',
+    strtotime($monthStart)
+);
+
+$workingDays = 0;
+
+for ($day = 1; $day <= $daysInMonth; $day++) {
+
+    $currentDate = sprintf(
+        '%04d-%02d-%02d',
+        $year,
+        $month,
+        $day
+    );
+
+    // Monday, Tuesday, etc.
+    $dayName = date(
+        'l',
+        strtotime($currentDate)
+    );
+
+    // Check weekly holiday
+    $isWeeklyHoliday = in_array(
+        $dayName,
+        $weeklyHolidays,
+        true
+    );
+
+    // Check holiday table
+    $isHoliday = isset(
+        $holidayDates[$currentDate]
+    );
+
+    // Only normal working days count
+    if (
+        !$isWeeklyHoliday &&
+        !$isHoliday
+    ) {
+        $workingDays++;
+    }
+}
+
+// ============================================
+// CALCULATE ATTENDANCE STATISTICS
+// ============================================
+
 $presentDays = 0;
-$absentDays = 0;
-$halfDays = 0;
-$leaveDays = 0;
+$absentDays  = 0;
+$halfDays    = 0;
+$leaveDays   = 0;
+
 foreach ($attendanceHistory as $record) {
+
     switch ($record['status']) {
+
         case 'present':
             $presentDays++;
             break;
+
         case 'absent':
             $absentDays++;
             break;
+
         case 'half_day':
             $halfDays++;
             break;
+
         case 'leave':
             $leaveDays++;
             break;
     }
 }
-$attendancePercentage = $totalDays > 0 ? round($presentDays / $totalDays * 100) : 0;
 
-// Convert holidays to associative array for calendar
-$holidayDates = [];
-foreach ($holidayCalendar as $h) {
-    $holidayDates[$h['holiday_date']] = $h;
+// ============================================
+// ATTENDANCE PERCENTAGE
+// ============================================
+//
+// Percentage is calculated against WORKING DAYS,
+// not against attendance records.
+//
+// Present / Working Days * 100
+//
+
+$attendancePercentage = $workingDays > 0
+    ? round(
+        ($presentDays / $workingDays) * 100
+    )
+    : 0;
+
+// Prevent percentage from going above 100
+if ($attendancePercentage > 100) {
+    $attendancePercentage = 100;
 }
-?>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+// ============================================
+// GENERATE CSRF TOKEN
+// ============================================
+
+$csrfToken = generateCsrfToken();
+
+?>
 
 <style>
     /* ===== BASE STYLES ===== */
@@ -1069,24 +1326,25 @@ foreach ($holidayCalendar as $h) {
     .holiday-legend {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        padding: 12px 20px;
+        gap: 14px;
+        padding: 14px 20px;
         background: #F7FCF7;
         border-top: 1px solid #E5EDE7;
-        font-size: 11px;
+        font-size: 14px;
         font-weight: 500;
     }
 
     .holiday-legend .legend-item {
         display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 6px;
         color: #4A5B5D;
     }
 
     .holiday-legend .legend-dot {
-        width: 12px;
-        height: 12px;
+        width: 25px;
+        height: 25px;
         border-radius: 4px;
         border: 1px solid rgba(0, 0, 0, 0.05);
     }
@@ -1115,7 +1373,7 @@ foreach ($holidayCalendar as $h) {
         display: inline-block;
         padding: 1px 6px;
         border-radius: 3px;
-        font-size: 9px;
+        font-size: 20px;
         font-weight: 700;
     }
 
@@ -1356,9 +1614,9 @@ foreach ($holidayCalendar as $h) {
         }
 
         .holiday-legend {
-            font-size: 11px;
-            gap: 8px;
-            padding: 10px 14px;
+            font-size: 14px;
+            gap: 12px;
+            padding: 14px 16px;
         }
 
         .table-custom thead th,
@@ -1442,16 +1700,9 @@ foreach ($holidayCalendar as $h) {
             padding: 6px 1px;
         }
 
-        .holiday-legend {
-            font-size: 10px;
-            gap: 6px;
-            padding: 10px 10px;
-        }
+   
 
-        .holiday-legend .legend-dot {
-            width: 10px;
-            height: 10px;
-        }
+     
 
         .attendance-status-large {
             padding: 22px 18px;
@@ -1595,7 +1846,7 @@ foreach ($holidayCalendar as $h) {
             <i class="fas fa-calendar-check"></i>
             Attendance
             <span style="font-size: 14px; font-weight: 400; color: #6B7A7B; margin-left: 8px;">
-                (<?php echo $attendancePercentage; ?>% attendance - Last 30 days)
+                (<?php echo $attendancePercentage; ?>% attendance - <?php echo date('F Y', strtotime("$year-$month-01")); ?>)
             </span>
         </h3>
     </div>
@@ -1715,8 +1966,10 @@ foreach ($holidayCalendar as $h) {
                     <span class="stat-label">Leaves</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" style="color: #14532D;"><?php echo $totalDays; ?></span>
-                    <span class="stat-label">Total Days</span>
+                    <span class="stat-number" style="color: #14532D;">
+                        <?php echo $workingDays; ?>
+                    </span>
+                    <span class="stat-label">Working Days</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-number" style="color: <?php echo $attendancePercentage >= 80 ? '#16A34A' : ($attendancePercentage >= 50 ? '#D97706' : '#DC2626'); ?>;">

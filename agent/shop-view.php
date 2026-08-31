@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Agent Shop View
  * 
@@ -84,7 +85,7 @@ $csrfToken = generateCsrfToken();
         margin-bottom: 20px;
         flex-wrap: wrap;
     }
-    
+
     .shop-profile .shop-icon {
         width: 80px;
         height: 80px;
@@ -97,7 +98,7 @@ $csrfToken = generateCsrfToken();
         color: white;
         flex-shrink: 0;
     }
-    
+
     .shop-profile .shop-info h2 {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 24px;
@@ -105,7 +106,7 @@ $csrfToken = generateCsrfToken();
         color: #052E16;
         margin: 0;
     }
-    
+
     .shop-profile .shop-info .shop-meta {
         display: flex;
         flex-wrap: wrap;
@@ -114,52 +115,64 @@ $csrfToken = generateCsrfToken();
         color: #4A5B5D;
         margin-top: 4px;
     }
-    
+
     .shop-profile .shop-info .shop-meta span {
         display: flex;
         align-items: center;
         gap: 4px;
     }
-    
+
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 12px;
         margin-bottom: 20px;
     }
-    
+
     .stat-card {
         background: white;
         border: 1px solid #E5EDE7;
         border-radius: 10px;
         padding: 14px 16px;
         text-align: center;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
-    
+
     .stat-card .stat-number {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 22px;
         font-weight: 700;
     }
-    
+
     .stat-card .stat-label {
         font-family: 'Inter', sans-serif;
         font-size: 12px;
         color: #6B7A7B;
     }
-    
-    .stat-card.orders .stat-number { color: #7C3AED; }
-    .stat-card.revenue .stat-number { color: #16A34A; }
-    .stat-card.commission .stat-number { color: #D97706; }
-    
+
+    .stat-card.orders .stat-number {
+        color: #7C3AED;
+    }
+
+    .stat-card.revenue .stat-number {
+        color: #16A34A;
+    }
+
+    .stat-card.commission .stat-number {
+        color: #D97706;
+    }
+
     .detail-section {
         background: white;
         border: 1px solid #E5EDE7;
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 16px;
+         background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
-    
+
     .detail-section .section-title {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 15px;
@@ -169,17 +182,17 @@ $csrfToken = generateCsrfToken();
         padding-bottom: 8px;
         border-bottom: 2px solid #F0FDF4;
     }
-    
+
     .detail-row {
         display: flex;
         padding: 4px 0;
         border-bottom: 1px solid #F7FCF7;
     }
-    
+
     .detail-row:last-child {
         border-bottom: none;
     }
-    
+
     .detail-label {
         font-size: 13px;
         font-weight: 500;
@@ -187,13 +200,14 @@ $csrfToken = generateCsrfToken();
         width: 140px;
         flex-shrink: 0;
     }
-    
+
     .detail-value {
         font-size: 13px;
         color: #052E16;
         flex: 1;
+        overflow-wrap: anywhere;
     }
-    
+
     .badge-status {
         display: inline-block;
         padding: 3px 10px;
@@ -202,12 +216,27 @@ $csrfToken = generateCsrfToken();
         font-weight: 600;
         text-transform: capitalize;
     }
-    
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
     .btn-back {
         padding: 6px 16px;
         background: #F3F4F6;
@@ -222,7 +251,7 @@ $csrfToken = generateCsrfToken();
         gap: 6px;
         transition: all 0.3s ease;
     }
-    
+
     .btn-back:hover {
         background: #E5E7EB;
     }
@@ -238,7 +267,7 @@ $csrfToken = generateCsrfToken();
             <i class="fas fa-arrow-left"></i> Back to Shops
         </a>
     </div>
-    
+
     <!-- Shop Profile -->
     <div class="shop-profile">
         <div class="shop-icon">
@@ -250,24 +279,24 @@ $csrfToken = generateCsrfToken();
                 <span><i class="fas fa-id-badge"></i> <?php echo escapeHtml($shop['shop_code']); ?></span>
                 <span><i class="fas fa-user"></i> <?php echo escapeHtml($shop['owner_name']); ?></span>
                 <span>
-                    <i class="fas fa-circle" style="color: <?php 
-                        echo match($shop['status']) {
-                            'approved' => '#16A34A',
-                            'pending' => '#F59E0B',
-                            'suspended' => '#DC2626',
-                            'rejected' => '#6B7A7B',
-                            default => '#6B7A7B'
-                        };
-                    ?>; font-size: 10px;"></i>
+                    <i class="fas fa-circle" style="color: <?php
+                                                            echo match ($shop['status']) {
+                                                                'approved' => '#16A34A',
+                                                                'pending' => '#F59E0B',
+                                                                'suspended' => '#DC2626',
+                                                                'rejected' => '#6B7A7B',
+                                                                default => '#6B7A7B'
+                                                            };
+                                                            ?>; font-size: 10px;"></i>
                     <?php echo ucfirst($shop['status']); ?>
                 </span>
                 <?php if (!empty($shop['agent_company_name'])): ?>
-                <span><i class="fas fa-building"></i> <?php echo escapeHtml($shop['agent_company_name']); ?></span>
+                    <span><i class="fas fa-building"></i> <?php echo escapeHtml($shop['agent_company_name']); ?></span>
                 <?php endif; ?>
             </div>
         </div>
     </div>
-    
+
     <!-- Statistics -->
     <div class="stats-grid">
         <div class="stat-card orders">
@@ -289,7 +318,7 @@ $csrfToken = generateCsrfToken();
             <div class="stat-label">Commission Rate</div>
         </div>
     </div>
-    
+
     <!-- Shop Information -->
     <div class="detail-section">
         <div class="section-title">
@@ -307,7 +336,7 @@ $csrfToken = generateCsrfToken();
         <div class="detail-row">
             <span class="detail-label">Shop Type</span>
             <span class="detail-value">
-                <?php 
+                <?php
                 $typeLabels = [
                     'retail' => 'Retail',
                     'wholesale' => 'Wholesale',
@@ -322,10 +351,10 @@ $csrfToken = generateCsrfToken();
             <span class="detail-value"><?php echo ucfirst($shop['shop_category'] ?? 'N/A'); ?></span>
         </div>
         <?php if (!empty($shop['establishment_year'])): ?>
-        <div class="detail-row">
-            <span class="detail-label">Established</span>
-            <span class="detail-value"><?php echo $shop['establishment_year']; ?></span>
-        </div>
+            <div class="detail-row">
+                <span class="detail-label">Established</span>
+                <span class="detail-value"><?php echo $shop['establishment_year']; ?></span>
+            </div>
         <?php endif; ?>
         <div class="detail-row">
             <span class="detail-label">Delivery Available</span>
@@ -338,22 +367,22 @@ $csrfToken = generateCsrfToken();
             </span>
         </div>
         <?php if (!empty($shop['working_hours_start']) && !empty($shop['working_hours_end'])): ?>
-        <div class="detail-row">
-            <span class="detail-label">Working Hours</span>
-            <span class="detail-value">
-                <?php echo date('h:i A', strtotime($shop['working_hours_start'])); ?> - 
-                <?php echo date('h:i A', strtotime($shop['working_hours_end'])); ?>
-            </span>
-        </div>
+            <div class="detail-row">
+                <span class="detail-label">Working Hours</span>
+                <span class="detail-value">
+                    <?php echo date('h:i A', strtotime($shop['working_hours_start'])); ?> -
+                    <?php echo date('h:i A', strtotime($shop['working_hours_end'])); ?>
+                </span>
+            </div>
         <?php endif; ?>
         <?php if (!empty($shop['weekend_days'])): ?>
-        <div class="detail-row">
-            <span class="detail-label">Weekend Days</span>
-            <span class="detail-value"><?php echo escapeHtml($shop['weekend_days']); ?></span>
-        </div>
+            <div class="detail-row">
+                <span class="detail-label">Weekend Days</span>
+                <span class="detail-value"><?php echo escapeHtml($shop['weekend_days']); ?></span>
+            </div>
         <?php endif; ?>
     </div>
-    
+
     <!-- Owner Information -->
     <div class="detail-section">
         <div class="section-title">
@@ -377,25 +406,25 @@ $csrfToken = generateCsrfToken();
             <span class="detail-value"><?php echo !empty($shop['phone']) ? escapeHtml($shop['phone']) : 'Not provided'; ?></span>
         </div>
         <?php if (!empty($shop['address'])): ?>
-        <div class="detail-row">
-            <span class="detail-label">Address</span>
-            <span class="detail-value">
-                <?php echo escapeHtml($shop['address']); ?>
-                <?php if (!empty($shop['city']) || !empty($shop['state'])): ?>
-                    <br>
-                    <?php 
-                    $locationParts = [];
-                    if (!empty($shop['city'])) $locationParts[] = $shop['city'];
-                    if (!empty($shop['state'])) $locationParts[] = $shop['state'];
-                    if (!empty($shop['pincode'])) $locationParts[] = $shop['pincode'];
-                    echo escapeHtml(implode(', ', $locationParts));
-                    ?>
-                <?php endif; ?>
-            </span>
-        </div>
+            <div class="detail-row">
+                <span class="detail-label">Address</span>
+                <span class="detail-value">
+                    <?php echo escapeHtml($shop['address']); ?>
+                    <?php if (!empty($shop['city']) || !empty($shop['state'])): ?>
+                        <br>
+                        <?php
+                        $locationParts = [];
+                        if (!empty($shop['city'])) $locationParts[] = $shop['city'];
+                        if (!empty($shop['state'])) $locationParts[] = $shop['state'];
+                        if (!empty($shop['pincode'])) $locationParts[] = $shop['pincode'];
+                        echo escapeHtml(implode(', ', $locationParts));
+                        ?>
+                    <?php endif; ?>
+                </span>
+            </div>
         <?php endif; ?>
     </div>
-    
+
     <!-- Recent Orders -->
     <div class="detail-section">
         <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
@@ -411,32 +440,32 @@ $csrfToken = generateCsrfToken();
             </p>
         <?php else: ?>
             <?php foreach ($recentOrders as $order): ?>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #F7FCF7;">
-                <div>
-                    <div style="font-weight: 600; color: #052E16;">#<?php echo escapeHtml($order['order_number']); ?></div>
-                    <div style="font-size: 11px; color: #6B7A7B;"><?php echo formatDate($order['created_at']); ?></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #F7FCF7;">
+                    <div>
+                        <div style="font-weight: 600; color: #052E16;">#<?php echo escapeHtml($order['order_number']); ?></div>
+                        <div style="font-size: 11px; color: #6B7A7B;"><?php echo formatDate($order['created_at']); ?></div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; color: #14532D;">₹ <?php echo number_format($order['total_amount'], 2); ?></div>
+                        <?php
+                        $statusColors = [
+                            'pending' => 'badge-warning',
+                            'confirmed' => 'badge-info',
+                            'processing' => 'badge-primary',
+                            'shipped' => 'badge-info',
+                            'delivered' => 'badge-success',
+                            'cancelled' => 'badge-danger',
+                            'returned' => 'badge-warning'
+                        ];
+                        $color = $statusColors[$order['status']] ?? 'badge-secondary';
+                        ?>
+                        <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($order['status']); ?></span>
+                    </div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-weight: 600; color: #14532D;">₹ <?php echo number_format($order['total_amount'], 2); ?></div>
-                    <?php 
-                    $statusColors = [
-                        'pending' => 'badge-warning',
-                        'confirmed' => 'badge-info',
-                        'processing' => 'badge-primary',
-                        'shipped' => 'badge-info',
-                        'delivered' => 'badge-success',
-                        'cancelled' => 'badge-danger',
-                        'returned' => 'badge-warning'
-                    ];
-                    $color = $statusColors[$order['status']] ?? 'badge-secondary';
-                    ?>
-                    <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($order['status']); ?></span>
-                </div>
-            </div>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
-    
+
     <!-- Recent Payments -->
     <div class="detail-section" style="margin-bottom: 0;">
         <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
@@ -452,32 +481,32 @@ $csrfToken = generateCsrfToken();
             </p>
         <?php else: ?>
             <?php foreach ($recentPayments as $payment): ?>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #F7FCF7;">
-                <div>
-                    <div style="font-weight: 600; color: #052E16;">
-                        <?php if ($payment['order_number']): ?>
-                            Order: #<?php echo escapeHtml($payment['order_number']); ?>
-                        <?php else: ?>
-                            Payment #<?php echo $payment['id']; ?>
-                        <?php endif; ?>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #F7FCF7;">
+                    <div>
+                        <div style="font-weight: 600; color: #052E16;">
+                            <?php if ($payment['order_number']): ?>
+                                Order: #<?php echo escapeHtml($payment['order_number']); ?>
+                            <?php else: ?>
+                                Payment #<?php echo $payment['id']; ?>
+                            <?php endif; ?>
+                        </div>
+                        <div style="font-size: 11px; color: #6B7A7B;"><?php echo formatDate($payment['payment_date']); ?></div>
                     </div>
-                    <div style="font-size: 11px; color: #6B7A7B;"><?php echo formatDate($payment['payment_date']); ?></div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; color: #14532D;">₹ <?php echo number_format($payment['amount'], 2); ?></div>
+                        <?php
+                        $pStatusColors = [
+                            'pending' => 'badge-warning',
+                            'collected' => 'badge-info',
+                            'submitted' => 'badge-primary',
+                            'confirmed' => 'badge-success',
+                            'failed' => 'badge-danger'
+                        ];
+                        $pColor = $pStatusColors[$payment['status']] ?? 'badge-secondary';
+                        ?>
+                        <span class="badge-status <?php echo $pColor; ?>"><?php echo ucfirst($payment['status']); ?></span>
+                    </div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-weight: 600; color: #14532D;">₹ <?php echo number_format($payment['amount'], 2); ?></div>
-                    <?php 
-                    $pStatusColors = [
-                        'pending' => 'badge-warning',
-                        'collected' => 'badge-info',
-                        'submitted' => 'badge-primary',
-                        'confirmed' => 'badge-success',
-                        'failed' => 'badge-danger'
-                    ];
-                    $pColor = $pStatusColors[$payment['status']] ?? 'badge-secondary';
-                    ?>
-                    <span class="badge-status <?php echo $pColor; ?>"><?php echo ucfirst($payment['status']); ?></span>
-                </div>
-            </div>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>

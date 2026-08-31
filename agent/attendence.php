@@ -38,7 +38,6 @@ if (!isset($_SESSION['user_id'])) {
 
 // ============================================
 // HANDLE CHECK-IN / CHECK-OUT AJAX
-// IMPORTANT: THIS MUST COME BEFORE HTML
 // ============================================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -118,105 +117,268 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ============================================
-// NORMAL PAGE REQUEST ONLY
+// NORMAL PAGE REQUEST
 // ============================================
 
-// Now it is safe to load the HTML header
 require_once __DIR__ . '/../includes/agent_header.php';
 
-// Get database instance
 $db = getDB();
 
-// Get agent data
+// ============================================
+// GET AGENT DATA
+// ============================================
+
 $sql = "SELECT a.*, u.full_name 
         FROM agents a 
         JOIN users u ON a.user_id = u.id 
         WHERE a.user_id = ?";
-$agent = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
-// Get today's attendance
+$agent = $db->fetchOne(
+    $sql,
+    [$_SESSION['user_id']]
+);
+
+// ============================================
+// GET TODAY'S ATTENDANCE
+// ============================================
+
 $today = date('Y-m-d');
-$sql = "SELECT * FROM attendance WHERE user_id = ? AND date = ?";
-$todayAttendance = $db->fetchOne($sql, [$_SESSION['user_id'], $today]);
 
-// Get attendance history (last 30 days)
 $sql = "SELECT * FROM attendance 
         WHERE user_id = ? 
-        ORDER BY date DESC 
-        LIMIT 30";
-$attendanceHistory = $db->fetchAll($sql, [$_SESSION['user_id']]);
+        AND date = ?";
+
+$todayAttendance = $db->fetchOne(
+    $sql,
+    [
+        $_SESSION['user_id'],
+        $today
+    ]
+);
 
 // ============================================
-// HOLIDAY CALENDAR DATA
+// GET SELECTED MONTH / YEAR
 // ============================================
 
-// Get current month and year for calendar
-$month = isset($_GET['month']) ? (int)$_GET['month'] : date('m');
-$year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
+$month = isset($_GET['month'])
+    ? (int)$_GET['month']
+    : date('m');
 
-// Validate month and year
+$year = isset($_GET['year'])
+    ? (int)$_GET['year']
+    : date('Y');
+
+// Validate month
 if ($month < 1 || $month > 12) {
     $month = date('m');
 }
+
+// Validate year
 if ($year < 2000 || $year > 2100) {
     $year = date('Y');
 }
 
-// Get holidays for current month
+// ============================================
+// MONTH DATE RANGE
+// ============================================
+
+$startDate = date(
+    'Y-m-01',
+    strtotime("$year-$month-01")
+);
+
+$endDate = date(
+    'Y-m-t',
+    strtotime("$year-$month-01")
+);
+
+// ============================================
+// GET MONTHLY ATTENDANCE
+// ============================================
+
+$sql = "SELECT * FROM attendance
+        WHERE user_id = ?
+        AND date BETWEEN ? AND ?
+        ORDER BY date DESC";
+
+$attendanceHistory = $db->fetchAll(
+    $sql,
+    [
+        $_SESSION['user_id'],
+        $startDate,
+        $endDate
+    ]
+);
+
+// ============================================
+// GET HOLIDAYS FOR SELECTED MONTH
+// ============================================
+
 $sql = "SELECT holiday_date, holiday_name, holiday_type, description 
         FROM holidays 
-        WHERE MONTH(holiday_date) = ? AND YEAR(holiday_date) = ? AND status = 'active'
+        WHERE MONTH(holiday_date) = ?
+        AND YEAR(holiday_date) = ?
+        AND status = 'active'
         ORDER BY holiday_date ASC";
-$holidays = $db->fetchAll($sql, [$month, $year]);
 
-// Get all holidays for current month (for calendar)
+$holidays = $db->fetchAll(
+    $sql,
+    [
+        $month,
+        $year
+    ]
+);
+
+// ============================================
+// GET HOLIDAY CALENDAR DATA
+// ============================================
+
 $sql = "SELECT holiday_date, holiday_name, holiday_type, description 
         FROM holidays 
-        WHERE MONTH(holiday_date) = ? AND YEAR(holiday_date) = ? AND status = 'active'";
-$holidayCalendar = $db->fetchAll($sql, [$month, $year]);
+        WHERE MONTH(holiday_date) = ?
+        AND YEAR(holiday_date) = ?
+        AND status = 'active'";
 
-// Get weekly holidays from settings
-$sql = "SELECT setting_value FROM attendance_settings WHERE setting_key = 'weekly_holidays'";
+$holidayCalendar = $db->fetchAll(
+    $sql,
+    [
+        $month,
+        $year
+    ]
+);
+
+// ============================================
+// GET WEEKLY HOLIDAYS
+// ============================================
+
+$sql = "SELECT setting_value 
+        FROM attendance_settings 
+        WHERE setting_key = 'weekly_holidays'";
+
 $result = $db->fetchOne($sql);
+
 $weeklyHolidays = [];
+
 if ($result && !empty($result['setting_value'])) {
-    $weeklyHolidays = explode(',', $result['setting_value']);
-    $weeklyHolidays = array_map('trim', $weeklyHolidays);
+
+    $weeklyHolidays = explode(
+        ',',
+        $result['setting_value']
+    );
+
+    $weeklyHolidays = array_map(
+        'trim',
+        $weeklyHolidays
+    );
 }
-$dayFullNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-// Generate CSRF token
-$csrfToken = generateCsrfToken();
+$dayFullNames = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+];
 
-// Calculate statistics
-$totalDays = count($attendanceHistory);
+// ============================================
+// HOLIDAY DATES
+// ============================================
+
+$holidayDates = [];
+
+foreach ($holidayCalendar as $h) {
+    $holidayDates[$h['holiday_date']] = $h;
+}
+
+// ============================================
+// CALCULATE WORKING DAYS
+// Total Month Days
+// - Holidays
+// - Weekly Holidays
+// ============================================
+
+$totalMonthDays = date(
+    't',
+    strtotime("$year-$month-01")
+);
+
+$workingDays = 0;
+
+for ($day = 1; $day <= $totalMonthDays; $day++) {
+
+    $date = date(
+        'Y-m-d',
+        strtotime("$year-$month-$day")
+    );
+
+    $dayOfWeek = date(
+        'N',
+        strtotime($date)
+    );
+
+    $dayName = $dayFullNames[$dayOfWeek - 1];
+
+    // Holiday
+    if (in_array($date, array_keys($holidayDates))) {
+        continue;
+    }
+
+    // Weekly holiday
+    if (in_array($dayName, $weeklyHolidays)) {
+        continue;
+    }
+
+    $workingDays++;
+}
+
+// ============================================
+// CALCULATE ATTENDANCE STATISTICS
+// ============================================
+
 $presentDays = 0;
 $absentDays = 0;
 $halfDays = 0;
 $leaveDays = 0;
+
 foreach ($attendanceHistory as $record) {
+
     switch ($record['status']) {
+
         case 'present':
             $presentDays++;
             break;
+
         case 'absent':
             $absentDays++;
             break;
+
         case 'half_day':
             $halfDays++;
             break;
+
         case 'leave':
             $leaveDays++;
             break;
     }
 }
-$attendancePercentage = $totalDays > 0 ? round($presentDays / $totalDays * 100) : 0;
 
-// Convert holidays to associative array for calendar
-$holidayDates = [];
-foreach ($holidayCalendar as $h) {
-    $holidayDates[$h['holiday_date']] = $h;
-}
+// ============================================
+// ATTENDANCE RATE
+// Present Days / Working Days * 100
+// ============================================
+
+$attendancePercentage = $workingDays > 0
+    ? round(($presentDays / $workingDays) * 100)
+    : 0;
+
+// ============================================
+// CSRF TOKEN
+// ============================================
+
+$csrfToken = generateCsrfToken();
+
 ?>
 
 <style>
@@ -847,6 +1009,7 @@ foreach ($holidayCalendar as $h) {
             opacity: 0;
             transform: translateY(4px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -956,14 +1119,15 @@ foreach ($holidayCalendar as $h) {
 
     .holiday-legend .legend-item {
         display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 6px;
         color: #4A5B5D;
     }
 
     .holiday-legend .legend-dot {
-        width: 12px;
-        height: 12px;
+        width: 25px;
+        height: 25px;
         border-radius: 4px;
         border: 1px solid rgba(0, 0, 0, 0.05);
     }
@@ -992,7 +1156,7 @@ foreach ($holidayCalendar as $h) {
         display: inline-block;
         padding: 1px 6px;
         border-radius: 3px;
-        font-size: 9px;
+        font-size: 20px;
         font-weight: 700;
     }
 
@@ -1295,10 +1459,7 @@ foreach ($holidayCalendar as $h) {
             padding: 10px 12px;
         }
 
-        .holiday-legend .legend-dot {
-            width: 12px;
-            height: 12px;
-        }
+     
 
         .attendance-status-large {
             padding: 22px 18px;
@@ -1500,54 +1661,141 @@ foreach ($holidayCalendar as $h) {
 
         <!-- Statistics Section -->
         <div class="attendance-card">
+
             <div class="card-title">
+
                 <i class="fas fa-chart-bar" style="color: #16A34A;"></i>
+
                 Attendance Statistics
-                <span class="badge-count">Last 30 Days</span>
+
+                <span class="badge-count">
+                    <?php echo date('F Y', strtotime("$year-$month-01")); ?>
+                </span>
+
             </div>
 
             <div class="stats-grid-attendance">
+
+                <!-- PRESENT -->
                 <div class="stat-item">
-                    <span class="stat-number" style="color: #16A34A;"><?php echo $presentDays; ?></span>
-                    <span class="stat-label">Present</span>
+                    <span class="stat-number" style="color: #16A34A;">
+                        <?php echo $presentDays; ?>
+                    </span>
+
+                    <span class="stat-label">
+                        Present
+                    </span>
                 </div>
+
+                <!-- ABSENT -->
                 <div class="stat-item">
-                    <span class="stat-number" style="color: #DC2626;"><?php echo $absentDays; ?></span>
-                    <span class="stat-label">Absent</span>
+                    <span class="stat-number" style="color: #DC2626;">
+                        <?php echo $absentDays; ?>
+                    </span>
+
+                    <span class="stat-label">
+                        Absent
+                    </span>
                 </div>
+
+                <!-- HALF DAY -->
                 <div class="stat-item">
-                    <span class="stat-number" style="color: #D97706;"><?php echo $halfDays; ?></span>
-                    <span class="stat-label">Half Day</span>
+                    <span class="stat-number" style="color: #D97706;">
+                        <?php echo $halfDays; ?>
+                    </span>
+
+                    <span class="stat-label">
+                        Half Day
+                    </span>
                 </div>
+
+                <!-- LEAVE -->
                 <div class="stat-item">
-                    <span class="stat-number" style="color: #3B82F6;"><?php echo $leaveDays; ?></span>
-                    <span class="stat-label">Leaves</span>
+                    <span class="stat-number" style="color: #3B82F6;">
+                        <?php echo $leaveDays; ?>
+                    </span>
+
+                    <span class="stat-label">
+                        Leaves
+                    </span>
                 </div>
+
+                <!-- WORKING DAYS -->
                 <div class="stat-item">
-                    <span class="stat-number" style="color: #14532D;"><?php echo $totalDays; ?></span>
-                    <span class="stat-label">Total Days</span>
+                    <span class="stat-number" style="color: #14532D;">
+                        <?php echo $workingDays; ?>
+                    </span>
+
+                    <span class="stat-label">
+                        Working Days
+                    </span>
                 </div>
+
+                <!-- ATTENDANCE RATE -->
                 <div class="stat-item">
-                    <span class="stat-number" style="color: <?php echo $attendancePercentage >= 80 ? '#16A34A' : ($attendancePercentage >= 50 ? '#D97706' : '#DC2626'); ?>;">
+
+                    <span
+                        class="stat-number"
+                        style="color:
+                <?php
+                echo $attendancePercentage >= 80
+                    ? '#16A34A'
+                    : ($attendancePercentage >= 50
+                        ? '#D97706'
+                        : '#DC2626');
+                ?>;">
                         <?php echo $attendancePercentage; ?>%
                     </span>
-                    <span class="stat-label">Attendance Rate</span>
+
+                    <span class="stat-label">
+                        Attendance Rate
+                    </span>
+
                 </div>
+
             </div>
 
+            <!-- PROGRESS BAR -->
+
             <div class="progress-container">
+
                 <div class="progress-label">
-                    <span>Attendance Rate</span>
-                    <span style="color: <?php echo $attendancePercentage >= 80 ? '#16A34A' : ($attendancePercentage >= 50 ? '#D97706' : '#DC2626'); ?>;">
+
+                    <span>
+                        Attendance Rate
+                    </span>
+
+                    <span
+                        style="color:
+                <?php
+                echo $attendancePercentage >= 80
+                    ? '#16A34A'
+                    : ($attendancePercentage >= 50
+                        ? '#D97706'
+                        : '#DC2626');
+                ?>;">
                         <?php echo $attendancePercentage; ?>%
                     </span>
+
                 </div>
+
                 <div class="progress-bar-track">
-                    <div class="progress-bar-fill <?php echo $attendancePercentage < 50 ? 'low' : ($attendancePercentage < 80 ? 'medium' : ''); ?>"
-                        style="width: <?php echo $attendancePercentage; ?>%;">
-                    </div>
+
+                    <div
+                        class="progress-bar-fill
+                <?php
+                echo $attendancePercentage < 50
+                    ? 'low'
+                    : ($attendancePercentage < 80
+                        ? 'medium'
+                        : '');
+                ?>"
+                        style="width: <?php echo min($attendancePercentage, 100); ?>%;"></div>
+
                 </div>
+
             </div>
+
         </div>
     </div>
 
@@ -1597,7 +1845,7 @@ foreach ($holidayCalendar as $h) {
 
                     $class = 'day-cell';
                     if ($isHoliday || $isWeeklyHoliday) $class .= ' has-holiday';
-                    
+
                     // Add has-detail class for clickable cells
                     $hasDetail = $isHoliday || $isWeeklyHoliday || $attStatus;
                     if ($hasDetail) $class .= ' has-detail';
@@ -1612,7 +1860,7 @@ foreach ($holidayCalendar as $h) {
 
                     // Build data attributes for popover
                     $dataAttrs = ' data-date="' . escapeHtml(date('d M Y', strtotime($date))) . '"';
-                    
+
                     if ($isHoliday) {
                         $dataAttrs .= ' data-holiday-name="' . escapeHtml($holiday['holiday_name']) . '"';
                         $dataAttrs .= ' data-holiday-type="' . escapeHtml(ucfirst($holiday['holiday_type'] ?? 'public')) . '"';
@@ -1839,10 +2087,22 @@ foreach ($holidayCalendar as $h) {
     let activeDayCell = null;
 
     const ATTENDANCE_LABELS = {
-        present: { label: 'Present', icon: 'fa-check-circle' },
-        absent: { label: 'Absent', icon: 'fa-times-circle' },
-        half_day: { label: 'Half Day', icon: 'fa-adjust' },
-        leave: { label: 'Leave', icon: 'fa-calendar-minus' }
+        present: {
+            label: 'Present',
+            icon: 'fa-check-circle'
+        },
+        absent: {
+            label: 'Absent',
+            icon: 'fa-times-circle'
+        },
+        half_day: {
+            label: 'Half Day',
+            icon: 'fa-adjust'
+        },
+        leave: {
+            label: 'Leave',
+            icon: 'fa-calendar-minus'
+        }
     };
 
     const ATTENDANCE_TAG_CLASS = {

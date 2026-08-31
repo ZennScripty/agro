@@ -239,7 +239,7 @@ $notificationCount = 0;
             font-size: 20px;
             font-weight: 600;
             color: #052E16;
-            min-width: fit-content;
+            min-width: max-content;
         }
 
         .topbar-right {
@@ -440,8 +440,8 @@ $notificationCount = 0;
                 <a href="products.php" class="menu-item <?php echo $currentPage === 'products.php' ? 'active' : ''; ?>">
                     <i class="fas fa-box"></i> Products
                 </a>
-                <a href="shop-payments.php" class="menu-item <?php echo $currentPage === 'shop-payments.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-rupee-sign"></i> Shop Payments
+                <a href="visits.php" class="menu-item <?php echo $currentPage === 'visits.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-route"></i> Visits
                 </a>
 
                 <div class="menu-label" style="margin-top: 20px;">Finance</div>
