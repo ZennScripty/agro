@@ -120,7 +120,7 @@ $orderList = $db->fetchAll($sql, $queryParams);
 $totalPages = ceil($totalOrders / $perPage);
 $pagination = getPagination($totalOrders, $page, $perPage, 'orders.php?page={page}&search=' . urlencode($search) . '&status=' . $status);
 
-// Order statistics - REMOVED total_revenue
+// Order statistics
 $sql = "SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -128,7 +128,8 @@ $sql = "SELECT
         SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
         SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) as shipped,
         SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
-        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+        COALESCE(SUM(CASE WHEN status = 'delivered' THEN total_amount ELSE 0 END), 0) as total_revenue
         FROM orders WHERE shop_id = ?";
 $orderStats = $db->fetchOne($sql, [$shop['id']]);
 
@@ -153,8 +154,9 @@ $csrfToken = generateCsrfToken();
         border-radius: 10px;
         padding: 10px 14px;
         text-align: center;
-        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+       box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+
     }
 
     .orders-stat-card:hover {
@@ -193,6 +195,10 @@ $csrfToken = generateCsrfToken();
 
     .orders-stat-card.cancelled .stat-number {
         color: #DC2626;
+    }
+
+    .orders-stat-card.revenue .stat-number {
+        color: #7C3AED;
     }
 
     /* Order Card */
@@ -241,7 +247,10 @@ $csrfToken = generateCsrfToken();
         border-top: 1px solid #F0FDF4;
     }
 
-
+    .orders-order-card .order-details .detail-item .detail-label {
+        font-size: 11px;
+        color: #6B7A7B;
+    }
 
     .orders-order-card .order-details .detail-item .detail-value {
         font-size: 13px;
@@ -433,9 +442,12 @@ $csrfToken = generateCsrfToken();
 
     /* ===== RESPONSIVE ===== */
 
+ 
+
     @media (max-width: 768px) {
         .orders-stats-grid {
             grid-template-columns: repeat(2, 1fr);
+         
         }
 
         .orders-stat-card {
@@ -449,6 +461,8 @@ $csrfToken = generateCsrfToken();
         .orders-order-card .order-number {
             font-size: 14px;
         }
+
+  
 
         .orders-order-card .order-details {
             grid-template-columns: repeat(3, 1fr);
@@ -472,10 +486,15 @@ $csrfToken = generateCsrfToken();
     }
 
     @media (max-width: 480px) {
+    
+
         .orders-stat-card {
             padding: 6px 8px;
             border-radius: 8px;
         }
+
+
+     
 
         .orders-order-card {
             padding: 12px 14px;
@@ -495,6 +514,7 @@ $csrfToken = generateCsrfToken();
         }
 
         .orders-order-card .order-details {
+            /* grid-template-columns: 1fr 1fr; */
             gap: 4px;
             margin-top: 8px;
             padding-top: 8px;
@@ -583,7 +603,7 @@ $csrfToken = generateCsrfToken();
         </h3>
     </div>
 
-    <!-- Statistics - REMOVED Revenue Card -->
+    <!-- Statistics -->
     <div class="orders-stats-grid">
         <div class="orders-stat-card sdbg total">
             <div class="stat-number"><?php echo number_format($orderStats['total'] ?? 0); ?></div>
@@ -604,6 +624,10 @@ $csrfToken = generateCsrfToken();
         <div class="orders-stat-card sdbg cancelled">
             <div class="stat-number"><?php echo number_format($orderStats['cancelled'] ?? 0); ?></div>
             <div class="stat-label">Cancelled</div>
+        </div>
+        <div class="orders-stat-card sdbg revenue">
+            <div class="stat-number">₹ <?php echo number_format($orderStats['total_revenue'] ?? 0, 0); ?></div>
+            <div class="stat-label">Total Revenue</div>
         </div>
     </div>
 
@@ -673,7 +697,7 @@ $csrfToken = generateCsrfToken();
                             ];
                             $color = $statusColors[$order['status']] ?? 'orders-badge-secondary';
                             ?>
-                            <span class="orders-badge btsd <?php echo $color; ?>">
+                            <span class="orders-badge btsd  <?php echo $color; ?>">
                                 <?php echo ucfirst($order['status']); ?>
                             </span>
                         </div>
@@ -681,7 +705,35 @@ $csrfToken = generateCsrfToken();
                 </div>
 
                 <div class="order-details">
-                 
+                    <?php if ($order['payment_status']): ?>
+                        <div class="detail-item">
+                            <div class="detail-label">Payment Status</div>
+                            <div class="detail-value">
+                                <?php
+                                $paymentColors = [
+                                    'pending' => 'orders-badge-warning',
+                                    'paid' => 'orders-badge-success',
+                                    'failed' => 'orders-badge-danger',
+                                    'refunded' => 'orders-badge-info'
+                                ];
+                                $pColor = $paymentColors[$order['payment_status']] ?? 'orders-badge-secondary';
+                                ?>
+                                <span class="orders-badge btsd  <?php echo $pColor; ?>">
+                                    <?php echo ucfirst($order['payment_status']); ?>
+                                </span>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($order['payment_method']): ?>
+                        <div class="detail-item">
+                            <div class="detail-label">Payment Method</div>
+                            <div class="detail-value"><?php echo ucfirst($order['payment_method']); ?></div>
+                        </div>
+                    <?php endif; ?>
+                    <div class="detail-item">
+                        <div class="detail-label">Total Items</div>
+                        <div class="detail-value"><?php echo $order['total_items']; ?></div>
+                    </div>
                     <?php if ($order['delivery_notes']): ?>
                         <div class="detail-item" style="grid-column: 1 / -1;">
                             <div class="detail-label">Delivery Notes</div>

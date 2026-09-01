@@ -9,7 +9,7 @@
  * @package SamridhiAgro
  * @subpackage Admin
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // ============================================
@@ -29,12 +29,10 @@ if (session_status() === PHP_SESSION_NONE) {
     initSecureSession();
 }
 
-
 // ============================================
 // PERMISSION CHECK - Allow Admin OR Staff with permission
 // ============================================
 requirePermissionOrAdmin('agent.view', 'agents.php');
-
 
 // Get database instance
 $db = getDB();
@@ -180,7 +178,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
 }
 
 // ============================================
-// GET AGENT LIST
+// GET AGENT LIST WITH FINANCIAL DATA
 // ============================================
 
 // Search and filter parameters
@@ -217,7 +215,7 @@ $sql = "SELECT COUNT(*) as total
 $result = $db->fetchOne($sql, $params);
 $totalAgents = $result['total'] ?? 0;
 
-// Get agent records
+// Get agent records with financial data
 $sql = "SELECT 
         a.*,
         u.id AS user_id,
@@ -228,7 +226,43 @@ $sql = "SELECT
         u.status AS user_status,
         u.created_at AS user_created_at,
         u.last_login,
-        u2.full_name AS approved_by_name
+        u2.full_name AS approved_by_name,
+        /* Total Business = Sum of all orders from agent's shops */
+        (
+            SELECT COALESCE(SUM(o.total_amount), 0) 
+            FROM shops s
+            JOIN orders o ON s.id = o.shop_id
+            WHERE s.agent_id = a.id AND o.status != 'cancelled'
+        ) as total_business,
+        /* Total Collected = Sum of confirmed payments collected by agent */
+        (
+            SELECT COALESCE(SUM(p.amount), 0) 
+            FROM payments p
+            JOIN shops s ON p.shop_id = s.id
+            WHERE s.agent_id = a.id AND p.status = 'confirmed'
+        ) as total_collected,
+        /* Pending Collection = Sum of pending payments (agent route) */
+        (
+            SELECT COALESCE(SUM(p.amount), 0) 
+            FROM payments p
+            JOIN shops s ON p.shop_id = s.id
+            WHERE s.agent_id = a.id AND p.pay_to = 'agent' AND p.status = 'pending'
+        ) as pending_collection,
+        /* Submitted to Admin = Sum of submitted payments */
+        (
+            SELECT COALESCE(SUM(p.amount), 0) 
+            FROM payments p
+            JOIN shops s ON p.shop_id = s.id
+            WHERE s.agent_id = a.id AND p.pay_to = 'agent' AND p.status = 'submitted'
+        ) as submitted_to_admin,
+        /* Commission Earned = Sum of commission from confirmed payments */
+        (
+            SELECT COALESCE(SUM(p.amount * a2.commission_rate / 100), 0) 
+            FROM payments p
+            JOIN shops s ON p.shop_id = s.id
+            JOIN agents a2 ON s.agent_id = a2.id
+            WHERE s.agent_id = a.id AND p.status = 'confirmed'
+        ) as commission_earned
         FROM agents a 
         JOIN users u ON a.user_id = u.id 
         LEFT JOIN users u2 ON a.approved_by = u2.id
@@ -238,6 +272,12 @@ $sql = "SELECT
 
 $queryParams = array_merge($params, [$perPage, $offset]);
 $agentList = $db->fetchAll($sql, $queryParams);
+
+// Calculate remaining amount for each agent
+foreach ($agentList as &$agent) {
+    // Remaining = Total Business - Total Collected
+    $agent['remaining_amount'] = max(0, ($agent['total_business'] ?? 0) - ($agent['total_collected'] ?? 0));
+}
 
 // Pagination
 $totalPages = ceil($totalAgents / $perPage);
@@ -266,25 +306,11 @@ require_once '../includes/admin_header.php';
         flex-shrink: 0;
     }
 
-    .agent-avatar.active {
-        background: #16A34A;
-    }
-
-    .agent-avatar.pending {
-        background: #F59E0B;
-    }
-
-    .agent-avatar.rejected {
-        background: #DC2626;
-    }
-
-    .agent-avatar.suspended {
-        background: #6B7A7B;
-    }
-
-    .agent-avatar.approved {
-        background: #16A34A;
-    }
+    .agent-avatar.active { background: #16A34A; }
+    .agent-avatar.pending { background: #F59E0B; }
+    .agent-avatar.rejected { background: #DC2626; }
+    .agent-avatar.suspended { background: #6B7A7B; }
+    .agent-avatar.approved { background: #16A34A; }
 
     .badge-status {
         display: inline-block;
@@ -295,35 +321,12 @@ require_once '../includes/admin_header.php';
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success {
-        background: #DCFCE7;
-        color: #065F46;
-    }
-
-    .badge-status.badge-warning {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .badge-status.badge-danger {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
-    .badge-status.badge-info {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-
-    .badge-status.badge-primary {
-        background: #EDE9FE;
-        color: #5B21B6;
-    }
-
-    .badge-status.badge-secondary {
-        background: #F3F4F6;
-        color: #6B7A7B;
-    }
+    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
+    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
+    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
+    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
+    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
+    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
 
     .btn-action {
         width: 32px;
@@ -339,62 +342,40 @@ require_once '../includes/admin_header.php';
         font-size: 13px;
     }
 
-    .btn-action:hover {
-        transform: translateY(-2px);
+    .btn-action:hover { transform: translateY(-2px); }
+
+    .btn-view { background: #DBEAFE; color: #2563EB; }
+    .btn-view:hover { background: #BFDBFE; }
+
+    .btn-edit { background: #EDE9FE; color: #7C3AED; }
+    .btn-edit:hover { background: #DDD6FE; }
+
+    .btn-approve { background: #DCFCE7; color: #16A34A; }
+    .btn-approve:hover { background: #BBF7D0; }
+
+    .btn-reject { background: #FEE2E2; color: #DC2626; }
+    .btn-reject:hover { background: #FECACA; }
+
+    .btn-toggle { background: #FEF3C7; color: #D97706; }
+    .btn-toggle:hover { background: #FDE68A; }
+
+    .btn-delete { background: #FEE2E2; color: #DC2626; }
+    .btn-delete:hover { background: #FECACA; }
+
+    .financial-amount {
+        font-weight: 600;
+        font-size: 13px;
     }
 
-    .btn-view {
-        background: #DBEAFE;
-        color: #2563EB;
-    }
+    .financial-amount.positive { color: #14532D; }
+    .financial-amount.negative { color: #DC2626; }
+    .financial-amount.zero { color: #16A34A; }
+    .financial-amount.warning { color: #D97706; }
 
-    .btn-view:hover {
-        background: #BFDBFE;
-    }
-
-    .btn-edit {
-        background: #EDE9FE;
-        color: #7C3AED;
-    }
-
-    .btn-edit:hover {
-        background: #DDD6FE;
-    }
-
-    .btn-approve {
-        background: #DCFCE7;
-        color: #16A34A;
-    }
-
-    .btn-approve:hover {
-        background: #BBF7D0;
-    }
-
-    .btn-reject {
-        background: #FEE2E2;
-        color: #DC2626;
-    }
-
-    .btn-reject:hover {
-        background: #FECACA;
-    }
-
-    .btn-toggle {
-        background: #FEF3C7;
-        color: #D97706;
-    }
-
-    .btn-toggle:hover {
-        background: #FDE68A;
-    }
-
-    .btn-delete {
-        background: #FEE2E2;
-        color: #DC2626;
-    }
-
-    .btn-delete:hover {
-        background: #FECACA;
+    .financial-detail {
+        font-size: 10px;
+        color: #6B7A7B;
+        display: block;
     }
 </style>
 
@@ -511,18 +492,20 @@ require_once '../includes/admin_header.php';
                 <tr>
                     <th>Agent</th>
                     <th>Code</th>
-                    <th>Company</th>
-                    <th>Contact</th>
-                    <th>Commission</th>
+                    <!-- <th>Company</th> -->
+                    <th>Total Business</th>
+                    <th>Collected</th>
+                    <th>Pending</th>
+                    <th>Submitted</th>
+                    <th>Remaining</th>
                     <th>Status</th>
-                    <th>Joined</th>
                     <th style="text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($agentList)): ?>
                     <tr>
-                        <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #6B7A7B;">
                             <i class="fas fa-user-slash" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
                             No agents found
                             <?php if (!empty($search) || $status !== 'all'): ?>
@@ -549,27 +532,51 @@ require_once '../includes/admin_header.php';
                                     <?php echo escapeHtml($agent['agent_code']); ?>
                                 </span>
                             </td>
-                            <td>
+                            <!-- <td>
                                 <?php if (!empty($agent['company_name'])): ?>
                                     <?php echo escapeHtml($agent['company_name']); ?>
                                 <?php else: ?>
                                     <span style="color: #6B7A7B; font-size: 13px;">N/A</span>
                                 <?php endif; ?>
-                            </td>
+                            </td> -->
                             <td>
-                                <div style="font-size: 13px;">
-                                    <?php if (!empty($agent['email'])): ?>
-                                        <div><i class="fas fa-envelope" style="color: #6B7A7B; width: 14px;"></i> <?php echo escapeHtml($agent['email']); ?></div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($agent['phone'])): ?>
-                                        <div><i class="fas fa-phone" style="color: #6B7A7B; width: 14px;"></i> <?php echo escapeHtml($agent['phone']); ?></div>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                            <td>
-                                <span style="font-weight: 600; color: #14532D;">
-                                    <?php echo $agent['commission_rate'] > 0 ? number_format($agent['commission_rate'], 2) . '%' : 'N/A'; ?>
+                                <span class="financial-amount positive">
+                                    ₹ <?php echo number_format($agent['total_business'] ?? 0, 0); ?>
                                 </span>
+                            </td>
+                            <td>
+                                <span class="financial-amount positive">
+                                    ₹ <?php echo number_format($agent['total_collected'] ?? 0, 0); ?>
+                                </span>
+                                <?php if (($agent['commission_earned'] ?? 0) > 0): ?>
+                                    <span class="financial-detail">
+                                        Commission: ₹ <?php echo number_format($agent['commission_earned'] ?? 0, 0); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <span class="financial-amount warning">
+                                    ₹ <?php echo number_format($agent['pending_collection'] ?? 0, 0); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="financial-amount" style="color: #7C3AED;">
+                                    ₹ <?php echo number_format($agent['submitted_to_admin'] ?? 0, 0); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php 
+                                $remaining = $agent['remaining_amount'] ?? 0;
+                                $class = $remaining <= 0 ? 'zero' : 'negative';
+                                ?>
+                                <span class="financial-amount <?php echo $class; ?>">
+                                    ₹ <?php echo number_format($remaining, 0); ?>
+                                </span>
+                                <?php if ($remaining <= 0): ?>
+                                    <span style="font-size: 10px; color: #16A34A; display: block;">
+                                        <i class="fas fa-check-circle"></i> Fully Collected
+                                    </span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php
@@ -585,7 +592,6 @@ require_once '../includes/admin_header.php';
                                     <?php echo ucfirst($agent['status']); ?>
                                 </span>
                             </td>
-                            <td><?php echo formatDate($agent['created_at']); ?></td>
                             <td style="text-align: center;">
                                 <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
                                     <!-- View Details -->
@@ -601,14 +607,7 @@ require_once '../includes/admin_header.php';
                                         title="Edit Agent">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <!-- View Attendance -->
-                                    <!-- <a href="attendance-manage.php?id=<?php echo (int)$agent['user_id']; ?>"
-                                        class="btn-action btn-attendance"
-                                        title="View Attendance"
-                                        style="width: 32px; height: 32px; border-radius: 8px; border: none;  background: #DBEAFE; color: #2563EB;  display: inline-flex;  align-items: center; justify-content: center;  text-decoration: none; transition: all 0.3s ease; cursor: pointer; ">
 
-                                        <i class="fas fa-calendar-check"></i>
-                                    </a> -->
                                     <?php if ($agent['status'] === 'pending'): ?>
                                         <!-- Approve -->
                                         <a href="agents.php?action=approve&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"

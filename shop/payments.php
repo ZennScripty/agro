@@ -3,13 +3,20 @@
 /**
  * SAMRIDHI AGRO - Shop Payments
  * 
- * This page allows shops to view complete payment history,
- * make partial/full payments, and track payment status.
+ * Balance-based payment system (NOT tied to individual orders).
+ * Shop pays against its total outstanding dues (sum of all order totals
+ * minus sum of confirmed payments).
+ * 
+ * Flow 1 (Shop -> Agent -> Admin):
+ *   pending -> collected (agent marks) -> submitted (agent forwards to admin) -> confirmed (admin marks)
+ * 
+ * Flow 2 (Shop -> Admin direct):
+ *   pending -> confirmed (admin marks received & paid)
  * 
  * @package SamridhiAgro
  * @subpackage Shop
  * @author Samridhi Agro Team
- * @version 2.0.2
+ * @version 3.0.0
  */
 
 // Set page title
@@ -25,7 +32,6 @@ requireRole('shop');
 // Get database instance
 $db = getDB();
 
-// Get shop data
 // Get shop data with agent details
 $sql = "SELECT 
             s.*,
@@ -39,10 +45,8 @@ $sql = "SELECT
 $shop = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
 // ============================================
-// HANDLE PAYMENT ACTIONS
+// HANDLE: MAKE A NEW PAYMENT (against total remaining balance)
 // ============================================
-
-// Make a payment (partial or full)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'make_payment') {
     if (!isset($_POST[CSRF_TOKEN_NAME]) || !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])) {
         setFlashMessage('error', 'Invalid security token.');
@@ -50,25 +54,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    $paymentId = (int)($_POST['payment_id'] ?? 0);
     $amount = (float)($_POST['amount'] ?? 0);
+    $payTo = sanitizeInput($_POST['pay_to'] ?? 'agent');
     $paymentMethod = sanitizeInput($_POST['payment_method'] ?? 'cash');
     $transactionId = sanitizeInput($_POST['transaction_id'] ?? '');
-    $receiveBy = sanitizeInput($_POST['receive_by'] ?? 'agent');
     $notes = sanitizeInput($_POST['notes'] ?? '');
 
-    // Agent ID only comes from the shop's assigned agent.
-    // Do not trust agent ID from POST.
-    $receiveById = null;
-
-    if ($receiveBy === 'agent') {
-        $receiveById = !empty($shop['agent_id']) ? (int)$shop['agent_id'] : null;
-
-        if (!$receiveById) {
-            setFlashMessage('error', 'No agent is assigned to this shop.');
-            redirect('shop/payments.php');
-            exit;
-        }
+    if (!in_array($payTo, ['agent', 'admin'], true)) {
+        $payTo = 'agent';
     }
 
     if ($amount <= 0) {
@@ -77,117 +70,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    // Get payment details
-    $sql = "SELECT sp.*, o.order_number 
-            FROM shop_payments sp 
-            LEFT JOIN orders o ON sp.order_id = o.id 
-            WHERE sp.id = ? AND sp.shop_id = ?";
-    $payment = $db->fetchOne($sql, [$paymentId, $shop['id']]);
-
-    if (!$payment) {
-        setFlashMessage('error', 'Payment record not found.');
-        redirect('shop/payments.php');
-        exit;
-    }
-
-    if ($amount > $payment['remaining_amount']) {
-        setFlashMessage('error', 'Amount cannot exceed remaining balance: ₹ ' . number_format($payment['remaining_amount'], 2));
-        redirect('shop/payments.php');
-        exit;
+    // Agent ID only comes from the shop's assigned agent. Never trust POST for this.
+    $agentId = null;
+    if ($payTo === 'agent') {
+        $agentId = !empty($shop['agent_id']) ? (int)$shop['agent_id'] : null;
+        if (!$agentId) {
+            setFlashMessage('error', 'No agent is assigned to this shop.');
+            redirect('shop/payments.php');
+            exit;
+        }
     }
 
     try {
+        // Recalculate remaining balance server-side (never trust client value)
+        $sql = "SELECT COALESCE(SUM(total_amount), 0) as total_dues 
+                FROM orders WHERE shop_id = ? AND status != 'cancelled'";
+        $duesRow = $db->fetchOne($sql, [$shop['id']]);
+        $totalDues = (float)($duesRow['total_dues'] ?? 0);
+
+        $sql = "SELECT COALESCE(SUM(amount), 0) as total_confirmed 
+                FROM payments WHERE shop_id = ? AND status = 'confirmed'";
+        $confirmedRow = $db->fetchOne($sql, [$shop['id']]);
+        $totalConfirmed = (float)($confirmedRow['total_confirmed'] ?? 0);
+
+        $remainingBalance = $totalDues - $totalConfirmed;
+
+        if ($amount > $remainingBalance) {
+            setFlashMessage('error', 'Amount cannot exceed remaining balance: ₹ ' . number_format($remainingBalance, 2));
+            redirect('shop/payments.php');
+            exit;
+        }
+
         $db->beginTransaction();
 
-        // Get next installment number
-        $sql = "SELECT MAX(installment_number) as max FROM payment_installments WHERE payment_id = ?";
-        $result = $db->fetchOne($sql, [$paymentId]);
-        $nextInstallment = ($result['max'] ?? 0) + 1;
-
-        // Get receiver details for storing
-        $receiverDisplayName = $receiveBy === 'agent'
-            ? ($shop['agent_name'] ?? 'Agent')
-            : 'Admin';
-
-        // Create installment record with receiver details
-        $sql = "INSERT INTO payment_installments (
-            payment_id,
-            shop_id,
-            order_id,
-            installment_number,
-            amount,
-            payment_date,
-            payment_method,
-            transaction_id,
-            received_by,
-            received_by_id,
-            status,
-            notes,
-            created_at
-        ) VALUES (
-            ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, 'pending', ?, NOW()
-        )";
+        $sql = "INSERT INTO payments (
+                    shop_id, agent_id, amount, pay_to,
+                    payment_method, transaction_id, notes,
+                    status, created_by, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())";
 
         $db->query($sql, [
-            $paymentId,
             $shop['id'],
-            $payment['order_id'],
-            $nextInstallment,
+            $agentId,
             $amount,
+            $payTo,
             $paymentMethod,
             $transactionId,
-            $receiveBy,
-            $receiveById,
-            $notes
+            $notes,
+            $_SESSION['user_id']
         ]);
 
-        $installmentId = $db->lastInsertId();
-
-        // Update payment record
-        $newPaidAmount = $payment['paid_amount'] + $amount;
-        $newRemaining = $payment['amount'] - $newPaidAmount;
-        $newStatus = $newRemaining <= 0 ? 'collected' : 'pending';
-
-        $sql = "UPDATE shop_payments SET 
-                paid_amount = ?,
-                remaining_amount = ?,
-                status = ?,
-                updated_at = NOW()
-                WHERE id = ?";
-        $db->query($sql, [$newPaidAmount, $newRemaining, $newStatus, $paymentId]);
-
-        // Update order total paid
-        if ($payment['order_id']) {
-            $sql = "UPDATE orders SET 
-                    total_paid_amount = total_paid_amount + ?,
-                    remaining_payment = remaining_payment - ?
-                    WHERE id = ?";
-            $db->query($sql, [$amount, $amount, $payment['order_id']]);
-        }
+        $paymentId = $db->lastInsertId();
 
         $db->commit();
 
-        // Log activity
+        $receiverDisplayName = $payTo === 'agent'
+            ? ($shop['agent_name'] ?? 'Agent')
+            : 'Admin';
+
         logActivity(
             'create',
             $_SESSION['user_id'],
             'payment',
-            'Made payment of ₹' . $amount . ' for order #' . ($payment['order_number'] ?? 'N/A') .
-                ' (Installment ' . $nextInstallment . ') to ' . $receiverDisplayName
+            'Made payment of ₹' . $amount . ' to ' . $receiverDisplayName . ' (Payment #' . $paymentId . ')'
         );
 
-        // Store payment success details for SweetAlert + Voice
+        // Store payment success details for SweetAlert + Voice (same keys/shape as before)
         $_SESSION['payment_success_audio'] = [
             'amount' => (float)$amount,
-            'receiver_type' => $receiveBy,
+            'receiver_type' => $payTo,
             'receiver_name' => $receiverDisplayName,
-            'order_number' => $payment['order_number'] ?? '',
-            'installment_number' => $nextInstallment
+            'order_number' => '',
+            'installment_number' => 1
         ];
 
         setFlashMessage(
             'success',
-            'Payment of ₹' . number_format($amount, 2) . ' recorded successfully!'
+            'Payment of ₹' . number_format($amount, 2) . ' recorded successfully! Waiting for confirmation.'
         );
 
         redirect('shop/payments.php');
@@ -202,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ============================================
-// GET PAYMENTS LIST WITH COMPLETE HISTORY
+// GET PAYMENTS LIST
 // ============================================
 
 $search = $_GET['search'] ?? '';
@@ -211,64 +170,67 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 10;
 $offset = getPaginationOffset($page, $perPage);
 
-$whereConditions = ["sp.shop_id = ?"];
+$whereConditions = ["p.shop_id = ?"];
 $params = [$shop['id']];
 
 if (!empty($search)) {
-    $whereConditions[] = "(o.order_number LIKE ? OR sp.transaction_id LIKE ?)";
+    $whereConditions[] = "(p.transaction_id LIKE ? OR p.notes LIKE ?)";
     $searchParam = '%' . $search . '%';
     $params = array_merge($params, [$searchParam, $searchParam]);
 }
 
 if ($status !== 'all') {
-    $whereConditions[] = "sp.status = ?";
+    $whereConditions[] = "p.status = ?";
     $params[] = $status;
 }
 
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
 
 // Count total
-$sql = "SELECT COUNT(*) as total FROM shop_payments sp $whereClause";
+$sql = "SELECT COUNT(*) as total FROM payments p $whereClause";
 $result = $db->fetchOne($sql, $params);
 $totalPayments = $result['total'] ?? 0;
 
-// Get payments with complete history
-$sql = "SELECT sp.*, o.order_number,
-        (SELECT COUNT(*) FROM payment_installments WHERE payment_id = sp.id) as installment_count,
-        (SELECT COALESCE(SUM(amount), 0) FROM payment_installments WHERE payment_id = sp.id AND status = 'confirmed') as confirmed_amount,
-        (SELECT COALESCE(SUM(amount), 0) FROM payment_installments WHERE payment_id = sp.id) as total_paid_via_installments
-        FROM shop_payments sp
-        LEFT JOIN orders o ON sp.order_id = o.id
+// Get payments list with receiver (agent) name
+$sql = "SELECT p.*, ua.full_name AS agent_name
+        FROM payments p
+        LEFT JOIN agents ag ON p.agent_id = ag.id
+        LEFT JOIN users ua ON ag.user_id = ua.id
         $whereClause
-        ORDER BY sp.created_at DESC
+        ORDER BY p.created_at DESC
         LIMIT ? OFFSET ?";
 
 $queryParams = array_merge($params, [$perPage, $offset]);
 $paymentList = $db->fetchAll($sql, $queryParams);
 
-// Get installment details for each payment with receiver info
-foreach ($paymentList as &$payment) {
-    $sql = "SELECT * FROM payment_installments WHERE payment_id = ? ORDER BY installment_number ASC";
-    $payment['installments'] = $db->fetchAll($sql, [$payment['id']]);
-}
-
 // Pagination
 $totalPages = ceil($totalPayments / $perPage);
 $pagination = getPagination($totalPayments, $page, $perPage, 'payments.php?page={page}&search=' . urlencode($search) . '&status=' . $status);
 
-// Payment statistics
-$sql = "SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'collected' THEN 1 ELSE 0 END) as collected,
-        SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) as submitted,
-        SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+// ============================================
+// BALANCE + STATISTICS
+// ============================================
+
+// Total dues from all (non-cancelled) orders
+$sql = "SELECT COALESCE(SUM(total_amount), 0) as total_dues 
+        FROM orders WHERE shop_id = ? AND status != 'cancelled'";
+$duesRow = $db->fetchOne($sql, [$shop['id']]);
+$totalAmount = (float)($duesRow['total_dues'] ?? 0);
+
+// Payment stats in one query
+$sql = "SELECT
         COALESCE(SUM(CASE WHEN status = 'confirmed' THEN amount ELSE 0 END), 0) as total_confirmed,
-        COALESCE(SUM(amount), 0) as total_amount,
-        COALESCE(SUM(remaining_amount), 0) as total_remaining
-        FROM shop_payments WHERE shop_id = ?";
+        COALESCE(SUM(CASE WHEN pay_to = 'agent' AND status IN ('collected','submitted','confirmed') THEN amount ELSE 0 END), 0) as agent_collected,
+        COALESCE(SUM(CASE WHEN pay_to = 'agent' AND status = 'pending' THEN amount ELSE 0 END), 0) as pending_agent_collection,
+        COALESCE(SUM(CASE WHEN (pay_to = 'agent' AND status = 'submitted') OR (pay_to = 'admin' AND status = 'pending') THEN amount ELSE 0 END), 0) as pending_admin_collect
+        FROM payments WHERE shop_id = ?";
 $paymentStats = $db->fetchOne($sql, [$shop['id']]);
 
+$totalConfirmed = (float)($paymentStats['total_confirmed'] ?? 0);
+$remainingAmount = $totalAmount - $totalConfirmed;
+$agentCollected = (float)($paymentStats['agent_collected'] ?? 0);
+$pendingAgentCollection = (float)($paymentStats['pending_agent_collection'] ?? 0);
+$pendingAdminCollect = (float)($paymentStats['pending_admin_collect'] ?? 0);
 
 // Get payment success notification data
 $paymentSuccess = $_SESSION['payment_success_audio'] ?? null;
@@ -292,7 +254,6 @@ $csrfToken = generateCsrfToken();
     }
 
     .stat-card {
-        /* background: white; */
         border: 1px solid #E5EDE7;
         border-radius: 10px;
         padding: 12px 14px;
@@ -306,7 +267,6 @@ $csrfToken = generateCsrfToken();
         font-family: 'Space Grotesk', sans-serif;
         font-size: 20px;
         font-weight: 700;
-        /* box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13); */
     }
 
     .stat-card .stat-label {
@@ -319,21 +279,20 @@ $csrfToken = generateCsrfToken();
         color: #14532D;
     }
 
-    .stat-card.pending .stat-number {
+    .stat-card.remaining .stat-number {
+        color: #DC2626;
+    }
+
+    .stat-card.agent-collected .stat-number {
+        color: #7C3AED;
+    }
+
+    .stat-card.pending-agent .stat-number {
         color: #F59E0B;
     }
 
-    .stat-card.collected .stat-number {
+    .stat-card.pending-admin .stat-number {
         color: #3B82F6;
-    }
-
-    .stat-card.confirmed .stat-number {
-        color: #16A34A;
-    }
-
-    .stat-card.amount .stat-number {
-        color: #7C3AED;
-        font-size: 16px;
     }
 
     .payment-card {
@@ -372,122 +331,27 @@ $csrfToken = generateCsrfToken();
         color: #14532D;
     }
 
-    .payment-card .payment-progress {
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid #F0FDF4;
-    }
-
-    .payment-card .payment-progress .progress-bar {
-        height: 6px;
-        background: #E5EDE7;
-        border-radius: 4px;
-        overflow: hidden;
-        margin-top: 4px;
-    }
-
-    .payment-card .payment-progress .progress-bar .progress-fill {
-        height: 100%;
-        border-radius: 4px;
-        transition: width 0.5s ease;
-        background: linear-gradient(90deg, #16A34A, #22C55E);
-    }
-
-    .payment-card .payment-actions {
+    /* Stage timeline */
+    .payment-timeline {
         margin-top: 10px;
         padding-top: 10px;
         border-top: 1px solid #F0FDF4;
         display: flex;
-        gap: 8px;
         flex-wrap: wrap;
+        gap: 14px;
     }
 
-    /* Installment History */
-    .installment-history {
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid #F0FDF4;
-    }
-
-    .installment-history .installment-title {
+    .payment-timeline .timeline-step {
         font-size: 12px;
-        font-weight: 600;
-        color: #6B7A7B;
-        margin-bottom: 6px;
-    }
-
-    .installment-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 4px 0;
-        font-size: 13px;
-        border-bottom: 1px solid #F7FCF7;
-    }
-
-    .installment-item:last-child {
-        border-bottom: none;
-    }
-
-    .installment-item .inst-number {
-        font-weight: 500;
-        color: #052E16;
-    }
-
-    .installment-item .inst-amount {
-        font-weight: 600;
-        color: #14532D;
-    }
-
-    .installment-item .inst-receiver {
-        font-size: 11px;
         color: #6B7A7B;
         display: flex;
         align-items: center;
         gap: 4px;
     }
 
-    .installment-item .inst-receiver .receiver-agent {
-        color: #7C3AED;
-        font-weight: 500;
-    }
-
-    .installment-item .inst-receiver .receiver-admin {
-        color: #DC2626;
-        font-weight: 500;
-    }
-
-    .installment-item .inst-status {
-        font-size: 11px;
-    }
-
-    .badge-installment {
-        display: inline-block;
-        padding: 1px 8px;
-        border-radius: 10px;
-        font-size: 10px;
+    .payment-timeline .timeline-step.done {
+        color: #16A34A;
         font-weight: 600;
-        text-transform: capitalize;
-    }
-
-    .badge-installment.pending {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .badge-installment.collected {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-
-    .badge-installment.submitted {
-        background: #EDE9FE;
-        color: #5B21B6;
-    }
-
-    .badge-installment.confirmed {
-        background: #DCFCE7;
-        color: #065F46;
     }
 
     .badge-status {
@@ -519,11 +383,6 @@ $csrfToken = generateCsrfToken();
         color: #5B21B6;
     }
 
-    .badge-status.badge-danger {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
     .btn-pay {
         padding: 6px 16px;
         background: #16A34A;
@@ -539,6 +398,32 @@ $csrfToken = generateCsrfToken();
     .btn-pay:hover {
         background: #14532D;
         transform: translateY(-1px);
+    }
+
+    .btn-pay-large {
+        padding: 14px 32px;
+        background: linear-gradient(135deg, #14532D, #16A34A);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-pay-large:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(22, 163, 74, 0.3);
+    }
+
+    .btn-pay-large:disabled {
+        background: #E5EDE7;
+        color: #6B7A7B;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
     }
 
     /* Receiver Badge */
@@ -565,37 +450,51 @@ $csrfToken = generateCsrfToken();
     <div class="card-header">
         <h3 class="card-title">
             <i class="fas fa-credit-card" style="color: #16A34A;"></i>
-            Payment History
-            <span style="font-size: 14px; font-weight: 400; color: #6B7A7B; margin-left: 8px;">
-                (<?php echo number_format($totalPayments); ?>)
-            </span>
+            Payments
         </h3>
+        <?php if ($remainingAmount > 0): ?>
+            <button class="btn-pay-large" onclick="openPaymentModal()">
+                <i class="fas fa-rupee-sign"></i> Make Payment
+            </button>
+        <?php endif; ?>
     </div>
 
     <!-- Statistics -->
     <div class="stats-grid">
         <div class="stat-card total">
-            <div class="stat-number"><?php echo number_format($paymentStats['total'] ?? 0); ?></div>
-            <div class="stat-label">Total Payments</div>
+            <div class="stat-number">₹ <?php echo number_format($totalAmount, 0); ?></div>
+            <div class="stat-label">Total Amount</div>
         </div>
-        <div class="stat-card pending">
-            <div class="stat-number"><?php echo number_format($paymentStats['pending'] ?? 0); ?></div>
-            <div class="stat-label">Pending</div>
-        </div>
-        <div class="stat-card collected">
-            <div class="stat-number"><?php echo number_format($paymentStats['collected'] ?? 0); ?></div>
-            <div class="stat-label">Collected</div>
-        </div>
-        <div class="stat-card confirmed">
-            <div class="stat-number"><?php echo number_format($paymentStats['confirmed'] ?? 0); ?></div>
-            <div class="stat-label">Confirmed</div>
-            <div class="stat-sub">₹ <?php echo number_format($paymentStats['total_confirmed'] ?? 0, 0); ?></div>
-        </div>
-        <div class="stat-card amount">
-            <div class="stat-number" style="color: #DC2626;">₹ <?php echo number_format($paymentStats['total_remaining'] ?? 0, 0); ?></div>
+        <div class="stat-card remaining">
+            <div class="stat-number">₹ <?php echo number_format($remainingAmount, 0); ?></div>
             <div class="stat-label">Remaining</div>
         </div>
+        <div class="stat-card agent-collected">
+            <div class="stat-number">₹ <?php echo number_format($agentCollected, 0); ?></div>
+            <div class="stat-label">Agent Collected</div>
+        </div>
+        <div class="stat-card pending-agent">
+            <div class="stat-number">₹ <?php echo number_format($pendingAgentCollection, 0); ?></div>
+            <div class="stat-label">Pending Agent Collection</div>
+        </div>
+        <div class="stat-card pending-admin">
+            <div class="stat-number">₹ <?php echo number_format($pendingAdminCollect, 0); ?></div>
+            <div class="stat-label">Pending Admin Collect</div>
+        </div>
     </div>
+
+    <!-- Filters -->
+    <form method="GET" action="" style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+        <input type="text" name="search" value="<?php echo escapeHtml($search); ?>" placeholder="Search transaction ID / notes..." class="form-input" style="flex: 1; min-width: 200px; padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 13px;">
+        <select name="status" class="form-input" style="padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 13px;">
+            <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All Status</option>
+            <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Pending</option>
+            <option value="collected" <?php echo $status === 'collected' ? 'selected' : ''; ?>>Collected (by Agent)</option>
+            <option value="submitted" <?php echo $status === 'submitted' ? 'selected' : ''; ?>>Submitted to Admin</option>
+            <option value="confirmed" <?php echo $status === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
+        </select>
+        <button type="submit" class="btn-pay" style="padding: 8px 20px;">Filter</button>
+    </form>
 
     <!-- Payment List -->
     <?php if (empty($paymentList)): ?>
@@ -609,23 +508,23 @@ $csrfToken = generateCsrfToken();
                 <div class="payment-header">
                     <div>
                         <div class="payment-order">
-                            <?php if ($payment['order_number']): ?>
-                                Order: #<?php echo escapeHtml($payment['order_number']); ?>
-                            <?php else: ?>
-                                Payment #<?php echo $payment['id']; ?>
-                            <?php endif; ?>
+                            Payment #<?php echo $payment['id']; ?>
+                            <span class="receiver-badge <?php echo $payment['pay_to']; ?>" style="margin-left: 6px;">
+                                <i class="fas fa-<?php echo $payment['pay_to'] === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
+                                <?php echo $payment['pay_to'] === 'agent' ? escapeHtml($payment['agent_name'] ?? 'Agent') : 'Admin'; ?>
+                            </span>
                         </div>
                         <div style="font-size: 12px; color: #6B7A7B;">
                             <i class="far fa-calendar"></i> <?php echo formatDate($payment['created_at']); ?>
-                            <?php if ($payment['installment_count'] > 1): ?>
-                                <span style="margin-left: 8px;">
-                                    <i class="fas fa-credit-card"></i> <?php echo $payment['installment_count']; ?> installments
-                                </span>
-                            <?php endif; ?>
                             <?php if ($payment['payment_method']): ?>
                                 <span style="margin-left: 8px;">
                                     <i class="fas fa-<?php echo $payment['payment_method'] === 'cash' ? 'money-bill' : ($payment['payment_method'] === 'upi' ? 'mobile-alt' : 'university'); ?>"></i>
                                     <?php echo ucfirst($payment['payment_method']); ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if (!empty($payment['transaction_id'])): ?>
+                                <span style="margin-left: 8px;">
+                                    <i class="fas fa-hashtag"></i> <?php echo escapeHtml($payment['transaction_id']); ?>
                                 </span>
                             <?php endif; ?>
                         </div>
@@ -637,10 +536,9 @@ $csrfToken = generateCsrfToken();
                             'pending' => 'badge-warning',
                             'collected' => 'badge-info',
                             'submitted' => 'badge-primary',
-                            'confirmed' => 'badge-success',
-                            'failed' => 'badge-danger'
+                            'confirmed' => 'badge-success'
                         ];
-                        $color = $statusColors[$payment['status']] ?? 'badge-secondary';
+                        $color = $statusColors[$payment['status']] ?? 'badge-warning';
                         ?>
                         <span class="badge-status <?php echo $color; ?>">
                             <?php echo ucfirst($payment['status']); ?>
@@ -648,78 +546,39 @@ $csrfToken = generateCsrfToken();
                     </div>
                 </div>
 
-                <!-- Payment Progress -->
-                <?php
-                $paidAmount = $payment['paid_amount'] ?? 0;
-                $remainingAmount = $payment['remaining_amount'] ?? ($payment['amount'] - $paidAmount);
-                $paidPercent = $payment['amount'] > 0 ? round(($paidAmount / $payment['amount']) * 100) : 0;
-                if ($payment['amount'] > 0):
-                ?>
-                    <div class="payment-progress">
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6B7A7B;">
-                            <span>Paid: ₹ <?php echo number_format($paidAmount, 2); ?></span>
-                            <span>Remaining: ₹ <?php echo number_format($remainingAmount, 2); ?></span>
-                            <span><?php echo $paidPercent; ?>%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: <?php echo $paidPercent; ?>%;"></div>
-                        </div>
+                <!-- Stage Timeline -->
+                <div class="payment-timeline">
+                    <div class="timeline-step done">
+                        <i class="fas fa-check-circle"></i> Paid by you
                     </div>
-                <?php endif; ?>
-
-                <!-- Installment History with Receiver Details -->
-                <?php if (!empty($payment['installments'])): ?>
-                    <div class="installment-history">
-                        <div class="installment-title">
-                            <i class="fas fa-list"></i> Installment History
+                    <?php if ($payment['pay_to'] === 'agent'): ?>
+                        <div class="timeline-step <?php echo $payment['agent_collected_at'] ? 'done' : ''; ?>">
+                            <i class="fas fa-<?php echo $payment['agent_collected_at'] ? 'check-circle' : 'clock'; ?>"></i>
+                            Agent Collected
+                            <?php if ($payment['agent_collected_at']): ?>
+                                (<?php echo formatDate($payment['agent_collected_at']); ?>)
+                            <?php endif; ?>
                         </div>
-                        <?php foreach ($payment['installments'] as $inst): ?>
-                            <div class="installment-item">
-                                <span class="inst-number">#<?php echo $inst['installment_number']; ?></span>
-                                <span class="inst-amount">₹ <?php echo number_format($inst['amount'], 2); ?></span>
-                                <span class="inst-receiver">
-                                    <?php
-                                    $receiverType = $inst['received_by'] ?? 'agent';
-                                    $receiverName = $inst['received_by_name'] ?? ($receiverType === 'agent' ? 'Agent' : 'Admin');
-                                    ?>
-                                    <span class="receiver-badge <?php echo $receiverType; ?>">
-                                        <i class="fas fa-<?php echo $receiverType === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
-                                        <?php echo escapeHtml($receiverName); ?>
-                                    </span>
-                                </span>
-                                <span class="inst-status">
-                                    <?php
-                                    $instStatusColors = [
-                                        'pending' => 'pending',
-                                        'collected' => 'collected',
-                                        'submitted' => 'submitted',
-                                        'confirmed' => 'confirmed'
-                                    ];
-                                    $instColor = $instStatusColors[$inst['status']] ?? 'pending';
-                                    ?>
-                                    <span class="badge-installment <?php echo $instColor; ?>">
-                                        <?php echo ucfirst($inst['status']); ?>
-                                    </span>
-                                    <?php if ($inst['status'] === 'confirmed'): ?>
-                                        <span style="font-size: 10px; color: #16A34A;">
-                                            <i class="fas fa-check-circle"></i>
-                                        </span>
-                                    <?php endif; ?>
-                                </span>
-                                <span style="font-size: 11px; color: #6B7A7B;">
-                                    <?php echo formatDate($inst['payment_date']); ?>
-                                </span>
-                            </div>
-                        <?php endforeach; ?>
+                        <div class="timeline-step <?php echo $payment['submitted_at'] ? 'done' : ''; ?>">
+                            <i class="fas fa-<?php echo $payment['submitted_at'] ? 'check-circle' : 'clock'; ?>"></i>
+                            Submitted to Admin
+                            <?php if ($payment['submitted_at']): ?>
+                                (<?php echo formatDate($payment['submitted_at']); ?>)
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                    <div class="timeline-step <?php echo $payment['confirmed_at'] ? 'done' : ''; ?>">
+                        <i class="fas fa-<?php echo $payment['confirmed_at'] ? 'check-circle' : 'clock'; ?>"></i>
+                        Admin Confirmed
+                        <?php if ($payment['confirmed_at']): ?>
+                            (<?php echo formatDate($payment['confirmed_at']); ?>)
+                        <?php endif; ?>
                     </div>
-                <?php endif; ?>
+                </div>
 
-                <!-- Actions -->
-                <?php if ($remainingAmount > 0): ?>
-                    <div class="payment-actions">
-                        <button class="btn-pay" onclick="openPaymentModal(<?php echo $payment['id']; ?>, <?php echo $remainingAmount; ?>, '<?php echo addslashes($payment['order_number'] ?? ''); ?>')">
-                            <i class="fas fa-rupee-sign"></i> Pay Now
-                        </button>
+                <?php if (!empty($payment['notes'])): ?>
+                    <div style="margin-top: 8px; font-size: 12px; color: #6B7A7B;">
+                        <i class="fas fa-sticky-note"></i> <?php echo escapeHtml($payment['notes']); ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -741,14 +600,10 @@ $csrfToken = generateCsrfToken();
         <form method="POST" action="" id="paymentForm">
             <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $csrfToken; ?>">
             <input type="hidden" name="action" value="make_payment">
-            <input type="hidden" name="payment_id" id="modal_payment_id">
 
             <div style="margin-bottom: 16px;">
-                <label style="display: block; font-weight: 600; font-size: 14px; color: #14532D; margin-bottom: 4px;">
-                    Order <span id="modal_order_number"></span>
-                </label>
                 <div style="font-size: 13px; color: #6B7A7B;">
-                    Remaining Amount: <strong style="color: #14532D;" id="modal_remaining_amount"></strong>
+                    Total Remaining Amount: <strong style="color: #14532D;">₹ <?php echo number_format($remainingAmount, 2); ?></strong>
                 </div>
             </div>
 
@@ -756,9 +611,9 @@ $csrfToken = generateCsrfToken();
                 <label style="display: block; font-weight: 600; font-size: 14px; color: #14532D; margin-bottom: 4px;">
                     Amount (₹) <span style="color: #DC2626;">*</span>
                 </label>
-                <input type="number" name="amount" id="modal_amount" class="form-input" step="0.01" min="1" required style="width: 100%; padding: 10px 14px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 14px;">
+                <input type="number" name="amount" id="modal_amount" class="form-input" step="0.01" min="1" max="<?php echo $remainingAmount; ?>" required style="width: 100%; padding: 10px 14px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 14px;">
                 <div style="font-size: 12px; color: #6B7A7B; margin-top: 4px;">
-                    <i class="fas fa-info-circle"></i> Maximum: ₹ <span id="modal_max_amount"></span>
+                    <i class="fas fa-info-circle"></i> Maximum: ₹ <?php echo number_format($remainingAmount, 2); ?>
                 </div>
             </div>
 
@@ -779,7 +634,7 @@ $csrfToken = generateCsrfToken();
                 <label style="display: block; font-weight: 600; font-size: 14px; color: #14532D; margin-bottom: 4px;">
                     Pay to <span style="color: #DC2626;">*</span>
                 </label>
-                <select name="receive_by" class="form-input" style="width: 100%; padding: 10px 14px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 14px;">
+                <select name="pay_to" id="pay_to_select" class="form-input" style="width: 100%; padding: 10px 14px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 14px;">
                     <option value="agent">Agent</option>
                     <option value="admin">Admin (Direct)</option>
                 </select>
@@ -834,70 +689,35 @@ $csrfToken = generateCsrfToken();
 </div>
 
 <script>
-    const agentId = <?php echo json_encode($shop['agent_id'] ?? null); ?>;
     const agentName = <?php echo json_encode($shop['agent_name'] ?? ''); ?>;
 
     function updateReceiverField() {
-
-        const receiveBy = document.querySelector('select[name="receive_by"]');
+        const payTo = document.getElementById('pay_to_select');
         const receiverGroup = document.getElementById('receiverNameGroup');
         const receiverName = document.getElementById('receive_by_name');
 
-        if (receiveBy.value === 'agent') {
-
-            // Show agent name
+        if (payTo.value === 'agent') {
             receiverGroup.style.display = 'block';
-
-            // Automatically show assigned agent name
             receiverName.value = agentName || 'Agent not assigned';
-
         } else {
-
-            // Hide receiver name for admin
             receiverGroup.style.display = 'none';
-
             receiverName.value = '';
         }
     }
 
-
-    function openPaymentModal(paymentId, remainingAmount, orderNumber) {
-
-        document.getElementById('modal_payment_id').value = paymentId;
-
-        document.getElementById('modal_remaining_amount').textContent =
-            '₹ ' + remainingAmount.toFixed(2);
-
-        document.getElementById('modal_max_amount').textContent =
-            remainingAmount.toFixed(2);
-
-        document.getElementById('modal_order_number').textContent =
-            orderNumber ? '# ' + orderNumber : '';
-
-        document.getElementById('modal_amount').max = remainingAmount;
-
-        document.getElementById('modal_amount').value = remainingAmount;
-
-        // Default receiver = Agent
-        const receiveBy = document.querySelector('select[name="receive_by"]');
-        receiveBy.value = 'agent';
-
+    function openPaymentModal() {
+        document.getElementById('pay_to_select').value = 'agent';
         updateReceiverField();
-
         document.getElementById('paymentModal').style.display = 'flex';
     }
 
-
-    // Agent / Admin selection
-    document.querySelector('select[name="receive_by"]').addEventListener('change', function() {
+    document.getElementById('pay_to_select').addEventListener('change', function() {
         updateReceiverField();
     });
-
 
     function closePaymentModal() {
         document.getElementById('paymentModal').style.display = 'none';
     }
-
 
     // Close modal when clicking outside
     document.getElementById('paymentModal').addEventListener('click', function(e) {
@@ -905,7 +725,6 @@ $csrfToken = generateCsrfToken();
             closePaymentModal();
         }
     });
-
 
     // Auto-select amount
     document.getElementById('modal_amount').addEventListener('focus', function() {

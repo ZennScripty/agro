@@ -437,6 +437,9 @@ $notificationCount = 0;
                 <a href="orders.php" class="menu-item <?php echo $currentPage === 'orders.php' ? 'active' : ''; ?>">
                     <i class="fas fa-shopping-cart"></i> Orders
                 </a>
+                <a href="shop-payments.php" class="menu-item <?php echo $currentPage === 'shop-payments.php' ? 'active' : ''; ?>">
+                    <i class="fas  fa-money-bill-wave"></i> Payments
+                </a>
                 <a href="products.php" class="menu-item <?php echo $currentPage === 'products.php' ? 'active' : ''; ?>">
                     <i class="fas fa-box"></i> Products
                 </a>

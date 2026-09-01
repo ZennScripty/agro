@@ -8,7 +8,7 @@
  * @package SamridhiAgro
  * @subpackage Agent
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // Set page title
@@ -37,25 +37,13 @@ if ($orderId <= 0) {
 $sql = "SELECT a.* FROM agents a WHERE a.user_id = ?";
 $agent = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
-// Get order details with shop verification
+// Get order details with shop verification - REMOVED payment fields
 $sql = "SELECT o.*, s.shop_name, s.shop_code, s.owner_name,
         u.full_name as shop_owner,
-        sp.id as payment_id,
-        sp.amount as payment_amount,
-        sp.paid_amount,
-        sp.remaining_amount,
-        sp.status as payment_status,
-        sp.payment_method as payment_method,
-        sp.transaction_id,
-        sp.agent_collection_date,
-        sp.submitted_to_admin_date,
-        sp.admin_confirm_date,
-        sp.notes as payment_notes,
         (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
         FROM orders o 
         JOIN shops s ON o.shop_id = s.id 
         JOIN users u ON s.user_id = u.id
-        LEFT JOIN shop_payments sp ON o.id = sp.order_id
         WHERE o.id = ? AND s.agent_id = ?";
 $order = $db->fetchOne($sql, [$orderId, $agent['id']]);
 
@@ -105,7 +93,7 @@ $csrfToken = generateCsrfToken();
         margin-bottom: 20px;
         flex-wrap: wrap;
         gap: 12px;
-        border:0.5px solid #16A34A;
+        border: 0.5px solid #16A34A;
     }
 
     .order-header .order-info h2 {
@@ -138,6 +126,7 @@ $csrfToken = generateCsrfToken();
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 16px;
+        transition: all 0.3s ease;
     }
 
     .detail-section:hover {
@@ -169,6 +158,7 @@ $csrfToken = generateCsrfToken();
     .orderinfo {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        gap: 4px 20px;
     }
 
     .detail-label {
@@ -219,32 +209,9 @@ $csrfToken = generateCsrfToken();
         color: #5B21B6;
     }
 
-    .payment-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-
-    .payment-badge.pending {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .payment-badge.collected {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-
-    .payment-badge.submitted {
-        background: #EDE9FE;
-        color: #5B21B6;
-    }
-
-    .payment-badge.confirmed {
-        background: #DCFCE7;
-        color: #065F46;
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
     }
 
     .product-item {
@@ -404,6 +371,10 @@ $csrfToken = generateCsrfToken();
     }
 
     @media (max-width: 768px) {
+        .orderinfo {
+            grid-template-columns: 1fr;
+        }
+        
         .detail-row {
             flex-direction: column;
             padding: 8px 0;
@@ -532,7 +503,6 @@ $csrfToken = generateCsrfToken();
             Order Information
         </div>
         <div class="orderinfo">
-
             <div class="detail-row">
                 <span class="detail-label">Order Status</span>
                 <span class="detail-value">
@@ -555,49 +525,22 @@ $csrfToken = generateCsrfToken();
             </div>
 
             <div class="detail-row">
-                <span class="detail-label">Payment Status</span>
-                <span class="detail-value">
-                    <?php if ($order['payment_id']): ?>
-                        <span class="payment-badge <?php echo $order['payment_status']; ?>">
-                            <?php echo ucfirst($order['payment_status']); ?>
-                        </span>
-                    <?php else: ?>
-                        <span class="badge-status badge-warning">No Payment</span>
-                    <?php endif; ?>
-                </span>
+                <span class="detail-label">Shop</span>
+                <span class="detail-value"><?php echo escapeHtml($order['shop_name']); ?></span>
             </div>
-            <?php if ($order['payment_amount']): ?>
-                <div class="detail-row">
-                    <span class="detail-label">Order Amount</span>
-                    <span class="detail-value" style="font-weight: 700; color: #14532D;">₹ <?php echo number_format($order['payment_amount'], 2); ?></span>
-                </div>
-                <?php if ($order['paid_amount'] > 0): ?>
-                    <div class="detail-row">
-                        <span class="detail-label">Amount Paid</span>
-                        <span class="detail-value" style="color: #16A34A; font-weight: 600;">₹ <?php echo number_format($order['paid_amount'], 2); ?></span>
-                    </div>
-                <?php endif; ?>
-                <?php if ($order['remaining_amount'] > 0): ?>
-                    <div class="detail-row">
-                        <span class="detail-label">Remaining</span>
-                        <span class="detail-value" style="color: #DC2626; font-weight: 600;">₹ <?php echo number_format($order['remaining_amount'], 2); ?></span>
-                    </div>
-                <?php endif; ?>
-            <?php endif; ?>
-            <?php if ($order['payment_method']): ?>
-                <div class="detail-row">
-                    <span class="detail-label">Payment Method</span>
-                    <span class="detail-value"><?php echo ucfirst($order['payment_method']); ?></span>
-                </div>
-            <?php endif; ?>
-            <?php if ($order['transaction_id']): ?>
-                <div class="detail-row">
-                    <span class="detail-label">Transaction ID</span>
-                    <span class="detail-value" style="font-family: monospace;"><?php echo escapeHtml($order['transaction_id']); ?></span>
-                </div>
-            <?php endif; ?>
+
+            <div class="detail-row">
+                <span class="detail-label">Shop Owner</span>
+                <span class="detail-value"><?php echo escapeHtml($order['shop_owner'] ?? 'N/A'); ?></span>
+            </div>
+
+            <div class="detail-row">
+                <span class="detail-label">Order Date</span>
+                <span class="detail-value"><?php echo formatDate($order['created_at']); ?></span>
+            </div>
+
             <?php if ($order['delivery_notes']): ?>
-                <div class="detail-row">
+                <div class="detail-row" style="grid-column: 1 / -1;">
                     <span class="detail-label">Delivery Notes</span>
                     <span class="detail-value"><?php echo escapeHtml($order['delivery_notes']); ?></span>
                 </div>

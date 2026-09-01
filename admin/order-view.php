@@ -7,7 +7,7 @@
  * @package SamridhiAgro
  * @subpackage Admin
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // ============================================
@@ -44,7 +44,7 @@ if ($orderId <= 0) {
     exit;
 }
 
-// Get order data with shop and user details
+// Get order data with shop and user details - REMOVED payment fields
 $sql = "SELECT o.*, 
         s.shop_name, s.shop_code, s.shop_type, s.owner_name,
         s.address as shop_address, s.city as shop_city, s.state as shop_state, s.pincode as shop_pincode,
@@ -525,7 +525,7 @@ $csrfToken = generateCsrfToken();
             <?php endif; ?>
         </div>
         
-        <!-- Order Information -->
+        <!-- Order Information - REMOVED Payment Status and Payment Method -->
         <div class="detail-section" style="margin-bottom: 0;">
             <div class="section-title">
                 <i class="fas fa-info-circle" style="color: #16A34A;"></i>
@@ -559,28 +559,6 @@ $csrfToken = generateCsrfToken();
                     <span class="badge-status <?php echo $color; ?>">
                         <?php echo ucfirst($order['status']); ?>
                     </span>
-                </span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">Payment Status</span>
-                <span class="detail-value">
-                    <?php 
-                    $paymentColors = [
-                        'pending' => 'badge-warning',
-                        'paid' => 'badge-success',
-                        'failed' => 'badge-danger',
-                        'refunded' => 'badge-info'
-                    ];
-                    $pColor = $paymentColors[$order['payment_status']] ?? 'badge-secondary';
-                    ?>
-                    <span class="badge-status <?php echo $pColor; ?>">
-                        <?php echo ucfirst($order['payment_status']); ?>
-                    </span>
-                    <?php if (!empty($order['payment_method'])): ?>
-                    <span style="font-size: 13px; color: #6B7A7B; margin-left: 8px;">
-                        (<?php echo escapeHtml(ucfirst($order['payment_method'])); ?>)
-                    </span>
-                    <?php endif; ?>
                 </span>
             </div>
             <?php if (!empty($order['delivery_notes'])): ?>

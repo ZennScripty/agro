@@ -454,7 +454,7 @@ $notificationCount = $pendingPayments;
                 </a>
 
                 <div class="menu-label" style="margin-top: 20px;">Shop</div>
-                <a href="orders.php" class="menu-item <?php echo $currentPage === 'orders.php' ? 'active' : ''; ?>">
+                <a href="orders.php" class="menu-item <?php echo ($currentPage === 'orders.php' || $currentPage === 'order-view.php') ? 'active' : ''; ?>">
                     <i class="fas fa-shopping-cart"></i> My Orders
                     <?php
                     // Count pending orders

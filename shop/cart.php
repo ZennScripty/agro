@@ -3,13 +3,14 @@
  * SAMRIDHI AGRO - Shop Cart
  * 
  * This page displays the shop's cart and allows placing orders.
- * Payment record created automatically with order.
- * Payment management is handled in payments.php
+ * Payment is NOT created here anymore — payment is balance-based
+ * and is managed entirely in payments.php (shop initiates payment
+ * against its total remaining dues, not against a specific order).
  * 
  * @package SamridhiAgro
  * @subpackage Shop
  * @author Samridhi Agro Team
- * @version 2.0.5
+ * @version 3.0.0
  */
 
 // Set page title
@@ -82,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
-    // Place order (No Tax)
+    // Place order (No Tax, No Payment record — payment is handled separately in payments.php)
     if ($action === 'place_order') {
         if (empty($_SESSION['shop_cart'])) {
             setFlashMessage('error', 'Your cart is empty.');
@@ -126,7 +127,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Start transaction
             $db->beginTransaction();
             
-            // Insert order (NO TAX)
+            // Insert order (NO TAX). This order amount adds to the shop's
+            // total dues — actual payment collection happens separately
+            // in payments.php against the shop's running balance.
             $sql = "INSERT INTO orders (
                         order_number, shop_id, agent_id,
                         order_date, subtotal, tax, discount, total_amount,
@@ -165,23 +168,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
             
-            // Create payment record for this order
-            // Payment will be managed in payments.php
-            $sql = "INSERT INTO shop_payments (
-                        shop_id, agent_id, order_id, payment_type, 
-                        amount, paid_amount, remaining_amount,
-                        installment_number, total_installments,
-                        payment_date, payment_method, status, 
-                        payment_received_by, created_at
-                    ) VALUES (?, ?, ?, 'order_payment', ?, 0, ?, 1, 1, NOW(), 'pending', 'pending', 'shop', NOW())";
-            
-            $db->query($sql, [
-                $shop['id'],
-                $shop['agent_id'],
-                $orderId,
-                $totalAmount,
-                $totalAmount, // remaining_amount = full amount initially
-            ]);
+            // NOTE: No payment record is created here anymore.
+            // Payment is balance-based and is initiated by the shop
+            // from payments.php whenever it wants to pay against its
+            // total outstanding dues (not tied to this specific order).
             
             // Commit transaction
             $db->commit();

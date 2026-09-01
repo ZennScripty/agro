@@ -2,12 +2,7 @@
 
 /**
  * SAMRIDHI AGRO - Agent Shop Payments
- * Version: 3.2.0
- * 
- * This page shows all payments for shops assigned to the agent.
- * - Shows payments where pay_to = 'agent' (agent collects)
- * - Also shows direct payments (pay_to = 'admin') for visibility
- * - Remaining balance shown for each shop
+ * Version: 3.0.1
  */
 
 $pageTitle = 'Shop Payments';
@@ -37,9 +32,6 @@ if (!$agent) {
 
 $agentId = (int)$agent['id'];
 
-// ============================================
-// HANDLE: COLLECT PAYMENT (AJAX)
-// ============================================
 if (isset($_POST['action']) && $_POST['action'] === 'collect_payment') {
     if (!isset($_POST[CSRF_TOKEN_NAME]) || !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])) {
         echo json_encode(['success' => false, 'message' => 'Invalid security token.']);
@@ -87,9 +79,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'collect_payment') {
     }
 }
 
-// ============================================
-// HANDLE: SUBMIT PAYMENT TO ADMIN (AJAX)
-// ============================================
 if (isset($_POST['action']) && $_POST['action'] === 'submit_to_admin') {
     if (!isset($_POST[CSRF_TOKEN_NAME]) || !verifyCsrfToken($_POST[CSRF_TOKEN_NAME])) {
         echo json_encode(['success' => false, 'message' => 'Invalid security token.']);
@@ -137,16 +126,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_to_admin') {
     }
 }
 
-// ============================================
-// GET SHOPS FOR FILTER
-// ============================================
-$sql = "SELECT id, shop_name FROM shops WHERE agent_id = ? ORDER BY shop_name ASC";
-$shops = $db->fetchAll($sql, [$agentId]);
-
-// ============================================
-// GET PAYMENTS LIST WITH REMAINING BALANCE
-// ============================================
-
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? 'all';
 $shopFilter = isset($_GET['shop']) ? (int)$_GET['shop'] : 0;
@@ -154,15 +133,8 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = PAGINATION_DEFAULT_LIMIT;
 $offset = getPaginationOffset($page, $perPage);
 
-// Build query - Show ALL payments (agent + direct) for agent's shops
-$whereConditions = ["s.agent_id = ?"];
+$whereConditions = ["p.agent_id = ?", "p.pay_to = 'agent'"];
 $params = [$agentId];
-
-// If shop filter is applied
-if ($shopFilter > 0) {
-    $whereConditions[] = "p.shop_id = ?";
-    $params[] = $shopFilter;
-}
 
 if (!empty($search)) {
     $whereConditions[] = "(s.shop_name LIKE ? OR s.shop_code LIKE ? OR p.transaction_id LIKE ?)";
@@ -172,38 +144,24 @@ if (!empty($search)) {
     $params[] = $searchParam;
 }
 
-// FIXED: Status filter - properly handle 'all' and valid statuses
-if ($status !== 'all') {
-    $allowedStatuses = ['pending', 'collected', 'submitted', 'confirmed'];
-    if (in_array($status, $allowedStatuses, true)) {
-        $whereConditions[] = "p.status = ?";
-        $params[] = $status;
-    }
+$allowedStatuses = ['pending', 'collected', 'submitted', 'confirmed'];
+if ($status !== 'all' && in_array($status, $allowedStatuses, true)) {
+    $whereConditions[] = "p.status = ?";
+    $params[] = $status;
+}
+
+if ($shopFilter > 0) {
+    $whereConditions[] = "p.shop_id = ?";
+    $params[] = $shopFilter;
 }
 
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
 
-// Count total
-$sql = "SELECT COUNT(*) AS total 
-        FROM payments p 
-        JOIN shops s ON p.shop_id = s.id 
-        $whereClause";
+$sql = "SELECT COUNT(*) AS total FROM payments p JOIN shops s ON p.shop_id = s.id $whereClause";
 $result = $db->fetchOne($sql, $params);
 $totalPayments = (int)($result['total'] ?? 0);
 
-// Get payments with shop details
-$sql = "SELECT p.*, 
-        s.shop_name, s.shop_code, s.owner_name,
-        (
-            SELECT COALESCE(SUM(total_amount), 0) 
-            FROM orders 
-            WHERE shop_id = s.id AND status != 'cancelled'
-        ) as total_dues,
-        (
-            SELECT COALESCE(SUM(amount), 0) 
-            FROM payments 
-            WHERE shop_id = s.id AND status = 'confirmed'
-        ) as total_confirmed
+$sql = "SELECT p.*, s.shop_name, s.shop_code, s.owner_name
         FROM payments p
         JOIN shops s ON p.shop_id = s.id
         $whereClause
@@ -213,69 +171,32 @@ $sql = "SELECT p.*,
 $queryParams = array_merge($params, [$perPage, $offset]);
 $paymentList = $db->fetchAll($sql, $queryParams);
 
-// Calculate remaining amount for each payment
-foreach ($paymentList as &$payment) {
-    $payment['remaining_amount'] = max(0, ($payment['total_dues'] ?? 0) - ($payment['total_confirmed'] ?? 0));
-}
-
-// Pagination
 $totalPages = ceil($totalPayments / $perPage);
-$pagination = getPagination($totalPayments, $page, $perPage, 
-    'shop-payments.php?page={page}&search=' . urlencode($search) . '&status=' . urlencode($status) . '&shop=' . $shopFilter);
 
-// ============================================
-// PAYMENT STATISTICS
-// ============================================
+$pagination = getPagination($totalPayments, $page, $perPage, 'shop-payments.php?page={page}&search=' . urlencode($search) . '&status=' . urlencode($status) . '&shop=' . $shopFilter);
 
-// For agent-collected payments (pay_to = 'agent')
+$sql = "SELECT id, shop_name FROM shops WHERE agent_id = ? ORDER BY shop_name ASC";
+$shops = $db->fetchAll($sql, [$agentId]);
+
 $sql = "SELECT
             COUNT(*) AS total,
             SUM(CASE WHEN p.status = 'pending' THEN 1 ELSE 0 END) AS pending,
             SUM(CASE WHEN p.status = 'collected' THEN 1 ELSE 0 END) AS collected,
             SUM(CASE WHEN p.status = 'submitted' THEN 1 ELSE 0 END) AS submitted,
             SUM(CASE WHEN p.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed,
-            COALESCE(SUM(CASE WHEN p.status = 'pending' THEN p.amount ELSE 0 END), 0) AS pending_amount,
-            COALESCE(SUM(CASE WHEN p.status = 'collected' THEN p.amount ELSE 0 END), 0) AS collected_amount,
-            COALESCE(SUM(CASE WHEN p.status = 'submitted' THEN p.amount ELSE 0 END), 0) AS submitted_amount,
             COALESCE(SUM(CASE WHEN p.status = 'confirmed' THEN p.amount ELSE 0 END), 0) AS confirmed_amount,
-            COALESCE(SUM(p.amount), 0) AS total_amount
+            COALESCE(SUM(CASE WHEN p.status IN ('collected', 'submitted', 'confirmed') THEN p.amount ELSE 0 END), 0) AS collected_amount
         FROM payments p
-        JOIN shops s ON p.shop_id = s.id
-        WHERE s.agent_id = ? AND p.pay_to = 'agent'";
+        WHERE p.agent_id = ? AND p.pay_to = 'agent'";
 
-$agentPaymentStats = $db->fetchOne($sql, [$agentId]);
-
-// For direct payments (pay_to = 'admin') from agent's shops
-$sql = "SELECT
-            COUNT(*) AS total_direct,
-            SUM(CASE WHEN p.status = 'pending' THEN 1 ELSE 0 END) AS pending_direct,
-            SUM(CASE WHEN p.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_direct,
-            COALESCE(SUM(CASE WHEN p.status = 'pending' THEN p.amount ELSE 0 END), 0) AS pending_direct_amount,
-            COALESCE(SUM(CASE WHEN p.status = 'confirmed' THEN p.amount ELSE 0 END), 0) AS confirmed_direct_amount,
-            COALESCE(SUM(p.amount), 0) AS total_direct_amount
-        FROM payments p
-        JOIN shops s ON p.shop_id = s.id
-        WHERE s.agent_id = ? AND p.pay_to = 'admin'";
-
-$directPaymentStats = $db->fetchOne($sql, [$agentId]);
-
-// Total Agent Payments (All payments from agent's shops regardless of pay_to)
-$sql = "SELECT
-            COALESCE(SUM(p.amount), 0) AS total_agent_payments
-        FROM payments p
-        JOIN shops s ON p.shop_id = s.id
-        WHERE s.agent_id = ?";
-
-$totalAgentPayments = $db->fetchOne($sql, [$agentId]);
-$totalAgentPaymentsAmount = $totalAgentPayments['total_agent_payments'] ?? 0;
+$paymentStats = $db->fetchOne($sql, [$agentId]);
 
 $csrfToken = generateCsrfToken();
 
 require_once __DIR__ . '/../includes/agent_header.php';
 ?>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
 <style>
     .stats-grid {
@@ -311,13 +232,25 @@ require_once __DIR__ . '/../includes/agent_header.php';
         margin-top: 2px;
     }
 
-    .stat-card.total .stat-number { color: #14532D; }
-    .stat-card.pending .stat-number { color: #F59E0B; }
-    .stat-card.collected .stat-number { color: #3B82F6; }
-    .stat-card.submitted .stat-number { color: #7C3AED; }
-    .stat-card.confirmed .stat-number { color: #16A34A; }
-    .stat-card.direct .stat-number { color: #DC2626; }
-    .stat-card.total-agent .stat-number { color: #14532D; }
+    .stat-card.total .stat-number {
+        color: #14532D;
+    }
+
+    .stat-card.pending .stat-number {
+        color: #F59E0B;
+    }
+
+    .stat-card.collected .stat-number {
+        color: #3B82F6;
+    }
+
+    .stat-card.submitted .stat-number {
+        color: #7C3AED;
+    }
+
+    .stat-card.confirmed .stat-number {
+        color: #16A34A;
+    }
 
     .payment-card {
         background: white;
@@ -391,11 +324,30 @@ require_once __DIR__ . '/../includes/agent_header.php';
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
 
     .btn-action {
         padding: 6px 14px;
@@ -411,46 +363,23 @@ require_once __DIR__ . '/../includes/agent_header.php';
         cursor: pointer;
     }
 
-    .btn-action:hover { transform: translateY(-1px); }
-    .btn-collect { background: #DCFCE7; color: #16A34A; }
-    .btn-submit { background: #EDE9FE; color: #7C3AED; }
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-
-    .pay-to-badge {
-        display: inline-block;
-        padding: 1px 8px;
-        border-radius: 10px;
-        font-size: 9px;
-        font-weight: 600;
+    .btn-action:hover {
+        transform: translateY(-1px);
     }
 
-    .pay-to-badge.agent {
-        background: #EDE9FE;
-        color: #5B21B6;
-    }
-
-    .pay-to-badge.admin {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
-    .remaining-amount {
-        font-weight: 700;
-        color: #14532D;
-    }
-
-    .remaining-amount.zero {
+    .btn-collect {
+        background: #DCFCE7;
         color: #16A34A;
     }
 
-    .stat-divider {
-        border: none;
-        border-top: 2px dashed #E5EDE7;
-        margin: 12px 0;
+    .btn-submit {
+        background: #EDE9FE;
+        color: #7C3AED;
     }
 
-    .pagination-wrapper {
-        margin-top: 20px;
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
     }
 </style>
 
@@ -459,63 +388,34 @@ require_once __DIR__ . '/../includes/agent_header.php';
         <h3 class="card-title">
             <i class="fas fa-rupee-sign" style="color: #16A34A;"></i>
             Shop Payments
-            <span style="font-size: 14px; font-weight: 400; color: #6B7A7B; margin-left: 8px;">
-                (<?php echo number_format($totalPayments); ?>)
-            </span>
+            <span style="font-size: 14px; font-weight: 400; color: #6B7A7B; margin-left: 8px;">(<?php echo number_format($totalPayments); ?>)</span>
         </h3>
     </div>
 
     <!-- Statistics -->
     <div class="stats-grid">
-        <!-- Total Agent Payments (All payments from agent's shops) -->
-        <div class="stat-card total-agent">
-            <div class="stat-number">₹ <?php echo number_format($totalAgentPaymentsAmount, 0); ?></div>
-            <div class="stat-label">Total Agent Payments</div>
-            <div class="stat-sub">All payments from your shops</div>
+        <div class="stat-card total">
+            <div class="stat-number"><?php echo number_format($paymentStats['total'] ?? 0); ?></div>
+            <div class="stat-label">Total Payments</div>
         </div>
-        
-        <!-- Agent Route Stats -->
         <div class="stat-card pending">
-            <div class="stat-number"><?php echo number_format($agentPaymentStats['pending'] ?? 0); ?></div>
-            <div class="stat-label">Pending Collection</div>
-            <div class="stat-sub">₹ <?php echo number_format($agentPaymentStats['pending_amount'] ?? 0, 0); ?></div>
+            <div class="stat-number"><?php echo number_format($paymentStats['pending'] ?? 0); ?></div>
+            <div class="stat-label">Pending</div>
+            <div class="stat-sub">To be collected</div>
         </div>
         <div class="stat-card collected">
-            <div class="stat-number"><?php echo number_format($agentPaymentStats['collected'] ?? 0); ?></div>
-            <div class="stat-label">Collected by Agent</div>
-            <div class="stat-sub">₹ <?php echo number_format($agentPaymentStats['collected_amount'] ?? 0, 0); ?></div>
+            <div class="stat-number"><?php echo number_format($paymentStats['collected'] ?? 0); ?></div>
+            <div class="stat-label">Collected</div>
+            <div class="stat-sub">₹ <?php echo number_format($paymentStats['collected_amount'] ?? 0, 0); ?></div>
         </div>
         <div class="stat-card submitted">
-            <div class="stat-number"><?php echo number_format($agentPaymentStats['submitted'] ?? 0); ?></div>
+            <div class="stat-number"><?php echo number_format($paymentStats['submitted'] ?? 0); ?></div>
             <div class="stat-label">Submitted to Admin</div>
-            <div class="stat-sub">₹ <?php echo number_format($agentPaymentStats['submitted_amount'] ?? 0, 0); ?></div>
         </div>
         <div class="stat-card confirmed">
-            <div class="stat-number"><?php echo number_format($agentPaymentStats['confirmed'] ?? 0); ?></div>
+            <div class="stat-number"><?php echo number_format($paymentStats['confirmed'] ?? 0); ?></div>
             <div class="stat-label">Admin Confirmed</div>
-            <div class="stat-sub">₹ <?php echo number_format($agentPaymentStats['confirmed_amount'] ?? 0, 0); ?></div>
-        </div>
-    </div>
-
-    <!-- Divider -->
-    <hr class="stat-divider">
-
-    <!-- Direct Payments Stats -->
-    <div class="stats-grid" style="margin-bottom: 20px;">
-        <div class="stat-card direct">
-            <div class="stat-number"><?php echo number_format($directPaymentStats['total_direct'] ?? 0); ?></div>
-            <div class="stat-label">Direct to Admin Payments</div>
-            <div class="stat-sub">₹ <?php echo number_format($directPaymentStats['total_direct_amount'] ?? 0, 0); ?></div>
-        </div>
-        <div class="stat-card pending">
-            <div class="stat-number"><?php echo number_format($directPaymentStats['pending_direct'] ?? 0); ?></div>
-            <div class="stat-label">Pending (Awaiting Admin)</div>
-            <div class="stat-sub">₹ <?php echo number_format($directPaymentStats['pending_direct_amount'] ?? 0, 0); ?></div>
-        </div>
-        <div class="stat-card confirmed">
-            <div class="stat-number"><?php echo number_format($directPaymentStats['confirmed_direct'] ?? 0); ?></div>
-            <div class="stat-label">Confirmed by Admin</div>
-            <div class="stat-sub">₹ <?php echo number_format($directPaymentStats['confirmed_direct_amount'] ?? 0, 0); ?></div>
+            <div class="stat-sub">₹ <?php echo number_format($paymentStats['confirmed_amount'] ?? 0, 0); ?></div>
         </div>
     </div>
 
@@ -563,13 +463,7 @@ require_once __DIR__ . '/../includes/agent_header.php';
                     <div>
                         <div class="payment-shop">
                             🏪 <?php echo escapeHtml($payment['shop_name']); ?>
-                            <span style="font-size: 13px; color: #6B7A7B; font-weight: 400;">
-                                (<?php echo escapeHtml($payment['shop_code']); ?>)
-                            </span>
-                            <span class="pay-to-badge <?php echo $payment['pay_to']; ?>" style="margin-left: 6px;">
-                                <i class="fas fa-<?php echo $payment['pay_to'] === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
-                                <?php echo $payment['pay_to'] === 'agent' ? 'Agent' : 'Direct'; ?>
-                            </span>
+                            <span style="font-size: 13px; color: #6B7A7B; font-weight: 400;">(<?php echo escapeHtml($payment['shop_code']); ?>)</span>
                         </div>
                         <div style="font-size: 13px; color: #6B7A7B;">Payment #<?php echo $payment['id']; ?></div>
                     </div>
@@ -586,19 +480,6 @@ require_once __DIR__ . '/../includes/agent_header.php';
                         ?>
                         <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($payment['status']); ?></span>
                     </div>
-                </div>
-
-                <!-- Remaining Amount -->
-                <div style="margin-top: 6px; font-size: 13px;">
-                    <span style="color: #6B7A7B;">Shop Remaining Balance:</span>
-                    <span class="remaining-amount <?php echo ($payment['remaining_amount'] ?? 0) <= 0 ? 'zero' : ''; ?>">
-                        ₹ <?php echo number_format($payment['remaining_amount'] ?? 0, 2); ?>
-                    </span>
-                    <?php if (($payment['remaining_amount'] ?? 0) <= 0): ?>
-                        <span style="color: #16A34A; font-size: 11px; margin-left: 4px;">
-                            <i class="fas fa-check-circle"></i> Fully Paid
-                        </span>
-                    <?php endif; ?>
                 </div>
 
                 <div class="payment-details">
@@ -645,25 +526,14 @@ require_once __DIR__ . '/../includes/agent_header.php';
                 <?php endif; ?>
 
                 <div class="payment-actions">
-                    <?php if ($payment['pay_to'] === 'agent'): ?>
-                        <?php if ($payment['status'] === 'pending'): ?>
-                            <button class="btn-action btn-collect" onclick="collectPayment(<?php echo $payment['id']; ?>, <?php echo $payment['amount']; ?>)">
-                                <i class="fas fa-hand-holding-usd"></i> Mark Collected
-                            </button>
-                        <?php elseif ($payment['status'] === 'collected'): ?>
-                            <button class="btn-action btn-submit" onclick="submitToAdmin(<?php echo $payment['id']; ?>)">
-                                <i class="fas fa-arrow-up"></i> Submit to Admin
-                            </button>
-                        <?php endif; ?>
-                    <?php else: ?>
-                        <span style="font-size: 12px; color: #6B7A7B;">
-                            <i class="fas fa-info-circle"></i> Direct payment to admin
-                            <?php if ($payment['status'] === 'confirmed'): ?>
-                                <span style="color: #16A34A;">✓ Confirmed</span>
-                            <?php else: ?>
-                                <span style="color: #F59E0B;">⏳ Awaiting admin confirmation</span>
-                            <?php endif; ?>
-                        </span>
+                    <?php if ($payment['status'] === 'pending'): ?>
+                        <button class="btn-action btn-collect" onclick="collectPayment(<?php echo $payment['id']; ?>, <?php echo $payment['amount']; ?>)">
+                            <i class="fas fa-hand-holding-usd"></i> Mark Collected
+                        </button>
+                    <?php elseif ($payment['status'] === 'collected'): ?>
+                        <button class="btn-action btn-submit" onclick="submitToAdmin(<?php echo $payment['id']; ?>)">
+                            <i class="fas fa-arrow-up"></i> Submit to Admin
+                        </button>
                     <?php endif; ?>
                     <a href="shop-payment-view.php?id=<?php echo $payment['id']; ?>" class="btn-action btn-view">
                         <i class="fas fa-eye"></i> View
@@ -672,16 +542,14 @@ require_once __DIR__ . '/../includes/agent_header.php';
             </div>
         <?php endforeach; ?>
 
-        <!-- Pagination -->
         <?php if ($totalPages > 1): ?>
-            <div class="pagination-wrapper">
-                <?php echo $pagination; ?>
-            </div>
+            <div style="margin-top: 20px;"><?php echo $pagination; ?></div>
         <?php endif; ?>
     <?php endif; ?>
 </div>
 
 <!-- SweetAlert2 Scripts -->
+
 <script>
     const csrfToken = '<?php echo $csrfToken; ?>';
 
@@ -689,9 +557,10 @@ require_once __DIR__ . '/../includes/agent_header.php';
        COLLECT PAYMENT
        ============================================ */
     function collectPayment(paymentId, amount) {
+
         Swal.fire({
-            title: 'Confirm Payment Collection?',
-            text: 'Are you sure you want to mark this payment as collected from the shop?',
+            title: 'Confirm Payment?',
+            text: 'Are you sure you want to mark this payment as collected?',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#16A34A',
@@ -700,64 +569,101 @@ require_once __DIR__ . '/../includes/agent_header.php';
             cancelButtonText: 'Cancel',
             reverseButtons: true
         }).then((result) => {
-            if (!result.isConfirmed) return;
 
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            // Show loading
             Swal.fire({
                 title: 'Processing...',
                 text: 'Please wait',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
-                didOpen: () => { Swal.showLoading(); }
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
 
             fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: new URLSearchParams({
-                    '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
-                    'action': 'collect_payment',
-                    'payment_id': paymentId
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({
+                        '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
+                        'action': 'collect_payment',
+                        'payment_id': paymentId
+                    })
                 })
-            })
-            .then(async (response) => {
-                const text = await response.text();
-                if (!text.trim().startsWith('{')) {
-                    console.error('Server Response:', text);
-                    throw new Error('Server returned an invalid response.');
-                }
-                try { return JSON.parse(text); } 
-                catch (e) { throw new Error('Invalid server response.'); }
-            })
-            .then((data) => {
-                if (data.success) {
+                .then(async (response) => {
+
+                    const text = await response.text();
+
+                    // PHP error / HTML response check
+                    if (!text.trim().startsWith('{')) {
+                        console.error('Server Response:', text);
+                        throw new Error(
+                            'Server returned an invalid response. Please check PHP error.'
+                        );
+                    }
+
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Invalid JSON:', text);
+                        throw new Error('Invalid server response.');
+                    }
+                })
+                .then((data) => {
+
+                    if (data.success) {
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Payment Collected!',
+                            text: data.message || 'Payment marked as collected successfully.',
+                            timer: 1800,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+
+                    } else {
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to collect payment.'
+                        });
+
+                    }
+
+                })
+                .catch((error) => {
+
+                    console.error('Collect Payment Error:', error);
+
                     Swal.fire({
-                        icon: 'success',
-                        title: 'Payment Collected!',
-                        text: data.message || 'Payment marked as collected successfully.',
-                        timer: 1800,
-                        showConfirmButton: false
-                    }).then(() => { window.location.reload(); });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to collect payment.' });
-                }
-            })
-            .catch((error) => {
-                console.error('Collect Payment Error:', error);
-                Swal.fire({ icon: 'error', title: 'Something went wrong', text: error.message || 'Please try again.' });
-            });
+                        icon: 'error',
+                        title: 'Something went wrong',
+                        text: error.message || 'Please try again.'
+                    });
+
+                });
         });
     }
+
 
     /* ============================================
        SUBMIT PAYMENT TO ADMIN
        ============================================ */
     function submitToAdmin(paymentId) {
+
         Swal.fire({
             title: 'Submit to Admin?',
-            text: 'Are you sure you want to submit this payment to admin for confirmation?',
+            text: 'Are you sure you want to submit this payment to admin?',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#7C3AED',
@@ -766,56 +672,93 @@ require_once __DIR__ . '/../includes/agent_header.php';
             cancelButtonText: 'Cancel',
             reverseButtons: true
         }).then((result) => {
-            if (!result.isConfirmed) return;
 
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            // Show loading
             Swal.fire({
                 title: 'Submitting...',
                 text: 'Please wait',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
-                didOpen: () => { Swal.showLoading(); }
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
 
             fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: new URLSearchParams({
-                    '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
-                    'action': 'submit_to_admin',
-                    'payment_id': paymentId
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({
+                        '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
+                        'action': 'submit_to_admin',
+                        'payment_id': paymentId
+                    })
                 })
-            })
-            .then(async (response) => {
-                const text = await response.text();
-                if (!text.trim().startsWith('{')) {
-                    console.error('Server Response:', text);
-                    throw new Error('Server returned an invalid response.');
-                }
-                try { return JSON.parse(text); } 
-                catch (e) { throw new Error('Invalid server response.'); }
-            })
-            .then((data) => {
-                if (data.success) {
+                .then(async (response) => {
+
+                    const text = await response.text();
+
+                    // PHP error / HTML response check
+                    if (!text.trim().startsWith('{')) {
+                        console.error('Server Response:', text);
+                        throw new Error(
+                            'Server returned an invalid response. Please check PHP error.'
+                        );
+                    }
+
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Invalid JSON:', text);
+                        throw new Error('Invalid server response.');
+                    }
+                })
+                .then((data) => {
+
+                    if (data.success) {
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Submitted!',
+                            text: data.message || 'Payment submitted to admin successfully.',
+                            timer: 1800,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+
+                    } else {
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to submit payment.'
+                        });
+
+                    }
+
+                })
+                .catch((error) => {
+
+                    console.error('Submit Payment Error:', error);
+
                     Swal.fire({
-                        icon: 'success',
-                        title: 'Submitted!',
-                        text: data.message || 'Payment submitted to admin successfully.',
-                        timer: 1800,
-                        showConfirmButton: false
-                    }).then(() => { window.location.reload(); });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to submit payment.' });
-                }
-            })
-            .catch((error) => {
-                console.error('Submit Payment Error:', error);
-                Swal.fire({ icon: 'error', title: 'Something went wrong', text: error.message || 'Please try again.' });
-            });
+                        icon: 'error',
+                        title: 'Something went wrong',
+                        text: error.message || 'Please try again.'
+                    });
+
+                });
         });
     }
 </script>
+
+
 
 <?php require_once __DIR__ . '/../includes/agent_footer.php'; ?>

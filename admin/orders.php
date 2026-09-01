@@ -8,7 +8,7 @@
  * @package SamridhiAgro
  * @subpackage Admin
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // ============================================
@@ -172,7 +172,7 @@ $sql = "SELECT COUNT(*) as total
 $result = $db->fetchOne($sql, $params);
 $totalOrders = $result['total'] ?? 0;
 
-// Get order records
+// Get order records - REMOVED payment_status field
 $sql = "SELECT o.*, 
         s.shop_name, s.shop_code,
         u.full_name as shop_owner,
@@ -203,7 +203,6 @@ $csrfToken = generateCsrfToken();
 // ============================================
 ?>
 
-<!-- Rest of the HTML content remains exactly the same -->
 <style>
     .badge-status {
         display: inline-block;
@@ -387,7 +386,7 @@ $csrfToken = generateCsrfToken();
         </form>
     </div>
     
-    <!-- Order Table -->
+    <!-- Order Table - REMOVED Payment Column -->
     <div class="table-wrapper">
         <table class="table-custom">
             <thead>
@@ -396,7 +395,6 @@ $csrfToken = generateCsrfToken();
                     <th>Shop</th>
                     <th>Amount</th>
                     <th>Status</th>
-                    <th>Payment</th>
                     <th>Date</th>
                     <th style="text-align: center;">Actions</th>
                 </tr>
@@ -404,7 +402,7 @@ $csrfToken = generateCsrfToken();
             <tbody>
                 <?php if (empty($orderList)): ?>
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #6B7A7B;">
                         <i class="fas fa-inbox" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
                         No orders found
                         <?php if (!empty($search) || $status !== 'all' || !empty($dateFrom) || !empty($dateTo)): ?>
@@ -465,20 +463,6 @@ $csrfToken = generateCsrfToken();
                                 <?php endforeach; ?>
                             </select>
                         </form>
-                    </td>
-                    <td>
-                        <?php 
-                        $paymentColors = [
-                            'pending' => 'badge-warning',
-                            'paid' => 'badge-success',
-                            'failed' => 'badge-danger',
-                            'refunded' => 'badge-info'
-                        ];
-                        $pColor = $paymentColors[$order['payment_status']] ?? 'badge-secondary';
-                        ?>
-                        <span class="badge-status <?php echo $pColor; ?>">
-                            <?php echo ucfirst($order['payment_status']); ?>
-                        </span>
                     </td>
                     <td>
                         <div style="font-size: 13px;"><?php echo formatDate($order['created_at']); ?></div>

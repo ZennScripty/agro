@@ -8,7 +8,7 @@
  * @package SamridhiAgro
  * @subpackage Admin
  * @author Samridhi Agro Team
- * @version 2.0.0
+ * @version 1.0.0
  */
 
 // ============================================
@@ -177,7 +177,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
 }
 
 // ============================================
-// GET SHOP LIST WITH FINANCIAL DATA
+// GET SHOP LIST
 // ============================================
 
 // Search and filter parameters
@@ -228,25 +228,11 @@ $sql = "SELECT COUNT(*) as total
 $result = $db->fetchOne($sql, $params);
 $totalShops = $result['total'] ?? 0;
 
-// Get shop records with financial data
+// Get shop records
 $sql = "SELECT s.*, u.full_name, u.username, u.email, u.phone, u.status as user_status,
         u.created_at as user_created_at, u.last_login,
         u2.full_name as approved_by_name,
-        a.full_name as agent_name,
-        /* Total Business = Sum of all order amounts (non-cancelled) */
-        (
-            SELECT COALESCE(SUM(total_amount), 0) 
-            FROM orders 
-            WHERE shop_id = s.id AND status != 'cancelled'
-        ) as total_business,
-        /* Paid Amount = Sum of confirmed payments */
-        (
-            SELECT COALESCE(SUM(amount), 0) 
-            FROM payments 
-            WHERE shop_id = s.id AND status = 'confirmed'
-        ) as paid_amount,
-        /* Remaining Amount = Total Business - Paid Amount */
-        0 as remaining_amount_calc
+        a.full_name as agent_name
         FROM shops s 
         JOIN users u ON s.user_id = u.id 
         LEFT JOIN users u2 ON s.approved_by = u2.id
@@ -261,11 +247,6 @@ $sql = "SELECT s.*, u.full_name, u.username, u.email, u.phone, u.status as user_
 
 $queryParams = array_merge($params, [$perPage, $offset]);
 $shopList = $db->fetchAll($sql, $queryParams);
-
-// Calculate remaining amount for each shop (PHP side)
-foreach ($shopList as &$shop) {
-    $shop['remaining_amount'] = max(0, ($shop['total_business'] ?? 0) - ($shop['paid_amount'] ?? 0));
-}
 
 // Pagination
 $totalPages = ceil($totalShops / $perPage);
@@ -355,20 +336,6 @@ require_once '../includes/admin_header.php';
     
     .btn-delete { background: #FEE2E2; color: #DC2626; }
     .btn-delete:hover { background: #FECACA; }
-    
-    .financial-amount {
-        font-weight: 600;
-        font-size: 13px;
-    }
-    
-    .financial-amount.positive { color: #14532D; }
-    .financial-amount.negative { color: #DC2626; }
-    .financial-amount.zero { color: #16A34A; }
-    
-    .financial-detail {
-        font-size: 11px;
-        color: #6B7A7B;
-    }
 </style>
 
 <div class="content-card">
@@ -505,17 +472,15 @@ require_once '../includes/admin_header.php';
                     <th>Owner</th>
                     <th>Agent</th>
                     <th>Type</th>
-                    <th>Total Business</th>
-                    <th>Paid</th>
-                    <th>Remaining</th>
                     <th>Status</th>
+                    <th>Joined</th>
                     <th style="text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($shopList)): ?>
                 <tr>
-                    <td colspan="10" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                    <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
                         <i class="fas fa-store-slash" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
                         No shops found
                         <?php if (!empty($search) || $status !== 'all' || $agentFilter > 0): ?>
@@ -576,30 +541,6 @@ require_once '../includes/admin_header.php';
                         </span>
                     </td>
                     <td>
-                        <span class="financial-amount positive">
-                            ₹ <?php echo number_format($shop['total_business'] ?? 0, 0); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <span class="financial-amount positive">
-                            ₹ <?php echo number_format($shop['paid_amount'] ?? 0, 0); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php 
-                        $remaining = $shop['remaining_amount'] ?? 0;
-                        $class = $remaining <= 0 ? 'zero' : 'negative';
-                        ?>
-                        <span class="financial-amount <?php echo $class; ?>">
-                            ₹ <?php echo number_format($remaining, 0); ?>
-                        </span>
-                        <?php if ($remaining <= 0): ?>
-                            <span style="font-size: 10px; color: #16A34A; display: block;">
-                                <i class="fas fa-check-circle"></i> Fully Paid
-                            </span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
                         <?php 
                         $statusColors = [
                             'pending' => 'badge-warning',
@@ -613,6 +554,7 @@ require_once '../includes/admin_header.php';
                             <?php echo ucfirst($shop['status']); ?>
                         </span>
                     </td>
+                    <td><?php echo formatDate($shop['created_at']); ?></td>
                     <td style="text-align: center;">
                         <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
                             <!-- View Details -->

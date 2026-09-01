@@ -3,13 +3,12 @@
 /**
  * SAMRIDHI AGRO - Agent Orders
  * 
- * This page displays orders from shops assigned to the agent
- * with payment status and collect payment option.
+ * This page displays orders from shops assigned to the agent.
  * 
  * @package SamridhiAgro
  * @subpackage Agent
  * @author Samridhi Agro Team
- * @version 2.0.1
+ * @version 3.0.0
  */
 
 // Set page title
@@ -30,7 +29,7 @@ $sql = "SELECT a.* FROM agents a WHERE a.user_id = ?";
 $agent = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
 // ============================================
-// GET ORDERS LIST WITH PAYMENT INFO
+// GET ORDERS LIST
 // ============================================
 
 $search = $_GET['search'] ?? '';
@@ -69,23 +68,11 @@ $sql = "SELECT COUNT(*) as total
 $result = $db->fetchOne($sql, $params);
 $totalOrders = $result['total'] ?? 0;
 
-// Get orders with payment info
-$sql = "SELECT o.*, s.shop_name, s.shop_code,
-        u.full_name as shop_owner,
-        sp.id as payment_id,
-        sp.amount as payment_amount,
-        sp.paid_amount,
-        sp.remaining_amount,
-        sp.status as payment_status,
-        sp.payment_method,
-        sp.transaction_id,
-        sp.agent_collection_date,
-        sp.submitted_to_admin_date,
-        sp.admin_confirm_date
+// Get orders - REMOVED payment fields
+$sql = "SELECT o.*, s.shop_name, s.shop_code, u.full_name as shop_owner
         FROM orders o 
         JOIN shops s ON o.shop_id = s.id 
         JOIN users u ON s.user_id = u.id
-        LEFT JOIN shop_payments sp ON o.id = sp.order_id
         $whereClause
         ORDER BY o.created_at DESC
         LIMIT ? OFFSET ?";
@@ -103,7 +90,7 @@ $pagination = getPagination($totalOrders, $page, $perPage, $paginationUrl);
 $sql = "SELECT id, shop_name FROM shops WHERE agent_id = ? ORDER BY shop_name";
 $shops = $db->fetchAll($sql, [$agent['id']]);
 
-// Get order statistics
+// Get order statistics - REMOVED total_revenue
 $sql = "SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN o.status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -111,17 +98,7 @@ $sql = "SELECT
         SUM(CASE WHEN o.status = 'processing' THEN 1 ELSE 0 END) as processing,
         SUM(CASE WHEN o.status = 'shipped' THEN 1 ELSE 0 END) as shipped,
         SUM(CASE WHEN o.status = 'delivered' THEN 1 ELSE 0 END) as delivered,
-        SUM(CASE WHEN o.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
-        COALESCE(
-            SUM(
-                CASE 
-                    WHEN o.status = 'delivered' 
-                    THEN o.total_amount 
-                    ELSE 0 
-                END
-            ), 
-            0
-        ) as total_revenue
+        SUM(CASE WHEN o.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
         FROM orders o 
         JOIN shops s ON o.shop_id = s.id 
         WHERE s.agent_id = ?";
@@ -137,7 +114,6 @@ $csrfToken = generateCsrfToken();
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 10px;
         margin-bottom: 20px;
-
     }
 
     .stat-card {
@@ -154,7 +130,6 @@ $csrfToken = generateCsrfToken();
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         border-color: #16A34A;
-
     }
 
     .stat-card .stat-number {
@@ -178,7 +153,6 @@ $csrfToken = generateCsrfToken();
     .stat-card.total .stat-number {
         color: #14532D;
     }
-
     .stat-card.total .stat-icon {
         color: #14532D;
     }
@@ -186,26 +160,29 @@ $csrfToken = generateCsrfToken();
     .stat-card.pending .stat-number {
         color: #F59E0B;
     }
-
     .stat-card.pending .stat-icon {
         color: #F59E0B;
+    }
+
+    .stat-card.processing .stat-number {
+        color: #8B5CF6;
+    }
+    .stat-card.processing .stat-icon {
+        color: #8B5CF6;
     }
 
     .stat-card.delivered .stat-number {
         color: #16A34A;
     }
-
     .stat-card.delivered .stat-icon {
         color: #16A34A;
     }
 
-    .stat-card.revenue .stat-number {
-        color: #7C3AED;
-        font-size: 16px;
+    .stat-card.cancelled .stat-number {
+        color: #DC2626;
     }
-
-    .stat-card.revenue .stat-icon {
-        color: #7C3AED;
+    .stat-card.cancelled .stat-icon {
+        color: #DC2626;
     }
 
     /* Order Cards */
@@ -217,7 +194,6 @@ $csrfToken = generateCsrfToken();
         padding: 14px 18px;
         margin-bottom: 10px;
         transition: all 0.3s ease;
-
     }
 
     .order-card:hover {
@@ -304,54 +280,25 @@ $csrfToken = generateCsrfToken();
         background: #DCFCE7;
         color: #065F46;
     }
-
     .badge-status.badge-warning {
         background: #FEF3C7;
         color: #92400E;
     }
-
     .badge-status.badge-danger {
         background: #FEE2E2;
         color: #991B1B;
     }
-
     .badge-status.badge-info {
         background: #DBEAFE;
         color: #1E40AF;
     }
-
     .badge-status.badge-primary {
         background: #EDE9FE;
         color: #5B21B6;
     }
-
-    .payment-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: capitalize;
-    }
-
-    .payment-badge.pending {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .payment-badge.collected {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-
-    .payment-badge.submitted {
-        background: #EDE9FE;
-        color: #5B21B6;
-    }
-
-    .payment-badge.confirmed {
-        background: #DCFCE7;
-        color: #065F46;
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
     }
 
     .btn-action {
@@ -376,27 +323,8 @@ $csrfToken = generateCsrfToken();
         background: #DBEAFE;
         color: #2563EB;
     }
-
     .btn-view:hover {
         background: #BFDBFE;
-    }
-
-    .btn-collect {
-        background: #DCFCE7;
-        color: #16A34A;
-    }
-
-    .btn-collect:hover {
-        background: #BBF7D0;
-    }
-
-    .btn-submit {
-        background: #EDE9FE;
-        color: #7C3AED;
-    }
-
-    .btn-submit:hover {
-        background: #DDD6FE;
     }
 
     .filter-bar {
@@ -410,7 +338,6 @@ $csrfToken = generateCsrfToken();
         box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         border: 1px solid #E5EDE7;
         border-radius: 10px;
-
     }
 
     .filter-bar input,
@@ -481,20 +408,29 @@ $csrfToken = generateCsrfToken();
             flex-direction: column;
             align-items: stretch;
         }
-
+        .filter-bar form {
+            flex-direction: column !important;
+        }
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
-
         .order-card .order-details {
             grid-template-columns: 1fr 1fr;
         }
     }
 
     @media (max-width: 480px) {
-
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
         .order-card .order-details {
             grid-template-columns: 1fr;
+        }
+        .order-card .order-actions {
+            flex-direction: column;
+        }
+        .order-card .order-actions .btn-action {
+            justify-content: center;
         }
     }
 </style>
@@ -510,7 +446,7 @@ $csrfToken = generateCsrfToken();
         </h3>
     </div>
 
-    <!-- Statistics -->
+    <!-- Statistics - REMOVED Revenue Card -->
     <div class="stats-grid">
         <div class="stat-card total">
             <span class="stat-icon"><i class="fas fa-list"></i></span>
@@ -522,15 +458,20 @@ $csrfToken = generateCsrfToken();
             <div class="stat-number"><?php echo number_format($orderStats['pending'] ?? 0); ?></div>
             <div class="stat-label">Pending</div>
         </div>
+        <div class="stat-card processing">
+            <span class="stat-icon"><i class="fas fa-spinner"></i></span>
+            <div class="stat-number"><?php echo number_format(($orderStats['processing'] ?? 0) + ($orderStats['confirmed'] ?? 0) + ($orderStats['shipped'] ?? 0)); ?></div>
+            <div class="stat-label">Processing</div>
+        </div>
         <div class="stat-card delivered">
             <span class="stat-icon"><i class="fas fa-check-circle"></i></span>
             <div class="stat-number"><?php echo number_format($orderStats['delivered'] ?? 0); ?></div>
             <div class="stat-label">Delivered</div>
         </div>
-        <div class="stat-card revenue">
-            <span class="stat-icon"><i class="fas fa-rupee-sign"></i></span>
-            <div class="stat-number">₹ <?php echo number_format($orderStats['total_revenue'] ?? 0, 0); ?></div>
-            <div class="stat-label">Total Revenue</div>
+        <div class="stat-card cancelled">
+            <span class="stat-icon"><i class="fas fa-times-circle"></i></span>
+            <div class="stat-number"><?php echo number_format($orderStats['cancelled'] ?? 0); ?></div>
+            <div class="stat-label">Cancelled</div>
         </div>
     </div>
 
@@ -621,71 +562,22 @@ $csrfToken = generateCsrfToken();
                     </div>
                 </div>
 
+                <!-- REMOVED: Payment Status, Remaining, Paid, Collection Date, Admin Confirmed -->
                 <div class="order-details">
-                    <div class="detail-item">
-                        <div class="detail-label">Payment Status</div>
-                        <div class="detail-value">
-                            <?php if ($order['payment_id']): ?>
-                                <span class="payment-badge <?php echo $order['payment_status']; ?>">
-                                    <?php echo ucfirst($order['payment_status']); ?>
-                                </span>
-                            <?php else: ?>
-                                <span class="payment-badge pending">No Payment</span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <?php if ($order['payment_id'] && $order['remaining_amount'] > 0): ?>
-                        <div class="detail-item">
-                            <div class="detail-label">Remaining</div>
-                            <div class="detail-value" style="color: #DC2626;">
-                                ₹ <?php echo number_format($order['remaining_amount'], 2); ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($order['payment_id'] && $order['paid_amount'] > 0): ?>
-                        <div class="detail-item">
-                            <div class="detail-label">Paid</div>
-                            <div class="detail-value" style="color: #16A34A;">
-                                ₹ <?php echo number_format($order['paid_amount'], 2); ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
                     <div class="detail-item">
                         <div class="detail-label">Order Date</div>
                         <div class="detail-value"><?php echo formatDate($order['created_at']); ?></div>
                     </div>
-                    <?php if ($order['agent_collection_date']): ?>
-                        <div class="detail-item">
-                            <div class="detail-label">Collected</div>
-                            <div class="detail-value" style="color: #16A34A; font-size: 11px;">
-                                <?php echo formatDate($order['agent_collection_date']); ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($order['admin_confirm_date']): ?>
-                        <div class="detail-item">
-                            <div class="detail-label">Admin Confirmed</div>
-                            <div class="detail-value" style="color: #16A34A; font-size: 11px;">
-                                <?php echo formatDate($order['admin_confirm_date']); ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
+                    <div class="detail-item">
+                        <div class="detail-label">Shop Owner</div>
+                        <div class="detail-value"><?php echo escapeHtml($order['shop_owner'] ?? 'N/A'); ?></div>
+                    </div>
                 </div>
 
                 <div class="order-actions">
                     <a href="order-view.php?id=<?php echo $order['id']; ?>" class="btn-action btn-view" title="View Order">
-                        <i class="fas fa-eye"></i> View
+                        <i class="fas fa-eye"></i> View Details
                     </a>
-                    <?php if ($order['payment_id'] && $order['payment_status'] === 'pending' && $order['remaining_amount'] > 0): ?>
-                        <button class="btn-action btn-collect" onclick="collectOrderPayment(<?php echo $order['payment_id']; ?>, <?php echo $order['remaining_amount']; ?>, '<?php echo addslashes($order['order_number']); ?>')" title="Collect Payment">
-                            <i class="fas fa-hand-holding-usd"></i> Collect
-                        </button>
-                    <?php endif; ?>
-                    <?php if ($order['payment_id'] && $order['payment_status'] === 'collected'): ?>
-                        <button class="btn-action btn-submit" onclick="submitToAdmin(<?php echo $order['payment_id']; ?>)" title="Submit to Admin">
-                            <i class="fas fa-arrow-up"></i> Submit
-                        </button>
-                    <?php endif; ?>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -697,148 +589,5 @@ $csrfToken = generateCsrfToken();
         <?php endif; ?>
     <?php endif; ?>
 </div>
-
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script>
-    const csrfToken = '<?php echo $csrfToken; ?>';
-
-    function collectOrderPayment(paymentId, amount, orderNumber) {
-        Swal.fire({
-            title: 'Collect Payment',
-            html: `
-            <div style="text-align: left;">
-                <p><strong>Order:</strong> #${orderNumber}</p>
-                <p><strong>Amount:</strong> ₹ ${amount.toFixed(2)}</p>
-                <div style="margin-top: 12px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 4px;">Payment Method</label>
-                    <select id="payment_method" style="width: 100%; padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px;">
-                        <option value="cash">Cash</option>
-                        <option value="upi">UPI</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="card">Card</option>
-                        <option value="cheque">Cheque</option>
-                    </select>
-                </div>
-                <div style="margin-top: 12px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 4px;">Transaction ID (Optional)</label>
-                    <input type="text" id="transaction_id" style="width: 100%; padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px;" placeholder="Enter transaction ID">
-                </div>
-                <div style="margin-top: 12px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 4px;">Receiver Name</label>
-                    <input type="text" id="receiver_name" style="width: 100%; padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px;" placeholder="Enter receiver name">
-                </div>
-                <div style="margin-top: 12px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 4px;">Notes (Optional)</label>
-                    <textarea id="notes" rows="2" style="width: 100%; padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px;" placeholder="Any additional notes"></textarea>
-                </div>
-            </div>
-        `,
-            showCancelButton: true,
-            confirmButtonColor: '#16A34A',
-            cancelButtonColor: '#6B7A7B',
-            confirmButtonText: '✅ Confirm Collection',
-            cancelButtonText: 'Cancel',
-            preConfirm: () => {
-                const paymentMethod = document.getElementById('payment_method').value;
-                const transactionId = document.getElementById('transaction_id').value;
-                const receiverName = document.getElementById('receiver_name').value;
-                const notes = document.getElementById('notes').value;
-
-                if (!receiverName.trim()) {
-                    Swal.showValidationMessage('Please enter receiver name');
-                    return false;
-                }
-
-                return fetch('../agent/shop-payments.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: new URLSearchParams({
-                            '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
-                            'action': 'collect_payment',
-                            'payment_id': paymentId,
-                            'amount': amount,
-                            'payment_method': paymentMethod,
-                            'transaction_id': transactionId,
-                            'receiver_name': receiverName,
-                            'notes': notes
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.success) {
-                            throw new Error(data.message || 'Failed to collect payment');
-                        }
-                        return data;
-                    });
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Payment Collected!',
-                    text: result.value.message,
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => window.location.reload());
-            }
-        });
-    }
-
-    function submitToAdmin(paymentId) {
-        Swal.fire({
-            title: 'Submit to Admin?',
-            text: 'Are you sure you want to submit this payment to admin for confirmation?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#7C3AED',
-            cancelButtonColor: '#6B7A7B',
-            confirmButtonText: 'Yes, Submit',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch('../agent/shop-payments.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: new URLSearchParams({
-                            '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
-                            'action': 'submit_to_admin',
-                            'payment_id': paymentId
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Submitted!',
-                                text: data.message,
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(() => window.location.reload());
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: data.message
-                            });
-                        }
-                    })
-                    .catch(error => {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'Something went wrong. Please try again.'
-                        });
-                    });
-            }
-        });
-    }
-</script>
 
 <?php require_once __DIR__ . '/../includes/agent_footer.php'; ?>
