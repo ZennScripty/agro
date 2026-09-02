@@ -1918,21 +1918,7 @@ $csrfToken = generateCsrfToken();
             <!-- Legend -->
             <div class="holiday-legend">
                 <span style="font-weight: 700; color: #052E16;">Legend:</span>
-                <span class="legend-item">
-                    <span class="legend-dot public"></span> Public
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot national"></span> National
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot festival"></span> Festival
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot company"></span> Company
-                </span>
-                <span class="legend-item">
-                    <span class="legend-dot weekly"></span> Weekly
-                </span>
+                
                 <span class="legend-item">
                     <span class="legend-text-badge present">P</span> Present
                 </span>

@@ -447,13 +447,13 @@ $notificationCount = 0;
                     <i class="fas fa-route"></i> Visits
                 </a>
 
-                <div class="menu-label" style="margin-top: 20px;">Finance</div>
+                <!-- <div class="menu-label" style="margin-top: 20px;">Finance</div>
                 <a href="commission.php" class="menu-item <?php echo $currentPage === 'commission.php' ? 'active' : ''; ?>">
                     <i class="fas fa-percentage"></i> Commission
                 </a>
                 <a href="earnings.php" class="menu-item <?php echo $currentPage === 'earnings.php' ? 'active' : ''; ?>">
                     <i class="fas fa-rupee-sign"></i> Earnings
-                </a>
+                </a> -->
                 <div class="menu-label" style="margin-top: 20px;">Attendence</div>
                 <a href="attendence.php" class="menu-item <?php echo $currentPage === 'attendence.php' ? 'active' : ''; ?>">
                     <i class="fas fa-clock"></i> Attendence

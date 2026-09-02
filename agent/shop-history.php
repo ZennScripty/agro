@@ -3,12 +3,12 @@
  * SAMRIDHI AGRO - Agent Shop History
  * 
  * This page displays complete history of a shop including orders,
- * payments, and activities.
+ * payments (from payments table), and activities.
  * 
  * @package SamridhiAgro
  * @subpackage Agent
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // Set page title
@@ -46,7 +46,31 @@ if (!$shop) {
     exit;
 }
 
-// Get all orders
+// ============================================
+// GET FINANCIAL SUMMARY
+// ============================================
+
+// Total Business
+$sql = "SELECT COALESCE(SUM(total_amount), 0) as total 
+        FROM orders 
+        WHERE shop_id = ? AND status != 'cancelled'";
+$result = $db->fetchOne($sql, [$shopId]);
+$totalBusiness = $result['total'] ?? 0;
+
+// Total Paid (Confirmed payments)
+$sql = "SELECT COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE shop_id = ? AND status = 'confirmed'";
+$result = $db->fetchOne($sql, [$shopId]);
+$totalPaid = $result['total'] ?? 0;
+
+// Remaining
+$remaining = max(0, $totalBusiness - $totalPaid);
+
+// ============================================
+// GET ORDERS
+// ============================================
+
 $sql = "SELECT o.*, 
         (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
         FROM orders o 
@@ -54,15 +78,25 @@ $sql = "SELECT o.*,
         ORDER BY o.created_at DESC";
 $orders = $db->fetchAll($sql, [$shopId]);
 
-// Get all payments
-$sql = "SELECT sp.*, o.order_number 
-        FROM shop_payments sp 
-        LEFT JOIN orders o ON sp.order_id = o.id
-        WHERE sp.shop_id = ? 
-        ORDER BY sp.created_at DESC";
+// ============================================
+// GET PAYMENTS (FROM payments TABLE)
+// ============================================
+
+$sql = "SELECT p.*, 
+        ua.full_name as agent_name,
+        uc.full_name as confirmed_by_name
+        FROM payments p
+        LEFT JOIN agents ag ON p.agent_id = ag.id
+        LEFT JOIN users ua ON ag.user_id = ua.id
+        LEFT JOIN users uc ON p.confirmed_by = uc.id
+        WHERE p.shop_id = ? 
+        ORDER BY p.created_at DESC";
 $payments = $db->fetchAll($sql, [$shopId]);
 
-// Get activity logs
+// ============================================
+// GET ACTIVITY LOGS
+// ============================================
+
 $sql = "SELECT al.*, u.full_name as user_name
         FROM activity_logs al
         LEFT JOIN users u ON al.user_id = u.id
@@ -73,6 +107,36 @@ $sql = "SELECT al.*, u.full_name as user_name
 $searchShop = '%' . $shop['shop_name'] . '%';
 $searchCode = '%' . $shop['shop_code'] . '%';
 $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
+
+// ============================================
+// PAYMENT ROUTE LABELS
+// ============================================
+
+$payToLabels = [
+    'agent' => 'Agent Collection',
+    'admin' => 'Direct to Admin'
+];
+
+$payToColors = [
+    'agent' => 'badge-primary',
+    'admin' => 'badge-danger'
+];
+
+$statusLabels = [
+    'pending' => 'Pending',
+    'collected' => 'Collected by Agent',
+    'submitted' => 'Submitted to Admin',
+    'confirmed' => 'Confirmed',
+    'failed' => 'Failed'
+];
+
+$statusColors = [
+    'pending' => 'badge-warning',
+    'collected' => 'badge-info',
+    'submitted' => 'badge-primary',
+    'confirmed' => 'badge-success',
+    'failed' => 'badge-danger'
+];
 ?>
 
 <style>
@@ -156,6 +220,49 @@ $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
     .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
     .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
     .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
+    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
+    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
+
+    .pay-to-badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 9px;
+        font-weight: 600;
+    }
+
+    .pay-to-badge.agent { background: #EDE9FE; color: #5B21B6; }
+    .pay-to-badge.admin { background: #FEE2E2; color: #991B1B; }
+    
+    .financial-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .financial-card {
+        background: white;
+        border: 1px solid #E5EDE7;
+        border-radius: 10px;
+        padding: 12px 16px;
+        text-align: center;
+    }
+    
+    .financial-card .amount {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+    }
+    
+    .financial-card .label {
+        font-size: 11px;
+        color: #6B7A7B;
+    }
+    
+    .financial-card .amount.positive { color: #14532D; }
+    .financial-card .amount.zero { color: #16A34A; }
+    .financial-card .amount.negative { color: #DC2626; }
     
     .btn-back {
         padding: 6px 16px;
@@ -196,6 +303,9 @@ $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
                 <i class="fas fa-id-badge"></i> <?php echo escapeHtml($shop['shop_code']); ?>
                 | <i class="fas fa-user"></i> <?php echo escapeHtml($shop['owner_name']); ?>
                 | <i class="fas fa-calendar"></i> <?php echo formatDate($shop['created_at']); ?>
+                <?php if ($shop['agent_id']): ?>
+                | <i class="fas fa-user-tie"></i> <?php echo escapeHtml($agent['full_name'] ?? ''); ?>
+                <?php endif; ?>
             </div>
         </div>
         <div>
@@ -211,6 +321,30 @@ $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
             <span class="badge-status <?php echo $color; ?>" style="font-size: 14px; padding: 4px 14px;">
                 <?php echo ucfirst($shop['status']); ?>
             </span>
+        </div>
+    </div>
+    
+    <!-- Financial Summary -->
+    <div class="financial-summary">
+        <div class="financial-card">
+            <div class="amount positive">₹ <?php echo number_format($totalBusiness, 0); ?></div>
+            <div class="label">Total Business</div>
+        </div>
+        <div class="financial-card">
+            <div class="amount positive">₹ <?php echo number_format($totalPaid, 0); ?></div>
+            <div class="label">Paid</div>
+        </div>
+        <div class="financial-card">
+            <?php 
+            $class = $remaining <= 0 ? 'zero' : 'negative';
+            ?>
+            <div class="amount <?php echo $class; ?>">₹ <?php echo number_format($remaining, 0); ?></div>
+            <div class="label">Remaining</div>
+            <?php if ($remaining <= 0): ?>
+                <span style="font-size: 9px; color: #16A34A;">
+                    <i class="fas fa-check-circle"></i> Fully Paid
+                </span>
+            <?php endif; ?>
         </div>
     </div>
     
@@ -237,7 +371,7 @@ $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
                 <div style="text-align: right;">
                     <div style="font-weight: 600; color: #14532D;">₹ <?php echo number_format($order['total_amount'], 2); ?></div>
                     <?php 
-                    $statusColors = [
+                    $oStatusColors = [
                         'pending' => 'badge-warning',
                         'confirmed' => 'badge-info',
                         'processing' => 'badge-primary',
@@ -246,16 +380,16 @@ $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
                         'cancelled' => 'badge-danger',
                         'returned' => 'badge-warning'
                     ];
-                    $color = $statusColors[$order['status']] ?? 'badge-secondary';
+                    $oColor = $oStatusColors[$order['status']] ?? 'badge-secondary';
                     ?>
-                    <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($order['status']); ?></span>
+                    <span class="badge-status <?php echo $oColor; ?>"><?php echo ucfirst($order['status']); ?></span>
                 </div>
             </div>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
     
-    <!-- Payments History -->
+    <!-- Payments History (from payments table) -->
     <div class="history-section">
         <div class="section-title">
             <span><i class="fas fa-credit-card" style="color: #16A34A;"></i> Payments History (<?php echo count($payments); ?>)</span>
@@ -273,27 +407,54 @@ $activities = $db->fetchAll($sql, [$searchShop, $searchCode]);
             <div class="history-item">
                 <div class="item-info">
                     <div class="item-title">
-                        <?php if ($payment['order_number']): ?>
-                            Order: #<?php echo escapeHtml($payment['order_number']); ?>
-                        <?php else: ?>
-                            Payment #<?php echo $payment['id']; ?>
+                        Payment #<?php echo $payment['id']; ?>
+                        <span class="pay-to-badge <?php echo $payment['pay_to']; ?>">
+                            <i class="fas fa-<?php echo $payment['pay_to'] === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
+                            <?php echo $payToLabels[$payment['pay_to']] ?? ucfirst($payment['pay_to']); ?>
+                        </span>
+                        <?php if ($payment['payment_method']): ?>
+                            <span style="font-size: 10px; color: #6B7A7B; margin-left: 4px;">
+                                (<?php echo ucfirst($payment['payment_method']); ?>)
+                            </span>
+                        <?php endif; ?>
+                        <?php if (!empty($payment['transaction_id'])): ?>
+                            <span style="font-size: 9px; color: #6B7A7B; margin-left: 4px; font-family: monospace;">
+                                TXN: <?php echo escapeHtml($payment['transaction_id']); ?>
+                            </span>
                         <?php endif; ?>
                     </div>
-                    <div class="item-date"><i class="far fa-calendar"></i> <?php echo formatDate($payment['payment_date']); ?></div>
+                    <div class="item-date">
+                        <i class="far fa-calendar"></i> <?php echo formatDate($payment['created_at']); ?>
+                        <?php if ($payment['agent_collected_at']): ?>
+                            <span style="margin-left: 8px;">
+                                <i class="fas fa-hand-holding-usd"></i> Collected: <?php echo formatDate($payment['agent_collected_at']); ?>
+                            </span>
+                        <?php endif; ?>
+                        <?php if ($payment['submitted_at']): ?>
+                            <span style="margin-left: 8px;">
+                                <i class="fas fa-arrow-up"></i> Submitted: <?php echo formatDate($payment['submitted_at']); ?>
+                            </span>
+                        <?php endif; ?>
+                        <?php if ($payment['confirmed_at']): ?>
+                            <span style="margin-left: 8px;">
+                                <i class="fas fa-check-circle"></i> Confirmed: <?php echo formatDate($payment['confirmed_at']); ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div style="text-align: right;">
                     <div style="font-weight: 600; color: #14532D;">₹ <?php echo number_format($payment['amount'], 2); ?></div>
                     <?php 
-                    $pStatusColors = [
-                        'pending' => 'badge-warning',
-                        'collected' => 'badge-info',
-                        'submitted' => 'badge-primary',
-                        'confirmed' => 'badge-success',
-                        'failed' => 'badge-danger'
-                    ];
-                    $pColor = $pStatusColors[$payment['status']] ?? 'badge-secondary';
+                    $pColor = $statusColors[$payment['status']] ?? 'badge-warning';
                     ?>
-                    <span class="badge-status <?php echo $pColor; ?>"><?php echo ucfirst($payment['status']); ?></span>
+                    <span class="badge-status <?php echo $pColor; ?>">
+                        <?php echo $statusLabels[$payment['status']] ?? ucfirst($payment['status']); ?>
+                    </span>
+                    <?php if ($payment['confirmed_by_name']): ?>
+                        <div style="font-size: 9px; color: #6B7A7B;">
+                            by <?php echo escapeHtml($payment['confirmed_by_name']); ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endforeach; ?>

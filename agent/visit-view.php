@@ -663,12 +663,11 @@ $shopTypeLabels = [
         }
 
         .detail-row {
-            flex-direction: column;
+            /* flex-direction: column; */
             padding: 10px 0;
         }
 
         .detail-label {
-            width: 100%;
             margin-bottom: 4px;
         }
 

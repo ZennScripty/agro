@@ -22,8 +22,8 @@ define('APP_SHORT_NAME', 'SAGRO');
 define('APP_ENV', 'development'); // development | production | staging
 
 // Application URLs
-define('SITE_URL', 'http://localhost/agro/');
-// define('SITE_URL', 'http://192.168.1.4/agro/');
+// define('SITE_URL', 'http://localhost/agro/');
+define('SITE_URL', 'http://192.168.1.4/agro/');
 // define('SITE_URL', 'http://10.145.87.166/agro/');
 define('ADMIN_URL', SITE_URL . 'admin/');
 define('STAFF_URL', SITE_URL . 'staff/');

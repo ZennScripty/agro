@@ -9,7 +9,7 @@
  * @package SamridhiAgro
  * @subpackage Agent
  * @author Samridhi Agro Team
- * @version 2.0.1
+ * @version 2.1.0
  */
 
 // Set page title
@@ -25,14 +25,12 @@ requireRole('agent');
 // Get database instance
 $db = getDB();
 
-// Get agent data with company name
+// Get agent data
 $sql = "SELECT a.*, u.full_name FROM agents a JOIN users u ON a.user_id = u.id WHERE a.user_id = ?";
 $agent = $db->fetchOne($sql, [$_SESSION['user_id']]);
 
-
-
 // ============================================
-// GET SHOPS LIST WITH COMPANY NAME
+// GET SHOPS LIST WITH FINANCIAL DATA
 // ============================================
 
 $search = $_GET['search'] ?? '';
@@ -45,9 +43,9 @@ $whereConditions = ["s.agent_id = ?"];
 $params = [$agent['id']];
 
 if (!empty($search)) {
-    $whereConditions[] = "(s.shop_name LIKE ? OR s.shop_code LIKE ? OR s.owner_name LIKE ? OR s.city LIKE ? OR a.company_name LIKE ?)";
+    $whereConditions[] = "(s.shop_name LIKE ? OR s.shop_code LIKE ? OR s.owner_name LIKE ? OR s.city LIKE ?)";
     $searchParam = '%' . $search . '%';
-    $params = array_merge($params, [$searchParam, $searchParam, $searchParam, $searchParam, $searchParam]);
+    $params = array_merge($params, [$searchParam, $searchParam, $searchParam, $searchParam]);
 }
 
 if ($status !== 'all') {
@@ -62,30 +60,47 @@ $sql = "SELECT COUNT(*) as total FROM shops s $whereClause";
 $result = $db->fetchOne($sql, $params);
 $totalShops = $result['total'] ?? 0;
 
-// Get shops with statistics and company name from agent
+// Get shops with financial statistics
 $sql = "SELECT s.*, 
         u.full_name as owner_name, u.email, u.phone,
-        a.company_name as agent_company_name,
 
+        /* Total Business = Sum of all orders (non-cancelled) */
+        (
+            SELECT COALESCE(SUM(total_amount), 0) 
+            FROM orders 
+            WHERE shop_id = s.id AND status != 'cancelled'
+        ) as total_business,
+
+        /* Paid Amount = Sum of confirmed payments */
+        (
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM payments 
+            WHERE shop_id = s.id AND status = 'confirmed'
+        ) as paid_amount,
+
+        /* Remaining Amount = Total Business - Paid Amount */
+        (
+            SELECT COALESCE(SUM(total_amount), 0) 
+            FROM orders 
+            WHERE shop_id = s.id AND status != 'cancelled'
+        ) - (
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM payments 
+            WHERE shop_id = s.id AND status = 'confirmed'
+        ) as remaining_amount,
+
+        /* Order count */
         (SELECT COUNT(*) 
          FROM orders 
          WHERE shop_id = s.id) as order_count,
 
-        (SELECT COALESCE(SUM(total_amount), 0) 
-         FROM orders 
-         WHERE shop_id = s.id 
-         AND status = 'delivered') as total_revenue,
-
-        (SELECT COALESCE(SUM(total_amount * ? / 100), 0) 
-         FROM orders o 
-         WHERE o.shop_id = s.id 
-         AND o.status = 'delivered') as commission_earned,
-
+        /* Pending orders */
         (SELECT COUNT(*) 
          FROM orders 
          WHERE shop_id = s.id 
          AND status = 'pending') as pending_orders,
 
+        /* Pending payments */
         (SELECT COUNT(*) 
          FROM shop_payments 
          WHERE shop_id = s.id 
@@ -93,20 +108,19 @@ $sql = "SELECT s.*,
 
         FROM shops s 
         JOIN users u ON s.user_id = u.id 
-        LEFT JOIN agents a ON s.agent_id = a.id
 
         $whereClause
 
         ORDER BY s.created_at DESC
         LIMIT ? OFFSET ?";
 
-$queryParams = array_merge(
-    [$agent['commission_rate']], // ?1
-    $params,                     // ?2 = agent_id
-    [$perPage, $offset]          // ?3, ?4
-);
-
+$queryParams = array_merge($params, [$perPage, $offset]);
 $shopList = $db->fetchAll($sql, $queryParams);
+
+// Calculate remaining amount in PHP (for safety)
+foreach ($shopList as &$shop) {
+    $shop['remaining_amount'] = max(0, ($shop['total_business'] ?? 0) - ($shop['paid_amount'] ?? 0));
+}
 
 // Pagination
 $totalPages = ceil($totalShops / $perPage);
@@ -138,7 +152,7 @@ $csrfToken = generateCsrfToken();
         border-radius: 10px;
         padding: 12px 16px;
         text-align: center;
-         background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
         box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
     }
 
@@ -154,21 +168,10 @@ $csrfToken = generateCsrfToken();
         color: #6B7A7B;
     }
 
-    .stat-card.total .stat-number {
-        color: #14532D;
-    }
-
-    .stat-card.approved .stat-number {
-        color: #16A34A;
-    }
-
-    .stat-card.pending .stat-number {
-        color: #F59E0B;
-    }
-
-    .stat-card.suspended .stat-number {
-        color: #DC2626;
-    }
+    .stat-card.total .stat-number { color: #14532D; }
+    .stat-card.approved .stat-number { color: #16A34A; }
+    .stat-card.pending .stat-number { color: #F59E0B; }
+    .stat-card.suspended .stat-number { color: #DC2626; }
 
     .shop-card {
         background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
@@ -204,16 +207,9 @@ $csrfToken = generateCsrfToken();
         color: #6B7A7B;
     }
 
-    .shop-card .shop-company {
-        font-size: 13px;
-        color: #7C3AED;
-        font-weight: 500;
-        margin-top: 2px;
-    }
-
     .shop-card .shop-stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 10px;
         margin-top: 10px;
         padding-top: 10px;
@@ -234,6 +230,14 @@ $csrfToken = generateCsrfToken();
         color: #6B7A7B;
     }
 
+    .shop-card .shop-stats .stat-item .stat-value.zero {
+        color: #16A34A;
+    }
+
+    .shop-card .shop-stats .stat-item .stat-value.negative {
+        color: #DC2626;
+    }
+
     .shop-card .shop-actions {
         display: flex;
         gap: 6px;
@@ -250,25 +254,10 @@ $csrfToken = generateCsrfToken();
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success {
-        background: #DCFCE7;
-        color: #065F46;
-    }
-
-    .badge-status.badge-warning {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .badge-status.badge-danger {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
-    .badge-status.badge-secondary {
-        background: #F3F4F6;
-        color: #6B7A7B;
-    }
+    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
+    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
+    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
+    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
 
     .btn-action {
         padding: 4px 12px;
@@ -284,33 +273,233 @@ $csrfToken = generateCsrfToken();
         cursor: pointer;
     }
 
-    .btn-action:hover {
-        transform: translateY(-1px);
+    .btn-action:hover { transform: translateY(-1px); }
+
+    .btn-view { background: #DBEAFE; color: #2563EB; }
+    .btn-orders { background: #EDE9FE; color: #7C3AED; }
+    .btn-payments { background: #DCFCE7; color: #16A34A; }
+    .btn-history { background: #FEF3C7; color: #D97706; }
+    .btn-toggle { background: #F3F4F6; color: #4A5B5D; }
+
+    .financial-amount {
+        font-weight: 700;
+        font-size: 16px;
     }
 
-    .btn-view {
-        background: #DBEAFE;
-        color: #2563EB;
+    .financial-amount.positive { color: #14532D; }
+    .financial-amount.zero { color: #16A34A; }
+    .financial-amount.negative { color: #DC2626; }
+
+    .financial-detail {
+        font-size: 10px;
+        color: #6B7A7B;
+        display: block;
+        margin-top: 2px;
     }
 
-    .btn-orders {
-        background: #EDE9FE;
-        color: #7C3AED;
+    /* ===== MOBILE RESPONSIVE IMPROVEMENTS ===== */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            padding: 10px 12px;
+        }
+
+        .stat-card .stat-number {
+            font-size: 18px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px;
+        }
+
+        .shop-card {
+            padding: 14px 16px;
+            border-radius: 10px;
+        }
+
+        .shop-card .shop-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .shop-card .shop-name {
+            font-size: 16px;
+            word-break: break-word;
+        }
+
+        .shop-card .shop-code {
+            font-size: 12px;
+            word-break: break-word;
+        }
+
+        .shop-card .shop-stats {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+
+        .shop-card .shop-stats .stat-item {
+            padding: 6px 4px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 6px;
+        }
+
+        .shop-card .shop-stats .stat-item .stat-value {
+            font-size: 14px;
+        }
+
+        .shop-card .shop-stats .stat-item .stat-label {
+            font-size: 10px;
+        }
+
+        .financial-amount {
+            font-size: 14px;
+        }
+
+        .shop-card .shop-actions {
+            gap: 4px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #F0FDF4;
+        }
+
+        .btn-action {
+            padding: 6px 10px;
+            font-size: 11px;
+            flex: 1;
+            justify-content: center;
+            min-width: 60px;
+        }
+
+        .badge-status {
+            font-size: 10px;
+            padding: 2px 8px;
+        }
+
+        .filter-row {
+            flex-direction: column;
+        }
+
+        .filter-row input,
+        .filter-row select,
+        .filter-row button {
+            width: 100%;
+        }
+
+        /* Search bar mobile */
+        .search-wrap {
+            width: 100%;
+        }
+
+        .search-wrap input {
+            font-size: 13px !important;
+            padding: 8px 12px 8px 36px !important;
+        }
     }
 
-    .btn-payments {
-        background: #DCFCE7;
-        color: #16A34A;
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-card {
+            padding: 8px 10px;
+            border-radius: 8px;
+        }
+
+        .stat-card .stat-number {
+            font-size: 16px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 10px;
+        }
+
+        .shop-card {
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .shop-card .shop-name {
+            font-size: 15px;
+        }
+
+        .shop-card .shop-code {
+            font-size: 11px;
+        }
+
+        .shop-card .shop-stats {
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .shop-card .shop-stats .stat-item {
+            padding: 4px 6px;
+        }
+
+        .shop-card .shop-stats .stat-item .stat-value {
+            font-size: 13px;
+        }
+
+        .shop-card .shop-stats .stat-item .stat-label {
+            font-size: 9px;
+        }
+
+        .financial-amount {
+            font-size: 13px;
+        }
+
+        .shop-card .shop-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .btn-action {
+            padding: 8px 6px;
+            font-size: 10px;
+            flex: none;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .badge-status {
+            font-size: 9px;
+            padding: 2px 6px;
+        }
+
+        .shop-card .shop-header .badge-status {
+            margin-top: 4px;
+        }
     }
 
-    .btn-history {
-        background: #FEF3C7;
-        color: #D97706;
-    }
+    /* Very small screens */
+    @media (max-width: 360px) {
+        .shop-card .shop-stats {
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
 
-    .btn-toggle {
-        background: #F3F4F6;
-        color: #4A5B5D;
+        .shop-card .shop-stats .stat-item .stat-value {
+            font-size: 12px;
+        }
+
+        .btn-action {
+            font-size: 9px;
+            padding: 6px 4px;
+        }
+
+        .shop-card .shop-name {
+            font-size: 14px;
+        }
     }
 </style>
 
@@ -321,9 +510,6 @@ $csrfToken = generateCsrfToken();
             My Shops
             <span style="font-size: 14px; font-weight: 400; color: #6B7A7B; margin-left: 8px;">(<?php echo number_format($totalShops); ?>)</span>
         </h3>
-        <a href="shop-create.php" class="card-action">
-            <i class="fas fa-plus"></i> Create Shop
-        </a>
     </div>
 
     <!-- Statistics -->
@@ -349,8 +535,8 @@ $csrfToken = generateCsrfToken();
     <!-- Search -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px;">
         <form method="GET" action="" style="flex: 1; display: flex; gap: 12px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 180px; position: relative;">
-                <input type="text" name="search" placeholder="Search shops, company..." value="<?php echo escapeHtml($search); ?>" style="width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #E5EDE7; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; background: white;">
+            <div style="flex: 1; min-width: 180px; position: relative;" class="search-wrap">
+                <input type="text" name="search" placeholder="Search shops by name, code, owner, city..." value="<?php echo escapeHtml($search); ?>" style="width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #E5EDE7; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; background: white;">
                 <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6B7A7B;"></i>
             </div>
             <select name="status" style="padding: 10px 16px; border: 2px solid #E5EDE7; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; background: white; cursor: pointer;">
@@ -387,11 +573,6 @@ $csrfToken = generateCsrfToken();
                             | Owner: <?php echo escapeHtml($shop['owner_name']); ?>
                             | <?php echo escapeHtml($shop['city'] ?? 'N/A'); ?>
                         </div>
-                        <?php if (!empty($shop['agent_company_name'])): ?>
-                            <div class="shop-company">
-                                <i class="fas fa-building"></i> Company: <?php echo escapeHtml($shop['agent_company_name']); ?>
-                            </div>
-                        <?php endif; ?>
                     </div>
                     <div>
                         <?php
@@ -410,31 +591,61 @@ $csrfToken = generateCsrfToken();
                     </div>
                 </div>
 
+                <!-- Financial Stats -->
                 <div class="shop-stats">
+                    <!-- Total Business -->
+                    <div class="stat-item">
+                        <div class="stat-value financial-amount positive">
+                            ₹ <?php echo number_format($shop['total_business'] ?? 0, 0); ?>
+                        </div>
+                        <div class="stat-label">Total Business</div>
+                    </div>
+
+                    <!-- Paid Amount -->
+                    <div class="stat-item">
+                        <div class="stat-value financial-amount positive">
+                            ₹ <?php echo number_format($shop['paid_amount'] ?? 0, 0); ?>
+                        </div>
+                        <div class="stat-label">Paid</div>
+                    </div>
+
+                    <!-- Remaining Amount -->
+                    <div class="stat-item">
+                        <?php 
+                        $remaining = $shop['remaining_amount'] ?? 0;
+                        $class = $remaining <= 0 ? 'zero' : 'negative';
+                        ?>
+                        <div class="stat-value financial-amount <?php echo $class; ?>">
+                            ₹ <?php echo number_format($remaining, 0); ?>
+                        </div>
+                        <div class="stat-label">Remaining</div>
+                        <?php if ($remaining <= 0): ?>
+                            <span style="font-size: 9px; color: #16A34A;">
+                                <i class="fas fa-check-circle"></i> Fully Paid
+                            </span>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Orders -->
                     <div class="stat-item">
                         <div class="stat-value"><?php echo number_format($shop['order_count'] ?? 0); ?></div>
-                        <div class="stat-label">Orders</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-value">₹ <?php echo number_format($shop['total_revenue'] ?? 0, 0); ?></div>
-                        <div class="stat-label">Revenue</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">₹ <?php echo number_format($shop['commission_earned'] ?? 0, 0); ?></div>
-                        <div class="stat-label">Commission</div>
-                    </div>
+
                     <?php if (($shop['pending_orders'] ?? 0) > 0): ?>
                         <div class="stat-item" style="border-left: 2px solid #F59E0B;">
                             <div class="stat-value" style="color: #F59E0B;"><?php echo $shop['pending_orders']; ?></div>
                             <div class="stat-label">Pending Orders</div>
                         </div>
                     <?php endif; ?>
+
                     <?php if (($shop['pending_payments'] ?? 0) > 0): ?>
                         <div class="stat-item" style="border-left: 2px solid #DC2626;">
                             <div class="stat-value" style="color: #DC2626;"><?php echo $shop['pending_payments']; ?></div>
                             <div class="stat-label">Pending Payments</div>
                         </div>
                     <?php endif; ?>
+
                     <?php if (!empty($shop['working_hours_start']) && !empty($shop['working_hours_end'])): ?>
                         <div class="stat-item">
                             <div class="stat-value"><?php echo date('h:i A', strtotime($shop['working_hours_start'])); ?> - <?php echo date('h:i A', strtotime($shop['working_hours_end'])); ?></div>
@@ -448,11 +659,6 @@ $csrfToken = generateCsrfToken();
                     <a href="orders.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-orders"><i class="fas fa-shopping-cart"></i> Orders</a>
                     <a href="shop-payments.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-payments"><i class="fas fa-rupee-sign"></i> Payments</a>
                     <a href="shop-history.php?shop=<?php echo $shop['id']; ?>" class="btn-action btn-history"><i class="fas fa-history"></i> History</a>
-                    <?php if ($shop['status'] === 'approved'): ?>
-                        <a href="shops.php?action=toggle&id=<?php echo $shop['id']; ?>&csrf=<?php echo $csrfToken; ?>" class="btn-action btn-toggle" onclick="return confirm('Toggle shop status?')"><i class="fas fa-pause"></i> Suspend</a>
-                    <?php elseif ($shop['status'] === 'suspended'): ?>
-                        <a href="shops.php?action=toggle&id=<?php echo $shop['id']; ?>&csrf=<?php echo $csrfToken; ?>" class="btn-action btn-toggle" onclick="return confirm('Activate this shop?')"><i class="fas fa-play"></i> Activate</a>
-                    <?php endif; ?>
                 </div>
             </div>
         <?php endforeach; ?>

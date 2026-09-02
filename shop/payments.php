@@ -16,7 +16,7 @@
  * @package SamridhiAgro
  * @subpackage Shop
  * @author Samridhi Agro Team
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 // Set page title
@@ -135,15 +135,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             'Made payment of ₹' . $amount . ' to ' . $receiverDisplayName . ' (Payment #' . $paymentId . ')'
         );
 
-        // Store payment success details for SweetAlert + Voice (same keys/shape as before)
-        $_SESSION['payment_success_audio'] = [
-            'amount' => (float)$amount,
-            'receiver_type' => $payTo,
-            'receiver_name' => $receiverDisplayName,
-            'order_number' => '',
-            'installment_number' => 1
-        ];
-
         setFlashMessage(
             'success',
             'Payment of ₹' . number_format($amount, 2) . ' recorded successfully! Waiting for confirmation.'
@@ -222,23 +213,20 @@ $sql = "SELECT
         COALESCE(SUM(CASE WHEN status = 'confirmed' THEN amount ELSE 0 END), 0) as total_confirmed,
         COALESCE(SUM(CASE WHEN pay_to = 'agent' AND status IN ('collected','submitted','confirmed') THEN amount ELSE 0 END), 0) as agent_collected,
         COALESCE(SUM(CASE WHEN pay_to = 'agent' AND status = 'pending' THEN amount ELSE 0 END), 0) as pending_agent_collection,
-        COALESCE(SUM(CASE WHEN (pay_to = 'agent' AND status = 'submitted') OR (pay_to = 'admin' AND status = 'pending') THEN amount ELSE 0 END), 0) as pending_admin_collect
+        COALESCE(SUM(CASE WHEN pay_to = 'agent' AND status = 'collected' THEN amount ELSE 0 END), 0) as collected_agent_collection,
+        COALESCE(SUM(CASE WHEN (pay_to = 'agent' AND status = 'submitted') OR (pay_to = 'admin' AND status = 'pending') THEN amount ELSE 0 END), 0) as pending_admin_collect,
+        COALESCE(SUM(CASE WHEN pay_to = 'admin' AND status = 'confirmed' THEN amount ELSE 0 END), 0) as admin_confirmed
         FROM payments WHERE shop_id = ?";
 $paymentStats = $db->fetchOne($sql, [$shop['id']]);
 
 $totalConfirmed = (float)($paymentStats['total_confirmed'] ?? 0);
 $remainingAmount = $totalAmount - $totalConfirmed;
-$agentCollected = (float)($paymentStats['agent_collected'] ?? 0);
+// $agentCollected = (float)($paymentStats['agent_collected'] ?? 0);
+$agentCollected = (float)($paymentStats['collected_agent_collection'] ?? 0);
 $pendingAgentCollection = (float)($paymentStats['pending_agent_collection'] ?? 0);
 $pendingAdminCollect = (float)($paymentStats['pending_admin_collect'] ?? 0);
+$adminConfirmed = (float)($paymentStats['admin_confirmed'] ?? 0);
 
-// Get payment success notification data
-$paymentSuccess = $_SESSION['payment_success_audio'] ?? null;
-
-// Remove it immediately so it shows/plays only once
-if ($paymentSuccess) {
-    unset($_SESSION['payment_success_audio']);
-}
 $csrfToken = generateCsrfToken();
 ?>
 
@@ -254,29 +242,40 @@ $csrfToken = generateCsrfToken();
     }
 
     .stat-card {
-        border: 1px solid #E5EDE7;
+        /* border: 1px solid #E5EDE7; */
         border-radius: 10px;
-        padding: 12px 14px;
+        padding: 14px 16px;
         text-align: center;
-        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
-        background: #fae6e6;
+        background: white;
+        transition: all 0.3s ease;
         background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        border: 1px solid rgba(20, 83, 45, 0.11);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(5, 46, 22, 0.08);
     }
 
     .stat-card .stat-number {
         font-family: 'Space Grotesk', sans-serif;
-        font-size: 20px;
+        font-size: 22px;
         font-weight: 700;
     }
 
     .stat-card .stat-label {
         font-family: 'Inter', sans-serif;
-        font-size: 11px;
+        font-size: 12px;
         color: #6B7A7B;
     }
 
     .stat-card.total .stat-number {
         color: #14532D;
+    }
+
+    .stat-card.paid .stat-number {
+        color: #16A34A;
     }
 
     .stat-card.remaining .stat-number {
@@ -295,68 +294,185 @@ $csrfToken = generateCsrfToken();
         color: #3B82F6;
     }
 
+    .stat-card.paid .stat-icon {
+        color: #16A34A;
+    }
+
+    .stat-card.total .stat-icon {
+        color: #14532D;
+    }
+
+    .stat-card.remaining .stat-icon {
+        color: #DC2626;
+    }
+
+    .stat-card.agent-collected .stat-icon {
+        color: #7C3AED;
+    }
+
+    .stat-card.pending-agent .stat-icon {
+        color: #F59E0B;
+    }
+
+    .stat-card.pending-admin .stat-icon {
+        color: #3B82F6;
+    }
+
+    /* Payment Card - Enhanced */
     .payment-card {
         background: white;
-        border: 1px solid #E5EDE7;
-        border-radius: 12px;
-        padding: 14px 18px;
-        margin-bottom: 10px;
+        border: 2px solid #E5EDE7;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 14px;
         transition: all 0.3s ease;
-        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
-        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(5, 46, 22, 0.04);
     }
 
     .payment-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 8px 24px rgba(5, 46, 22, 0.10);
+        transform: translateY(-2px);
+    }
+
+    .payment-card.confirmed {
+        border-color: #16A34A;
+        background: linear-gradient(135deg, #ffffff 0%, #F7FCF7 100%);
+    }
+
+    .payment-card.confirmed::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 80px;
+        height: 80px;
+        background: rgba(22, 163, 74, 0.06);
+        border-radius: 0 14px 0 80px;
     }
 
     .payment-card .payment-header {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: wrap;
         gap: 8px;
     }
 
-    .payment-card .payment-order {
+    .payment-card .payment-id {
+        font-weight: 600;
+        color: #052E16;
+        font-size: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 22px;
+    }
+
+    .payment-card .payment-id .pid {
         font-weight: 600;
         color: #052E16;
         font-size: 15px;
     }
 
+    .payment-card .payment-id span {
+        color: #0b1c1193;
+        font-size: 12px;
+
+    }
+
     .payment-card .payment-amount {
         font-family: 'Space Grotesk', sans-serif;
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 700;
         color: #14532D;
     }
 
-    /* Stage timeline */
+    /* Payment Timeline Flow - Enhanced */
     .payment-timeline {
-        margin-top: 10px;
-        padding-top: 10px;
+        margin-top: 12px;
+        padding-top: 12px;
         border-top: 1px solid #F0FDF4;
         display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
+        align-items: center;
+        gap: 6px;
+        justify-content: center;
     }
 
-    .payment-timeline .timeline-step {
+    .timeline-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 2payment-idpx;
+        /* padding: 6px 14px; */
+        /* border-radius: 8px; */
+        font-size: 11px;
+        font-weight: 600;
+        /* background: #F3F4F6; */
+        background: none;
+        border: none;
+        color: #6B7A7B;
+        /* border: 2px solid #E5EDE7; */
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        flex-direction: column;
+    }
+
+    .timeline-box i {
+        font-size: 18px;
+    }
+
+    .timeline-box .sdate {
+        font-size: 7px;
+
+    }
+
+    .timeline-box.done {
+        color: #065F46;
+
+    }
+
+    .timeline-box.active {
+        color: #92400E;
+    }
+
+    .timeline-box.pending {
+        color: #6B7A7B;
+    }
+
+    .timeline-box .check {
+        color: #16A34A;
+    }
+
+    .timeline-box .clock {
+        color: #F59E0B;
+    }
+
+    .timeline-arrow {
+        color: #D1D5DB;
+        font-size: 16px;
+        font-weight: 300;
+    }
+
+    .timeline-arrow.done {
+        color: #16A34A;
+    }
+
+    .payment-card .payment-meta {
         font-size: 12px;
         color: #6B7A7B;
+        margin-top: 8px;
         display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .payment-card .payment-meta span {
+        display: inline-flex;
         align-items: center;
         gap: 4px;
     }
 
-    .payment-timeline .timeline-step.done {
-        color: #16A34A;
-        font-weight: 600;
-    }
-
     .badge-status {
         display: inline-block;
-        padding: 2px 10px;
+        padding: 3px 12px;
         border-radius: 20px;
         font-size: 11px;
         font-weight: 600;
@@ -383,6 +499,24 @@ $csrfToken = generateCsrfToken();
         color: #5B21B6;
     }
 
+    .receiver-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .receiver-badge.agent {
+        background: #EDE9FE !important;
+        color: #5B21B6 !important;
+    }
+
+    .receiver-badge.admin {
+        background: #FEE2E2 !important;
+        color: #991B1B !important;
+    }
+
     .btn-pay {
         padding: 6px 16px;
         background: #16A34A;
@@ -401,13 +535,13 @@ $csrfToken = generateCsrfToken();
     }
 
     .btn-pay-large {
-        padding: 14px 32px;
+        padding: 12px 28px;
         background: linear-gradient(135deg, #14532D, #16A34A);
         color: white;
         border: none;
         border-radius: 10px;
         font-family: 'Inter', sans-serif;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -426,23 +560,57 @@ $csrfToken = generateCsrfToken();
         box-shadow: none;
     }
 
-    /* Receiver Badge */
-    .receiver-badge {
-        display: inline-block;
-        padding: 1px 10px;
-        border-radius: 12px;
-        font-size: 10px;
-        font-weight: 600;
+    .payment-card .payment-notes {
+        font-size: 12px;
+        color: #6B7A7B;
+        margin-top: 8px;
+        padding: 6px 12px;
+        background: #F7FCF7;
+        border-radius: 6px;
+        border: 1px solid #F0FDF4;
     }
 
-    .receiver-badge.agent {
-        background: #EDE9FE;
-        color: #5B21B6;
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card .stat-number {
+            font-size: 18px;
+        }
+
+
+
+        .timeline-arrow {
+            /* transform: rotate(90deg); */
+            font-size: 12px;
+        }
+
+
+
+        .payment-card .payment-amount {
+            font-size: 18px;
+        }
     }
 
-    .receiver-badge.admin {
-        background: #FEE2E2;
-        color: #991B1B;
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-card {
+            padding: 10px 12px;
+        }
+
+        .stat-card .stat-number {
+            font-size: 16px;
+        }
+
+        .payment-card {
+            padding: 12px 14px;
+        }
     }
 </style>
 
@@ -464,6 +632,10 @@ $csrfToken = generateCsrfToken();
         <div class="stat-card total">
             <div class="stat-number">₹ <?php echo number_format($totalAmount, 0); ?></div>
             <div class="stat-label">Total Amount</div>
+        </div>
+        <div class="stat-card paid">
+            <div class="stat-number">₹ <?php echo number_format($totalConfirmed, 0); ?></div>
+            <div class="stat-label">Total Paid</div>
         </div>
         <div class="stat-card remaining">
             <div class="stat-number">₹ <?php echo number_format($remainingAmount, 0); ?></div>
@@ -489,47 +661,57 @@ $csrfToken = generateCsrfToken();
         <select name="status" class="form-input" style="padding: 8px 12px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 13px;">
             <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All Status</option>
             <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Pending</option>
-            <option value="collected" <?php echo $status === 'collected' ? 'selected' : ''; ?>>Collected (by Agent)</option>
+            <option value="collected" <?php echo $status === 'collected' ? 'selected' : ''; ?>>Collected</option>
             <option value="submitted" <?php echo $status === 'submitted' ? 'selected' : ''; ?>>Submitted to Admin</option>
-            <option value="confirmed" <?php echo $status === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
+            <option value="confirmed" <?php echo $status === 'confirmed' ? 'selected' : ''; ?>>Paid</option>
         </select>
         <button type="submit" class="btn-pay" style="padding: 8px 20px;">Filter</button>
     </form>
 
     <!-- Payment List -->
     <?php if (empty($paymentList)): ?>
-        <div style="text-align: center; padding: 30px; color: #6B7A7B;">
-            <i class="fas fa-wallet" style="font-size: 40px; display: block; margin-bottom: 10px; color: #D1D5DB;"></i>
+        <div style="text-align: center; padding: 40px; color: #6B7A7B;">
+            <i class="fas fa-wallet" style="font-size: 48px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
             <p>No payments found</p>
         </div>
     <?php else: ?>
         <?php foreach ($paymentList as $payment): ?>
-            <div class="payment-card">
+            <?php
+            $isConfirmed = $payment['status'] === 'confirmed';
+            $isCollected = $payment['status'] === 'collected';
+            $isSubmitted = $payment['status'] === 'submitted';
+            $isPending = $payment['status'] === 'pending';
+            ?>
+            <div class="payment-card <?php echo $isConfirmed ? 'confirmed' : ''; ?>">
                 <div class="payment-header">
                     <div>
-                        <div class="payment-order">
-                            Payment #<?php echo $payment['id']; ?>
+                        <div class="payment-id">
+                            <span class="pid">
+                                Payment #<?php echo $payment['id']; ?>
+                            </span>
                             <span class="receiver-badge <?php echo $payment['pay_to']; ?>" style="margin-left: 6px;">
                                 <i class="fas fa-<?php echo $payment['pay_to'] === 'agent' ? 'user-tie' : 'user-shield'; ?>"></i>
-                                <?php echo $payment['pay_to'] === 'agent' ? escapeHtml($payment['agent_name'] ?? 'Agent') : 'Admin'; ?>
+                                <?php echo $payment['pay_to'] === 'agent' ? escapeHtml($payment['agent_name'] ?? 'Agent') : 'Direct to Admin'; ?>
                             </span>
-                        </div>
-                        <div style="font-size: 12px; color: #6B7A7B;">
-                            <i class="far fa-calendar"></i> <?php echo formatDate($payment['created_at']); ?>
+                            <?php if ($isConfirmed): ?>
+                                <span style="color: #16A34A; font-size: 12px; margin-left: 4px;">
+                                    <i class="fas fa-check-circle"></i> Paid ✓
+                                </span>
+                            <?php endif; ?>
+
+                            <span><i class="far fa-calendar"></i> <?php echo formatDate($payment['created_at']); ?></span>
                             <?php if ($payment['payment_method']): ?>
-                                <span style="margin-left: 8px;">
+                                <span>
                                     <i class="fas fa-<?php echo $payment['payment_method'] === 'cash' ? 'money-bill' : ($payment['payment_method'] === 'upi' ? 'mobile-alt' : 'university'); ?>"></i>
                                     <?php echo ucfirst($payment['payment_method']); ?>
                                 </span>
                             <?php endif; ?>
                             <?php if (!empty($payment['transaction_id'])): ?>
-                                <span style="margin-left: 8px;">
-                                    <i class="fas fa-hashtag"></i> <?php echo escapeHtml($payment['transaction_id']); ?>
-                                </span>
+                                <span><i class="fas fa-hashtag"></i> <?php echo escapeHtml($payment['transaction_id']); ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
-                    <div style="text-align: right;">
+                    <div style="text-align: right; min-width: max-content;">
                         <div class="payment-amount">₹ <?php echo number_format($payment['amount'], 2); ?></div>
                         <?php
                         $statusColors = [
@@ -539,45 +721,104 @@ $csrfToken = generateCsrfToken();
                             'confirmed' => 'badge-success'
                         ];
                         $color = $statusColors[$payment['status']] ?? 'badge-warning';
+                        $statusLabel = $payment['status'] === 'confirmed' ? 'Paid' : ucfirst($payment['status']);
                         ?>
                         <span class="badge-status <?php echo $color; ?>">
-                            <?php echo ucfirst($payment['status']); ?>
+                            <?php echo $statusLabel; ?>
                         </span>
                     </div>
                 </div>
 
-                <!-- Stage Timeline -->
+                <!-- Timeline Flow -->
                 <div class="payment-timeline">
-                    <div class="timeline-step done">
-                        <i class="fas fa-check-circle"></i> Paid by you
-                    </div>
+                    <!-- Step 1: Paid by you -->
+                    <span class="timeline-box done">
+
+                        <span><i class="fas fa-check-circle check"></i> </span>
+                        <span>Paid</span>
+
+
+                    </span>
+
                     <?php if ($payment['pay_to'] === 'agent'): ?>
-                        <div class="timeline-step <?php echo $payment['agent_collected_at'] ? 'done' : ''; ?>">
-                            <i class="fas fa-<?php echo $payment['agent_collected_at'] ? 'check-circle' : 'clock'; ?>"></i>
-                            Agent Collected
+                        <!-- Arrow -->
+                        <span class="timeline-arrow <?php echo ($isCollected || $isSubmitted || $isConfirmed) ? 'done' : ''; ?>">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+
+                        <!-- Step 2: Agent Collected -->
+                        <span class="timeline-box <?php echo $isCollected || $isSubmitted || $isConfirmed ? 'done' : ($isPending ? 'pending' : ''); ?>">
+                            <?php if ($isCollected || $isSubmitted || $isConfirmed): ?>
+                                <i class="fas fa-check-circle check"></i>
+                            <?php else: ?>
+                                <i class="fas fa-clock clock"></i>
+                            <?php endif; ?>
+                            Collected
                             <?php if ($payment['agent_collected_at']): ?>
-                                (<?php echo formatDate($payment['agent_collected_at']); ?>)
+                                <span class="sdate"><?php echo formatDate($payment['agent_collected_at']); ?></span>
                             <?php endif; ?>
-                        </div>
-                        <div class="timeline-step <?php echo $payment['submitted_at'] ? 'done' : ''; ?>">
-                            <i class="fas fa-<?php echo $payment['submitted_at'] ? 'check-circle' : 'clock'; ?>"></i>
-                            Submitted to Admin
+                        </span>
+
+                        <!-- Arrow -->
+                        <span class="timeline-arrow <?php echo ($isSubmitted || $isConfirmed) ? 'done' : ''; ?>">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+
+                        <!-- Step 3: Submitted to Admin -->
+                        <span class="timeline-box <?php echo $isSubmitted || $isConfirmed ? 'done' : ($isCollected ? 'active' : 'pending'); ?>">
+                            <?php if ($isSubmitted || $isConfirmed): ?>
+                                <i class="fas fa-check-circle check"></i>
+                            <?php else: ?>
+                                <i class="fas fa-clock clock"></i>
+                            <?php endif; ?>
+                            Submitted
                             <?php if ($payment['submitted_at']): ?>
-                                (<?php echo formatDate($payment['submitted_at']); ?>)
+                                <span class="sdate"><?php echo formatDate($payment['submitted_at']); ?></span>
                             <?php endif; ?>
-                        </div>
+                        </span>
+
+                        <!-- Arrow -->
+                        <span class="timeline-arrow <?php echo $isConfirmed ? 'done' : ''; ?>">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+
+                        <!-- Step 4: Admin Confirmed / Paid -->
+                        <span class="timeline-box <?php echo $isConfirmed ? 'done' : 'pending'; ?>">
+                            <?php if ($isConfirmed): ?>
+                                <i class="fas fa-check-circle check"></i>
+                            <?php else: ?>
+                                <i class="fas fa-clock clock"></i>
+                            <?php endif; ?>
+                            <?php echo $isConfirmed ? 'Paid ✓' : 'Awaiting'; ?>
+                            <?php if ($payment['confirmed_at']): ?>
+                                <span class="sdate"><?php echo formatDate($payment['confirmed_at']); ?></span>
+                            <?php endif; ?>
+                        </span>
+
+                    <?php else: ?>
+                        <!-- Direct to Admin -->
+                        <!-- Arrow -->
+                        <span class="timeline-arrow <?php echo $isConfirmed ? 'done' : ''; ?>">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+
+                        <!-- Step 2: Admin Confirmed / Paid -->
+                        <span class="timeline-box <?php echo $isConfirmed ? 'done' : 'pending'; ?>">
+                            <?php if ($isConfirmed): ?>
+                                <i class="fas fa-check-circle check"></i>
+                            <?php else: ?>
+                                <i class="fas fa-clock clock"></i>
+                            <?php endif; ?>
+                            <?php echo $isConfirmed ? 'Paid ✓' : 'Awaiting Admin Confirmation'; ?>
+                            <?php if ($payment['confirmed_at']): ?>
+                                <span class="sdate"><?php echo formatDate($payment['confirmed_at']); ?></span>
+                            <?php endif; ?>
+                        </span>
                     <?php endif; ?>
-                    <div class="timeline-step <?php echo $payment['confirmed_at'] ? 'done' : ''; ?>">
-                        <i class="fas fa-<?php echo $payment['confirmed_at'] ? 'check-circle' : 'clock'; ?>"></i>
-                        Admin Confirmed
-                        <?php if ($payment['confirmed_at']): ?>
-                            (<?php echo formatDate($payment['confirmed_at']); ?>)
-                        <?php endif; ?>
-                    </div>
                 </div>
 
                 <?php if (!empty($payment['notes'])): ?>
-                    <div style="margin-top: 8px; font-size: 12px; color: #6B7A7B;">
+                    <div class="payment-notes">
                         <i class="fas fa-sticky-note"></i> <?php echo escapeHtml($payment['notes']); ?>
                     </div>
                 <?php endif; ?>
@@ -647,19 +888,13 @@ $csrfToken = generateCsrfToken();
                 <label style="display: block; font-weight: 600; font-size: 14px; color: #14532D; margin-bottom: 4px;">
                     Receiver Name
                 </label>
-
                 <input
                     type="text"
                     id="receive_by_name"
                     class="form-input"
-                    value=""
+                    value="<?php echo escapeHtml($shop['agent_name'] ?? ''); ?>"
                     readonly
                     style="width: 100%; padding: 10px 14px; border: 2px solid #E5EDE7; border-radius: 8px; font-size: 14px; background: #F9FAFB;">
-
-                <div style="font-size: 12px; color: #6B7A7B; margin-top: 4px;">
-                    <i class="fas fa-info-circle"></i>
-                    Agent name is automatically assigned.
-                </div>
             </div>
 
             <div class="form-group" style="margin-bottom: 16px;">
@@ -689,19 +924,14 @@ $csrfToken = generateCsrfToken();
 </div>
 
 <script>
-    const agentName = <?php echo json_encode($shop['agent_name'] ?? ''); ?>;
-
     function updateReceiverField() {
         const payTo = document.getElementById('pay_to_select');
-        const receiverGroup = document.getElementById('receiverNameGroup');
         const receiverName = document.getElementById('receive_by_name');
 
         if (payTo.value === 'agent') {
-            receiverGroup.style.display = 'block';
-            receiverName.value = agentName || 'Agent not assigned';
+            receiverName.value = <?php echo json_encode($shop['agent_name'] ?? ''); ?> || 'Agent not assigned';
         } else {
-            receiverGroup.style.display = 'none';
-            receiverName.value = '';
+            receiverName.value = 'Admin (Direct)';
         }
     }
 
@@ -719,14 +949,12 @@ $csrfToken = generateCsrfToken();
         document.getElementById('paymentModal').style.display = 'none';
     }
 
-    // Close modal when clicking outside
     document.getElementById('paymentModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closePaymentModal();
         }
     });
 
-    // Auto-select amount
     document.getElementById('modal_amount').addEventListener('focus', function() {
         this.select();
     });

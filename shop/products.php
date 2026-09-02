@@ -112,10 +112,12 @@ $csrfToken = generateCsrfToken();
 
     .prod-stat-card {
         background: white;
-        border: 1px solid rgba(20, 83, 45, 0.08);
+        /* border: 1px solid rgba(20, 83, 45, 0.08); */
         border-radius: 10px;
         padding: 10px 14px;
         text-align: center;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        border: 1px solid rgba(20, 83, 45, 0.11);
         box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
@@ -167,7 +169,7 @@ $csrfToken = generateCsrfToken();
         box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
         cursor: pointer;
         position: relative;
-        background: linear-gradient(59deg, #d4d1c924 0%, rgb(253 253 165 / 34%) 100%, rgba(189, 188, 184, 0.18) 49%);
+        background: linear-gradient(59deg, #faf9f9 0%, rgb(253 253 165 / 34%) 100%, rgba(228, 228, 228, 0.18) 49%);
     }
 
     .prod-card:hover {

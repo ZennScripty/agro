@@ -220,8 +220,12 @@ foreach ($paymentList as &$payment) {
 
 // Pagination
 $totalPages = ceil($totalPayments / $perPage);
-$pagination = getPagination($totalPayments, $page, $perPage, 
-    'shop-payments.php?page={page}&search=' . urlencode($search) . '&status=' . urlencode($status) . '&shop=' . $shopFilter);
+$pagination = getPagination(
+    $totalPayments,
+    $page,
+    $perPage,
+    'shop-payments.php?page={page}&search=' . urlencode($search) . '&status=' . urlencode($status) . '&shop=' . $shopFilter
+);
 
 // ============================================
 // PAYMENT STATISTICS
@@ -291,6 +295,14 @@ require_once __DIR__ . '/../includes/agent_header.php';
         border-radius: 10px;
         padding: 14px 16px;
         text-align: center;
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(175, 247, 255, 0.25);
     }
 
     .stat-card .stat-number {
@@ -306,18 +318,39 @@ require_once __DIR__ . '/../includes/agent_header.php';
     }
 
     .stat-card .stat-sub {
-        font-size: 11px;
-        color: #6B7A7B;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4bc842cf;
         margin-top: 2px;
     }
 
-    .stat-card.total .stat-number { color: #14532D; }
-    .stat-card.pending .stat-number { color: #F59E0B; }
-    .stat-card.collected .stat-number { color: #3B82F6; }
-    .stat-card.submitted .stat-number { color: #7C3AED; }
-    .stat-card.confirmed .stat-number { color: #16A34A; }
-    .stat-card.direct .stat-number { color: #DC2626; }
-    .stat-card.total-agent .stat-number { color: #14532D; }
+    .stat-card.total .stat-number {
+        color: #14532D;
+    }
+
+    .stat-card.pending .stat-number {
+        color: #F59E0B;
+    }
+
+    .stat-card.collected .stat-number {
+        color: #3B82F6;
+    }
+
+    .stat-card.submitted .stat-number {
+        color: #7C3AED;
+    }
+
+    .stat-card.confirmed .stat-number {
+        color: #16A34A;
+    }
+
+    .stat-card.direct .stat-number {
+        color: #DC2626;
+    }
+
+    .stat-card.total-agent .stat-number {
+        color: #14532D;
+    }
 
     .payment-card {
         background: white;
@@ -326,10 +359,24 @@ require_once __DIR__ . '/../includes/agent_header.php';
         padding: 16px 20px;
         margin-bottom: 12px;
         transition: all 0.3s ease;
+        box-shadow: 4px 5px 8px 1px rgba(0, 0, 0, 0.13);
+        position: relative;
+    }
+
+    .payment-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 140px;
+        height: 140px;
+        background: rgba(22, 163, 74, 0.06);
+        border-radius: 0 14px 0 150px;
     }
 
     .payment-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
     }
 
     .payment-card .payment-header {
@@ -391,11 +438,40 @@ require_once __DIR__ . '/../includes/agent_header.php';
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    /* Paid status badge - special styling */
+    .badge-status.badge-paid {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-paid i {
+        margin-right: 3px;
+    }
 
     .btn-action {
         padding: 6px 14px;
@@ -411,10 +487,36 @@ require_once __DIR__ . '/../includes/agent_header.php';
         cursor: pointer;
     }
 
-    .btn-action:hover { transform: translateY(-1px); }
-    .btn-collect { background: #DCFCE7; color: #16A34A; }
-    .btn-submit { background: #EDE9FE; color: #7C3AED; }
-    .btn-view { background: #DBEAFE; color: #2563EB; }
+    .btn-action:hover {
+        transform: translateY(-1px);
+    }
+
+    .btn-collect {
+        background: #DCFCE7;
+        color: #16A34A;
+    }
+
+    .btn-collect:hover {
+        background: #BBF7D0;
+    }
+
+    .btn-submit {
+        background: #EDE9FE;
+        color: #7C3AED;
+    }
+
+    .btn-submit:hover {
+        background: #DDD6FE;
+    }
+
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .btn-view:hover {
+        background: #BFDBFE;
+    }
 
     .pay-to-badge {
         display: inline-block;
@@ -452,6 +554,129 @@ require_once __DIR__ . '/../includes/agent_header.php';
     .pagination-wrapper {
         margin-top: 20px;
     }
+
+    /* Confirmed payment card highlight */
+    .payment-card.confirmed-card {
+        border-left: 4px solid #16A34A;
+        background: linear-gradient(135deg, #ffffff 0%, #F7FCF7 100%);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            padding: 10px 12px;
+        }
+
+        .stat-card .stat-number {
+            font-size: 18px;
+        }
+
+        .payment-card {
+            padding: 14px 16px;
+        }
+
+        .payment-card .payment-shop {
+            font-size: 14px;
+        }
+
+        .payment-card .payment-amount {
+            font-size: 17px;
+        }
+
+        .payment-card .payment-details {
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .payment-card .payment-actions {
+            flex-direction: column;
+        }
+
+        .payment-card .payment-actions .btn-action {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-card {
+            padding: 8px 10px;
+            border-radius: 8px;
+        }
+
+        .stat-card .stat-number {
+            font-size: 15px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 10px;
+        }
+
+        .stat-card .stat-sub {
+            font-size: 9px;
+        }
+
+        .payment-card {
+            padding: 12px 14px;
+            border-radius: 10px;
+        }
+
+        .payment-card .payment-header {
+            flex-direction: column;
+        }
+
+        .payment-card .payment-shop {
+            font-size: 13px;
+        }
+
+        .payment-card .payment-amount {
+            font-size: 16px;
+        }
+
+        .payment-card .payment-details {
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+
+        .payment-card .payment-details .detail-item .detail-label {
+            font-size: 9px;
+        }
+
+        .payment-card .payment-details .detail-item .detail-value {
+            font-size: 11px;
+        }
+
+        .badge-status {
+            font-size: 9px;
+            padding: 2px 8px;
+        }
+
+        .btn-action {
+            font-size: 11px;
+            padding: 6px 10px;
+        }
+
+        .search-wrap input {
+            font-size: 13px !important;
+            padding: 8px 12px 8px 36px !important;
+        }
+
+        .filter-row select,
+        .filter-row button {
+            font-size: 13px !important;
+            padding: 8px 12px !important;
+        }
+    }
 </style>
 
 <div class="content-card">
@@ -471,9 +696,9 @@ require_once __DIR__ . '/../includes/agent_header.php';
         <div class="stat-card total-agent">
             <div class="stat-number">₹ <?php echo number_format($totalAgentPaymentsAmount, 0); ?></div>
             <div class="stat-label">Total Agent Payments</div>
-            <div class="stat-sub">All payments from your shops</div>
+            <!-- <div class="stat-sub">All payments from your shops</div> -->
         </div>
-        
+
         <!-- Agent Route Stats -->
         <div class="stat-card pending">
             <div class="stat-number"><?php echo number_format($agentPaymentStats['pending'] ?? 0); ?></div>
@@ -522,7 +747,7 @@ require_once __DIR__ . '/../includes/agent_header.php';
     <!-- Search and Filter -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px;">
         <form method="GET" action="" style="flex: 1; display: flex; gap: 12px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 180px; position: relative;">
+            <div style="flex: 1; min-width: 180px; position: relative;" class="search-wrap">
                 <input type="text" name="search" placeholder="Search by shop, transaction ID..." value="<?php echo escapeHtml($search); ?>" style="width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #E5EDE7; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; background: white;">
                 <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6B7A7B;"></i>
             </div>
@@ -531,7 +756,7 @@ require_once __DIR__ . '/../includes/agent_header.php';
                 <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Pending</option>
                 <option value="collected" <?php echo $status === 'collected' ? 'selected' : ''; ?>>Collected</option>
                 <option value="submitted" <?php echo $status === 'submitted' ? 'selected' : ''; ?>>Submitted</option>
-                <option value="confirmed" <?php echo $status === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
+                <option value="confirmed" <?php echo $status === 'confirmed' ? 'selected' : ''; ?>>Paid</option>
             </select>
             <select name="shop" style="padding: 10px 16px; border: 2px solid #E5EDE7; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; background: white; cursor: pointer; min-width: 150px;">
                 <option value="0" <?php echo $shopFilter == 0 ? 'selected' : ''; ?>>All Shops</option>
@@ -558,7 +783,8 @@ require_once __DIR__ . '/../includes/agent_header.php';
         </div>
     <?php else: ?>
         <?php foreach ($paymentList as $payment): ?>
-            <div class="payment-card">
+            <?php $isConfirmed = $payment['status'] === 'confirmed'; ?>
+            <div class="payment-card <?php echo $isConfirmed ? 'confirmed-card' : ''; ?>">
                 <div class="payment-header">
                     <div>
                         <div class="payment-shop">
@@ -580,11 +806,17 @@ require_once __DIR__ . '/../includes/agent_header.php';
                             'pending' => 'badge-warning',
                             'collected' => 'badge-info',
                             'submitted' => 'badge-primary',
-                            'confirmed' => 'badge-success'
+                            'confirmed' => 'badge-paid'
                         ];
                         $color = $statusColors[$payment['status']] ?? 'badge-warning';
                         ?>
-                        <span class="badge-status <?php echo $color; ?>"><?php echo ucfirst($payment['status']); ?></span>
+                        <span class="badge-status <?php echo $color; ?>">
+                            <?php if ($isConfirmed): ?>
+                                <i class="fas fa-check-circle"></i> Paid
+                            <?php else: ?>
+                                <?php echo ucfirst($payment['status']); ?>
+                            <?php endif; ?>
+                        </span>
                     </div>
                 </div>
 
@@ -659,7 +891,7 @@ require_once __DIR__ . '/../includes/agent_header.php';
                         <span style="font-size: 12px; color: #6B7A7B;">
                             <i class="fas fa-info-circle"></i> Direct payment to admin
                             <?php if ($payment['status'] === 'confirmed'): ?>
-                                <span style="color: #16A34A;">✓ Confirmed</span>
+                                <span style="color: #16A34A;">✓ Paid</span>
                             <?php else: ?>
                                 <span style="color: #F59E0B;">⏳ Awaiting admin confirmation</span>
                             <?php endif; ?>
@@ -707,47 +939,62 @@ require_once __DIR__ . '/../includes/agent_header.php';
                 text: 'Please wait',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
-                didOpen: () => { Swal.showLoading(); }
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
 
             fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: new URLSearchParams({
-                    '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
-                    'action': 'collect_payment',
-                    'payment_id': paymentId
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({
+                        '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
+                        'action': 'collect_payment',
+                        'payment_id': paymentId
+                    })
                 })
-            })
-            .then(async (response) => {
-                const text = await response.text();
-                if (!text.trim().startsWith('{')) {
-                    console.error('Server Response:', text);
-                    throw new Error('Server returned an invalid response.');
-                }
-                try { return JSON.parse(text); } 
-                catch (e) { throw new Error('Invalid server response.'); }
-            })
-            .then((data) => {
-                if (data.success) {
+                .then(async (response) => {
+                    const text = await response.text();
+                    if (!text.trim().startsWith('{')) {
+                        console.error('Server Response:', text);
+                        throw new Error('Server returned an invalid response.');
+                    }
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid server response.');
+                    }
+                })
+                .then((data) => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Payment Collected!',
+                            text: data.message || 'Payment marked as collected successfully.',
+                            timer: 1800,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to collect payment.'
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error('Collect Payment Error:', error);
                     Swal.fire({
-                        icon: 'success',
-                        title: 'Payment Collected!',
-                        text: data.message || 'Payment marked as collected successfully.',
-                        timer: 1800,
-                        showConfirmButton: false
-                    }).then(() => { window.location.reload(); });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to collect payment.' });
-                }
-            })
-            .catch((error) => {
-                console.error('Collect Payment Error:', error);
-                Swal.fire({ icon: 'error', title: 'Something went wrong', text: error.message || 'Please try again.' });
-            });
+                        icon: 'error',
+                        title: 'Something went wrong',
+                        text: error.message || 'Please try again.'
+                    });
+                });
         });
     }
 
@@ -773,47 +1020,62 @@ require_once __DIR__ . '/../includes/agent_header.php';
                 text: 'Please wait',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
-                didOpen: () => { Swal.showLoading(); }
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
 
             fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: new URLSearchParams({
-                    '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
-                    'action': 'submit_to_admin',
-                    'payment_id': paymentId
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({
+                        '<?php echo CSRF_TOKEN_NAME; ?>': csrfToken,
+                        'action': 'submit_to_admin',
+                        'payment_id': paymentId
+                    })
                 })
-            })
-            .then(async (response) => {
-                const text = await response.text();
-                if (!text.trim().startsWith('{')) {
-                    console.error('Server Response:', text);
-                    throw new Error('Server returned an invalid response.');
-                }
-                try { return JSON.parse(text); } 
-                catch (e) { throw new Error('Invalid server response.'); }
-            })
-            .then((data) => {
-                if (data.success) {
+                .then(async (response) => {
+                    const text = await response.text();
+                    if (!text.trim().startsWith('{')) {
+                        console.error('Server Response:', text);
+                        throw new Error('Server returned an invalid response.');
+                    }
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid server response.');
+                    }
+                })
+                .then((data) => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Submitted!',
+                            text: data.message || 'Payment submitted to admin successfully.',
+                            timer: 1800,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to submit payment.'
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error('Submit Payment Error:', error);
                     Swal.fire({
-                        icon: 'success',
-                        title: 'Submitted!',
-                        text: data.message || 'Payment submitted to admin successfully.',
-                        timer: 1800,
-                        showConfirmButton: false
-                    }).then(() => { window.location.reload(); });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to submit payment.' });
-                }
-            })
-            .catch((error) => {
-                console.error('Submit Payment Error:', error);
-                Swal.fire({ icon: 'error', title: 'Something went wrong', text: error.message || 'Please try again.' });
-            });
+                        icon: 'error',
+                        title: 'Something went wrong',
+                        text: error.message || 'Please try again.'
+                    });
+                });
         });
     }
 </script>
