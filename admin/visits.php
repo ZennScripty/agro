@@ -15,8 +15,9 @@ $pageTitle = 'Visit Management';
 require_once '../includes/admin_header.php';
 
 requireLogin();
-requireRole('admin');
-requirePermission('visit.view');
+
+requirePermissionOrAdmin('visit.view', 'visits.php');
+
 
 $db = getDB();
 
@@ -651,7 +652,7 @@ function adminVisitPageUrl($page, $filters)
        ============================================ */
 
     .visit-card {
-        background: linear-gradient(45deg, #e6ffe7, #e4e4e4ec);
+        background: linear-gradient(309deg, #8b8b8b00 0%, rgb(184 227 200 / 34%) 100%, rgba(255, 245, 168, 1) 49%);
         border: 1px solid #9ee9b1;
         border-radius: 12px;
         padding: 18px 22px;
@@ -1047,20 +1048,21 @@ MAIN CONTENT
 
         </h3>
 
-
-        <button
-            class="btn-action btn-assign-action"
-            onclick="toggleAssignForm()"
-            style="
+        <?php if (hasPermission('visit.assign')): ?>
+            <button
+                class="btn-action btn-assign-action"
+                onclick="toggleAssignForm()"
+                style="
             padding:8px 20px;
             font-size:14px;
             ">
 
-            <i class="fas fa-plus"></i>
+                <i class="fas fa-plus"></i>
 
-            Assign Visit
+                Assign Visit
 
-        </button>
+            </button>
+        <?php endif; ?>
 
     </div>
 

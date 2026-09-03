@@ -190,7 +190,10 @@ require_once '../includes/admin_header.php';
             </span>
         </h3>
         <div>
-            <a href="staff-add.php" class="btn-primary" style="
+
+            <?php if (hasPermission('staff.create')): ?>
+
+                <a href="staff-add.php" class="btn-primary" style="
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
@@ -206,9 +209,11 @@ require_once '../includes/admin_header.php';
                 transition: all 0.3s ease;
                 cursor: pointer;
             ">
-                <i class="fas fa-plus"></i>
-                Add Staff
-            </a>
+                    <i class="fas fa-plus"></i>
+                    Add Staff
+                </a>
+            <?php endif; ?>
+
         </div>
     </div>
 
@@ -296,7 +301,9 @@ require_once '../includes/admin_header.php';
                     <th>Department</th>
                     <th>Status</th>
                     <th>Joined</th>
-                    <th style="text-align: center;">Actions</th>
+                    <?php if (hasPermission('staff.edit')): ?>
+                        <th style="text-align: center;">Actions</th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -357,11 +364,13 @@ require_once '../includes/admin_header.php';
                             <td><?php echo formatDate($staff['created_at']); ?></td>
                             <td style="text-align: center;">
                                 <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
-                                    <!-- Edit Button -->
-                                    <a href="staff-edit.php?id=<?php echo $staff['id']; ?>"
-                                        class="btn-action btn-edit"
-                                        title="Edit Staff"
-                                        style="
+                                    <?php if (hasPermission('staff.edit')): ?>
+
+                                        <!-- Edit Button -->
+                                        <a href="staff-edit.php?id=<?php echo $staff['id']; ?>"
+                                            class="btn-action btn-edit"
+                                            title="Edit Staff"
+                                            style="
                                     width: 32px;
                                     height: 32px;
                                     border-radius: 8px;
@@ -375,10 +384,10 @@ require_once '../includes/admin_header.php';
                                     transition: all 0.3s ease;
                                     cursor: pointer;
                                ">
-                                        <i class="fas fa-edit" style="font-size: 13px;"></i>
-                                    </a>
-                                    <!-- View Attendance -->
-                                    <!-- <a href="attendance-manage.php?id=<?php echo $staff['id']; ?>"
+                                            <i class="fas fa-edit" style="font-size: 13px;"></i>
+                                        </a>
+                                        <!-- View Attendance -->
+                                        <!-- <a href="attendance-manage.php?id=<?php echo $staff['id']; ?>"
                                         class="btn-action btn-attendance"
                                         title="View Attendance"
                                         style="
@@ -399,32 +408,13 @@ require_once '../includes/admin_header.php';
                                     </a> -->
 
 
-                                    <!-- Permissions Button -->
-                                    <a href="staff-permissions.php?id=<?php echo $staff['id']; ?>"
-                                        class="btn-action btn-permissions"
-                                        title="Manage Permissions"
-                                        style="
-                                    width: 32px;
-                                    height: 32px;
-                                    border-radius: 8px;
-                                    border: none;
-                                    background: #EDE9FE;
-                                    color: #7C3AED;
-                                    display: inline-flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    text-decoration: none;
-                                    transition: all 0.3s ease;
-                                    cursor: pointer;
-                               ">
-                                        <i class="fas fa-lock" style="font-size: 13px;"></i>
-                                    </a>
 
-                                    <!-- Toggle Status Button -->
-                                    <button onclick="toggleStaffStatus(<?php echo $staff['id']; ?>, '<?php echo $staff['status']; ?>', '<?php echo addslashes($staff['full_name']); ?>')"
-                                        class="btn-action btn-toggle"
-                                        title="<?php echo $staff['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
-                                        style="
+
+                                        <!-- Toggle Status Button -->
+                                        <button onclick="toggleStaffStatus(<?php echo $staff['id']; ?>, '<?php echo $staff['status']; ?>', '<?php echo addslashes($staff['full_name']); ?>')"
+                                            class="btn-action btn-toggle"
+                                            title="<?php echo $staff['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
+                                            style="
                                     width: 32px;
                                     height: 32px;
                                     border-radius: 8px;
@@ -438,15 +428,15 @@ require_once '../includes/admin_header.php';
                                     transition: all 0.3s ease;
                                     cursor: pointer;
                                ">
-                                        <i class="fas fa-<?php echo $staff['status'] === 'active' ? 'pause' : 'play'; ?>" style="font-size: 13px;"></i>
-                                    </button>
+                                            <i class="fas fa-<?php echo $staff['status'] === 'active' ? 'pause' : 'play'; ?>" style="font-size: 13px;"></i>
+                                        </button>
 
-                                    <!-- Delete Button -->
-                                    <?php if ($staff['id'] != $_SESSION['user_id']): ?>
-                                        <button onclick="deleteStaff(<?php echo $staff['id']; ?>, '<?php echo addslashes($staff['full_name']); ?>')"
-                                            class="btn-action btn-delete"
-                                            title="Delete Staff"
-                                            style="
+                                        <!-- Delete Button -->
+                                        <?php if ($staff['id'] != $_SESSION['user_id']): ?>
+                                            <button onclick="deleteStaff(<?php echo $staff['id']; ?>, '<?php echo addslashes($staff['full_name']); ?>')"
+                                                class="btn-action btn-delete"
+                                                title="Delete Staff"
+                                                style="
                                     width: 32px;
                                     height: 32px;
                                     border-radius: 8px;
@@ -460,8 +450,32 @@ require_once '../includes/admin_header.php';
                                     transition: all 0.3s ease;
                                     cursor: pointer;
                                ">
-                                            <i class="fas fa-trash" style="font-size: 13px;"></i>
-                                        </button>
+                                                <i class="fas fa-trash" style="font-size: 13px;"></i>
+                                            </button>
+                                        <?php endif; ?>
+
+                                        <!-- Permissions Button -->
+                                            <?php if (hasPermission('staff.permissions')): ?>
+                                            <a href="staff-permissions.php?id=<?php echo $staff['id']; ?>"
+                                                class="btn-action btn-permissions"
+                                                title="Manage Permissions"
+                                                style="
+                                    width: 32px;
+                                    height: 32px;
+                                    border-radius: 8px;
+                                    border: none;
+                                    background: #EDE9FE;
+                                    color: #7C3AED;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    text-decoration: none;
+                                    transition: all 0.3s ease;
+                                    cursor: pointer;
+                               ">
+                                                <i class="fas fa-lock" style="font-size: 13px;"></i>
+                                            </a>
+                                        <!-- <?php endif; ?> -->
                                     <?php endif; ?>
                                 </div>
                             </td>

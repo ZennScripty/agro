@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Order Management
  * 
@@ -36,11 +37,11 @@ $db = getDB();
 // Handle order status update
 if (isset($_POST['action']) && $_POST['action'] === 'update_status' && isset($_POST['order_id'])) {
     requirePermission('order.update');
-    
+
     $orderId = (int)$_POST['order_id'];
     $newStatus = sanitizeInput($_POST['status'] ?? '');
     $csrfToken = $_POST['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } elseif (empty($newStatus) || !array_key_exists($newStatus, ORDER_STATUSES)) {
@@ -51,14 +52,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_status' && isset($_P
                 LEFT JOIN shops s ON o.shop_id = s.id 
                 WHERE o.id = ?";
         $order = $db->fetchOne($sql, [$orderId]);
-        
+
         if ($order) {
             $oldStatus = $order['status'];
-            
+
             // Update order status
             $sql = "UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?";
             $db->query($sql, [$newStatus, $orderId]);
-            
+
             // If status is delivered, update inventory
             if ($newStatus === 'delivered') {
                 $sql = "SELECT product_id, quantity FROM order_items WHERE order_id = ?";
@@ -68,20 +69,20 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_status' && isset($_P
                     $db->query($sql, [$item['quantity'], $item['product_id']]);
                 }
             }
-            
+
             logActivity(
                 'update',
                 $_SESSION['user_id'],
                 'order',
                 'Updated order status from ' . $oldStatus . ' to ' . $newStatus . ' for order #' . $order['order_number']
             );
-            
+
             setFlashMessage('success', 'Order status updated successfully.');
         } else {
             setFlashMessage('error', 'Order not found.');
         }
     }
-    
+
     redirect('admin/orders.php');
     exit;
 }
@@ -89,10 +90,10 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_status' && isset($_P
 // Handle order cancellation
 if (isset($_GET['action']) && $_GET['action'] === 'cancel' && isset($_GET['id'])) {
     requirePermission('order.cancel');
-    
+
     $orderId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
@@ -100,24 +101,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'cancel' && isset($_GET['id'])
                 LEFT JOIN shops s ON o.shop_id = s.id 
                 WHERE o.id = ?";
         $order = $db->fetchOne($sql, [$orderId]);
-        
+
         if ($order && $order['status'] === 'pending') {
             $sql = "UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = ?";
             $db->query($sql, [$orderId]);
-            
+
             logActivity(
                 'update',
                 $_SESSION['user_id'],
                 'order',
                 'Cancelled order #' . $order['order_number'] . ' for shop: ' . $order['shop_name']
             );
-            
+
             setFlashMessage('success', 'Order cancelled successfully.');
         } else {
             setFlashMessage('error', 'Order not found or cannot be cancelled.');
         }
     }
-    
+
     redirect('admin/orders.php');
     exit;
 }
@@ -212,14 +213,37 @@ $csrfToken = generateCsrfToken();
         font-weight: 600;
         text-transform: capitalize;
     }
-    
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
-    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
-    
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
+
     .btn-action {
         width: 32px;
         height: 32px;
@@ -233,17 +257,29 @@ $csrfToken = generateCsrfToken();
         cursor: pointer;
         font-size: 13px;
     }
-    
+
     .btn-action:hover {
         transform: translateY(-2px);
     }
-    
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-    .btn-view:hover { background: #BFDBFE; }
-    
-    .btn-cancel { background: #FEE2E2; color: #DC2626; }
-    .btn-cancel:hover { background: #FECACA; }
-    
+
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .btn-view:hover {
+        background: #BFDBFE;
+    }
+
+    .btn-cancel {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-cancel:hover {
+        background: #FECACA;
+    }
+
     .status-dropdown {
         padding: 4px 8px;
         border: 2px solid #E5EDE7;
@@ -254,12 +290,12 @@ $csrfToken = generateCsrfToken();
         cursor: pointer;
         transition: all 0.3s ease;
     }
-    
+
     .status-dropdown:focus {
         outline: none;
         border-color: #16A34A;
     }
-    
+
     .order-amount {
         font-weight: 600;
         color: #14532D;
@@ -276,15 +312,15 @@ $csrfToken = generateCsrfToken();
             </span>
         </h3>
     </div>
-    
+
     <!-- Search and Filter -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
         <form method="GET" action="" style="flex: 1; min-width: 200px; display: flex; gap: 12px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 180px; position: relative;">
-                <input 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search by order #, shop..." 
+                <input
+                    type="text"
+                    name="search"
+                    placeholder="Search by order #, shop..."
                     value="<?php echo escapeHtml($search); ?>"
                     style="
                         width: 100%;
@@ -295,8 +331,7 @@ $csrfToken = generateCsrfToken();
                         font-size: 14px;
                         transition: all 0.3s ease;
                         background: white;
-                    "
-                >
+                    ">
                 <i class="fas fa-search" style="
                     position: absolute;
                     left: 14px;
@@ -305,7 +340,7 @@ $csrfToken = generateCsrfToken();
                     color: #6B7A7B;
                 "></i>
             </div>
-            
+
             <select name="status" style="
                 padding: 10px 16px;
                 border: 2px solid #E5EDE7;
@@ -322,10 +357,10 @@ $csrfToken = generateCsrfToken();
                     </option>
                 <?php endforeach; ?>
             </select>
-            
-            <input 
-                type="date" 
-                name="date_from" 
+
+            <input
+                type="date"
+                name="date_from"
                 value="<?php echo escapeHtml($dateFrom); ?>"
                 style="
                     padding: 10px 16px;
@@ -335,12 +370,11 @@ $csrfToken = generateCsrfToken();
                     font-size: 14px;
                     background: white;
                 "
-                placeholder="From Date"
-            >
-            
-            <input 
-                type="date" 
-                name="date_to" 
+                placeholder="From Date">
+
+            <input
+                type="date"
+                name="date_to"
                 value="<?php echo escapeHtml($dateTo); ?>"
                 style="
                     padding: 10px 16px;
@@ -350,9 +384,8 @@ $csrfToken = generateCsrfToken();
                     font-size: 14px;
                     background: white;
                 "
-                placeholder="To Date"
-            >
-            
+                placeholder="To Date">
+
             <button type="submit" style="
                 padding: 10px 24px;
                 background: #14532D;
@@ -367,9 +400,9 @@ $csrfToken = generateCsrfToken();
             ">
                 <i class="fas fa-filter"></i> Filter
             </button>
-            
+
             <?php if (!empty($search) || $status !== 'all' || !empty($dateFrom) || !empty($dateTo)): ?>
-            <a href="orders.php" style="
+                <a href="orders.php" style="
                 padding: 10px 16px;
                 background: #F3F4F6;
                 color: #4A5B5D;
@@ -380,12 +413,12 @@ $csrfToken = generateCsrfToken();
                 text-decoration: none;
                 transition: all 0.3s ease;
             ">
-                <i class="fas fa-times"></i> Clear
-            </a>
+                    <i class="fas fa-times"></i> Clear
+                </a>
             <?php endif; ?>
         </form>
     </div>
-    
+
     <!-- Order Table - REMOVED Payment Column -->
     <div class="table-wrapper">
         <table class="table-custom">
@@ -394,110 +427,118 @@ $csrfToken = generateCsrfToken();
                     <th>Order #</th>
                     <th>Shop</th>
                     <th>Amount</th>
-                    <th>Status</th>
+                    <?php if (hasPermission('order.update')): ?>
+                        <th>Status</th>
+                    <?php endif; ?>
+
                     <th>Date</th>
                     <th style="text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($orderList)): ?>
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 40px; color: #6B7A7B;">
-                        <i class="fas fa-inbox" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
-                        No orders found
-                        <?php if (!empty($search) || $status !== 'all' || !empty($dateFrom) || !empty($dateTo)): ?>
-                        <br><span style="font-size: 13px;">Try adjusting your search or filters</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <?php else: ?>
-                <?php foreach ($orderList as $order): ?>
-                <tr>
-                    <td>
-                        <a href="order-view.php?id=<?php echo $order['id']; ?>" style="font-weight: 600; color: #14532D; text-decoration: none;">
-                            #<?php echo escapeHtml($order['order_number']); ?>
-                        </a>
-                    </td>
-                    <td>
-                        <div>
-                            <div style="font-weight: 500;"><?php echo escapeHtml($order['shop_name'] ?? 'N/A'); ?></div>
-                            <div style="font-size: 12px; color: #6B7A7B;"><?php echo escapeHtml($order['shop_owner'] ?? ''); ?></div>
-                        </div>
-                    </td>
-                    <td>
-                        <span class="order-amount">₹ <?php echo number_format($order['total_amount'], 2); ?></span>
-                    </td>
-                    <td>
-                        <?php 
-                        $statusColors = [
-                            'pending' => 'badge-warning',
-                            'confirmed' => 'badge-info',
-                            'processing' => 'badge-primary',
-                            'shipped' => 'badge-info',
-                            'delivered' => 'badge-success',
-                            'cancelled' => 'badge-danger',
-                            'returned' => 'badge-warning'
-                        ];
-                        $color = $statusColors[$order['status']] ?? 'badge-secondary';
-                        ?>
-                        <form method="POST" action="" style="display: inline;">
-                            <input type="hidden" name="csrf" value="<?php echo $csrfToken; ?>">
-                            <input type="hidden" name="action" value="update_status">
-                            <input type="hidden" name="order_id" value="<?php echo $order['id']; ?>">
-                            <select name="status" class="status-dropdown" onchange="this.form.submit()" style="border-color: <?php 
-                                echo match($order['status']) {
-                                    'pending' => '#F59E0B',
-                                    'confirmed' => '#3B82F6',
-                                    'processing' => '#8B5CF6',
-                                    'shipped' => '#06B6D4',
-                                    'delivered' => '#22C55E',
-                                    'cancelled' => '#EF4444',
-                                    'returned' => '#F59E0B',
-                                    default => '#6B7280'
-                                };
-                            ?>;">
-                                <?php foreach (ORDER_STATUSES as $key => $label): ?>
-                                    <option value="<?php echo $key; ?>" <?php echo $order['status'] === $key ? 'selected' : ''; ?>>
-                                        <?php echo $label; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </form>
-                    </td>
-                    <td>
-                        <div style="font-size: 13px;"><?php echo formatDate($order['created_at']); ?></div>
-                        <div style="font-size: 11px; color: #6B7A7B;"><?php echo timeAgo($order['created_at']); ?></div>
-                    </td>
-                    <td style="text-align: center;">
-                        <div style="display: flex; gap: 4px; justify-content: center;">
-                            <a href="order-view.php?id=<?php echo $order['id']; ?>" 
-                               class="btn-action btn-view" 
-                               title="View Order">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            
-                            <?php if ($order['status'] === 'pending'): ?>
-                            <a href="orders.php?action=cancel&id=<?php echo $order['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                               class="btn-action btn-cancel" 
-                               title="Cancel Order"
-                               onclick="return confirm('Are you sure you want to cancel this order?')">
-                                <i class="fas fa-times"></i>
-                            </a>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                            <i class="fas fa-inbox" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
+                            No orders found
+                            <?php if (!empty($search) || $status !== 'all' || !empty($dateFrom) || !empty($dateTo)): ?>
+                                <br><span style="font-size: 13px;">Try adjusting your search or filters</span>
                             <?php endif; ?>
-                        </div>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($orderList as $order): ?>
+                        <tr>
+                            <td>
+                                <a href="order-view.php?id=<?php echo $order['id']; ?>" style="font-weight: 600; color: #14532D; text-decoration: none;">
+                                    #<?php echo escapeHtml($order['order_number']); ?>
+                                </a>
+                            </td>
+                            <td>
+                                <div>
+                                    <div style="font-weight: 500;"><?php echo escapeHtml($order['shop_name'] ?? 'N/A'); ?></div>
+                                    <div style="font-size: 12px; color: #6B7A7B;"><?php echo escapeHtml($order['shop_owner'] ?? ''); ?></div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="order-amount">₹ <?php echo number_format($order['total_amount'], 2); ?></span>
+                            </td>
+                            <?php if (hasPermission('order.update')): ?>
+
+                                <td>
+                                    <?php
+                                    $statusColors = [
+                                        'pending' => 'badge-warning',
+                                        'confirmed' => 'badge-info',
+                                        'processing' => 'badge-primary',
+                                        'shipped' => 'badge-info',
+                                        'delivered' => 'badge-success',
+                                        'cancelled' => 'badge-danger',
+                                        'returned' => 'badge-warning'
+                                    ];
+                                    $color = $statusColors[$order['status']] ?? 'badge-secondary';
+                                    ?>
+                                    <form method="POST" action="" style="display: inline;">
+                                        <input type="hidden" name="csrf" value="<?php echo $csrfToken; ?>">
+                                        <input type="hidden" name="action" value="update_status">
+                                        <input type="hidden" name="order_id" value="<?php echo $order['id']; ?>">
+                                        <select name="status" class="status-dropdown" onchange="this.form.submit()" style="border-color: <?php
+                                                                                                                                            echo match ($order['status']) {
+                                                                                                                                                'pending' => '#F59E0B',
+                                                                                                                                                'confirmed' => '#3B82F6',
+                                                                                                                                                'processing' => '#8B5CF6',
+                                                                                                                                                'shipped' => '#06B6D4',
+                                                                                                                                                'delivered' => '#22C55E',
+                                                                                                                                                'cancelled' => '#EF4444',
+                                                                                                                                                'returned' => '#F59E0B',
+                                                                                                                                                default => '#6B7280'
+                                                                                                                                            };
+                                                                                                                                            ?>;">
+                                            <?php foreach (ORDER_STATUSES as $key => $label): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo $order['status'] === $key ? 'selected' : ''; ?>>
+                                                    <?php echo $label; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </form>
+                                </td>
+                            <?php endif; ?>
+                            <td>
+                                <div style="font-size: 13px;"><?php echo formatDate($order['created_at']); ?></div>
+                                <div style="font-size: 11px; color: #6B7A7B;"><?php echo timeAgo($order['created_at']); ?></div>
+                            </td>
+                            <td style="text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                    <a href="order-view.php?id=<?php echo $order['id']; ?>"
+                                        class="btn-action btn-view"
+                                        title="View Order">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    <?php if (hasPermission('order.update')): ?>
+                                        <?php if ($order['status'] === 'pending'): ?>
+                                            <a href="orders.php?action=cancel&id=<?php echo $order['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                                class="btn-action btn-cancel"
+                                                title="Cancel Order"
+                                                onclick="return confirm('Are you sure you want to cancel this order?')">
+                                                <i class="fas fa-times"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
-    
+
     <!-- Pagination -->
     <?php if ($totalPages > 1): ?>
-    <div style="margin-top: 20px;">
-        <?php echo $pagination; ?>
-    </div>
+        <div style="margin-top: 20px;">
+            <?php echo $pagination; ?>
+        </div>
     <?php endif; ?>
 </div>
 

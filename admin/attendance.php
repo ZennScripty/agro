@@ -326,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ============================================
 
 // Now it is safe to load the HTML header
-require_once __DIR__ . '/../includes/staff_header.php';
+require_once __DIR__ . '/../includes/admin_header.php';
 
 // ============================================
 // GET STAFF DATA
@@ -2762,4 +2762,4 @@ $csrfToken = generateCsrfToken();
     }
 </script>
 
-<?php require_once __DIR__ . '/../includes/staff_footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/admin_footer.php'; ?>

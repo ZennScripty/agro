@@ -342,7 +342,8 @@ require_once '../includes/admin_header.php';
             </span>
         </h3>
         <div>
-            <a href="product-add.php" class="btn-primary" style="
+            <?php if (hasPermission('product.create')): ?>
+                <a href="product-add.php" class="btn-primary" style="
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
@@ -358,9 +359,10 @@ require_once '../includes/admin_header.php';
                 transition: all 0.3s ease;
                 cursor: pointer;
             ">
-                <i class="fas fa-plus"></i>
-                Add Product
-            </a>
+                    <i class="fas fa-plus"></i>
+                    Add Product
+                </a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -596,27 +598,32 @@ require_once '../includes/admin_header.php';
                                     </a>
 
                                     <!-- Edit -->
-                                    <a href="product-edit.php?id=<?php echo $product['id']; ?>"
-                                        class="btn-action btn-edit"
-                                        title="Edit Product">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
+                                    <?php if (hasPermission('product.edit')): ?>
 
-                                    <!-- Toggle Status -->
-                                    <a href="admin/products.php?action=toggle&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                                        class="btn-action btn-toggle"
-                                        title="<?php echo $product['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
-                                        onclick="return confirm('Are you sure you want to <?php echo $product['status'] === 'active' ? 'deactivate' : 'activate'; ?> this product?')">
-                                        <i class="fas fa-<?php echo $product['status'] === 'active' ? 'pause' : 'play'; ?>"></i>
-                                    </a>
+                                        <a href="product-edit.php?id=<?php echo $product['id']; ?>"
+                                            class="btn-action btn-edit"
+                                            title="Edit Product">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
 
+                                        <!-- Toggle Status -->
+                                        <a href="admin/products.php?action=toggle&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-toggle"
+                                            title="<?php echo $product['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
+                                            onclick="return confirm('Are you sure you want to <?php echo $product['status'] === 'active' ? 'deactivate' : 'activate'; ?> this product?')">
+                                            <i class="fas fa-<?php echo $product['status'] === 'active' ? 'pause' : 'play'; ?>"></i>
+                                        </a>
+                                    <?php endif; ?>
                                     <!-- Delete -->
-                                    <a href="admin/products.php?action=delete&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                                        class="btn-action btn-delete"
-                                        title="Delete Product"
-                                        onclick="return confirm('Are you sure you want to delete this product? This action cannot be undone.')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+
+                                    <?php if (hasPermission('product.delete')): ?>
+                                        <a href="admin/products.php?action=delete&id=<?php echo $product['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-delete"
+                                            title="Delete Product"
+                                            onclick="return confirm('Are you sure you want to delete this product? This action cannot be undone.')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

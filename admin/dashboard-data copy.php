@@ -1,5 +1,4 @@
 <?php
-
 /**
  * SAMRIDHI AGRO - Dashboard Data API
  * 
@@ -44,45 +43,41 @@ try {
         case 'sales-trend':
             $response = getSalesTrendData($db);
             break;
-
+            
         case 'order-status':
             $response = getOrderStatusData($db);
             break;
-
-        case 'paymentStatus':
-            $data = getPaymentStatusData($db);
-            break;
-
+            
         case 'category-distribution':
             $response = getCategoryDistributionData($db);
             break;
-
+            
         case 'monthly-revenue':
             $response = getMonthlyRevenueData($db);
             break;
-
+            
         case 'recent-activity':
             $response = getRecentActivityData($db);
             break;
-
+            
         case 'all':
         default:
             $response = [
                 'salesTrend' => getSalesTrendData($db),
                 'orderStatus' => getOrderStatusData($db),
-                'paymentStatus' => getPaymentStatusData($db),
                 'categoryDistribution' => getCategoryDistributionData($db),
                 'monthlyRevenue' => getMonthlyRevenueData($db),
                 'recentActivity' => getRecentActivityData($db)
             ];
             break;
     }
-
+    
     $response['success'] = true;
+    
 } catch (Exception $e) {
     // Log the error
     error_log('Dashboard Data API Error: ' . $e->getMessage());
-
+    
     $response = [
         'success' => false,
         'error' => 'An error occurred while fetching dashboard data.'
@@ -103,66 +98,39 @@ exit;
  * @param Database $db Database instance
  * @return array Sales trend data
  */
-function getSalesTrendData($db)
-{
-
+function getSalesTrendData($db) {
     $months = [];
     $sales = [];
-    $payments = [];
-
+    
     // Get last 12 months
     for ($i = 11; $i >= 0; $i--) {
-
         $date = date('Y-m-01', strtotime("-$i months"));
         $months[] = date('M', strtotime($date));
-
+        
+        // Get sales for this month (delivered orders only)
         $start = date('Y-m-01', strtotime($date));
         $end = date('Y-m-t', strtotime($date));
-
-
-        // ============================================
-        // SALES - Delivered Orders
-        // ============================================
-
-        $sql = "SELECT COALESCE(SUM(total_amount), 0) AS total
-                FROM orders
-                WHERE status != 'cancelled'
+        
+        $sql = "SELECT COALESCE(SUM(total_amount), 0) as total 
+                FROM orders 
+                WHERE status = 'delivered' 
                 AND order_date BETWEEN ? AND ?";
-
-        $result = $db->fetchOne(
-            $sql,
-            [$start . ' 00:00:00', $end . ' 23:59:59']
-        );
-
+        $result = $db->fetchOne($sql, [$start . ' 00:00:00', $end . ' 23:59:59']);
         $sales[] = round($result['total'] ?? 0, 2);
-
-
-        // ============================================
-        // CONFIRMED PAYMENTS
-        // ============================================
-
-        $sql = "SELECT COALESCE(SUM(amount), 0) AS total
-                FROM payments
-                WHERE status = 'confirmed'
-                AND confirmed_at BETWEEN ? AND ?";
-
-        $result = $db->fetchOne(
-            $sql,
-            [$start . ' 00:00:00', $end . ' 23:59:59']
-        );
-
-        $payments[] = round($result['total'] ?? 0, 2);
     }
-
-
+    
+    // If no sales data, provide sample data for demo
+    if (array_sum($sales) == 0) {
+        // Generate some sample data for demonstration
+        $sales = [];
+        for ($i = 0; $i < 12; $i++) {
+            $sales[] = rand(5000, 50000);
+        }
+    }
+    
     return [
         'labels' => $months,
-
         'datasets' => [
-
-            // ========================================
-            // Sales Line
-            // ========================================
             [
                 'label' => 'Sales',
                 'data' => $sales,
@@ -170,19 +138,6 @@ function getSalesTrendData($db)
                 'borderColor' => '#16A34A',
                 'borderWidth' => 2,
                 'fill' => true,
-                'tension' => 0.4
-            ],
-
-            // ========================================
-            // Confirmed Payments Line
-            // ========================================
-            [
-                'label' => 'Confirmed Payments',
-                'data' => $payments,
-                'backgroundColor' => 'rgba(234, 179, 8, 0.2)',
-                'borderColor' => '#EAB308',
-                'borderWidth' => 2,
-                'fill' => false,
                 'tension' => 0.4
             ]
         ]
@@ -195,17 +150,16 @@ function getSalesTrendData($db)
  * @param Database $db Database instance
  * @return array Order status data
  */
-function getOrderStatusData($db)
-{
+function getOrderStatusData($db) {
     $sql = "SELECT status, COUNT(*) as count 
             FROM orders 
             GROUP BY status";
     $results = $db->fetchAll($sql);
-
+    
     $labels = [];
     $data = [];
     $colors = [];
-
+    
     $colorMap = [
         'pending' => '#F59E0B',
         'confirmed' => '#3B82F6',
@@ -215,7 +169,7 @@ function getOrderStatusData($db)
         'cancelled' => '#EF4444',
         'returned' => '#F59E0B'
     ];
-
+    
     if (empty($results)) {
         // Provide sample data if no orders exist
         return [
@@ -229,13 +183,13 @@ function getOrderStatusData($db)
             ]
         ];
     }
-
+    
     foreach ($results as $row) {
         $labels[] = ucfirst($row['status']);
         $data[] = (int)$row['count'];
         $colors[] = $colorMap[$row['status']] ?? '#6B7280';
     }
-
+    
     return [
         'labels' => $labels,
         'datasets' => [
@@ -254,8 +208,7 @@ function getOrderStatusData($db)
  * @param Database $db Database instance
  * @return array Category distribution data
  */
-function getCategoryDistributionData($db)
-{
+function getCategoryDistributionData($db) {
     $sql = "SELECT c.category_name, COUNT(p.id) as count 
             FROM categories c 
             LEFT JOIN products p ON c.id = p.category_id 
@@ -264,20 +217,14 @@ function getCategoryDistributionData($db)
             ORDER BY count DESC 
             LIMIT 8";
     $results = $db->fetchAll($sql);
-
+    
     $labels = [];
     $data = [];
     $colors = [
-        '#14532D',
-        '#16A34A',
-        '#22C55E',
-        '#65A30D',
-        '#EAB308',
-        '#B45309',
-        '#DC2626',
-        '#2563EB'
+        '#14532D', '#16A34A', '#22C55E', '#65A30D',
+        '#EAB308', '#B45309', '#DC2626', '#2563EB'
     ];
-
+    
     if (empty($results)) {
         // Provide sample data if no categories exist
         return [
@@ -291,12 +238,12 @@ function getCategoryDistributionData($db)
             ]
         ];
     }
-
+    
     foreach ($results as $index => $row) {
         $labels[] = $row['category_name'];
         $data[] = (int)$row['count'];
     }
-
+    
     return [
         'labels' => $labels,
         'datasets' => [
@@ -315,28 +262,27 @@ function getCategoryDistributionData($db)
  * @param Database $db Database instance
  * @return array Monthly revenue data
  */
-function getMonthlyRevenueData($db)
-{
+function getMonthlyRevenueData($db) {
     $months = [];
     $revenue = [];
     $orders = [];
-
+    
     // Get last 6 months
     for ($i = 5; $i >= 0; $i--) {
         $date = date('Y-m-01', strtotime("-$i months"));
         $months[] = date('M', strtotime($date));
-
+        
         $start = date('Y-m-01', strtotime($date));
         $end = date('Y-m-t', strtotime($date));
-
+        
         // Revenue
         $sql = "SELECT COALESCE(SUM(total_amount), 0) as total 
                 FROM orders 
-                WHERE status != 'cancelled' 
+                WHERE status = 'delivered' 
                 AND order_date BETWEEN ? AND ?";
         $result = $db->fetchOne($sql, [$start . ' 00:00:00', $end . ' 23:59:59']);
         $revenue[] = round($result['total'] ?? 0, 2);
-
+        
         // Order count
         $sql = "SELECT COUNT(*) as count 
                 FROM orders 
@@ -344,7 +290,7 @@ function getMonthlyRevenueData($db)
         $result = $db->fetchOne($sql, [$start . ' 00:00:00', $end . ' 23:59:59']);
         $orders[] = (int)($result['count'] ?? 0);
     }
-
+    
     // If no revenue data, provide sample data for demo
     if (array_sum($revenue) == 0) {
         $revenue = [];
@@ -354,7 +300,7 @@ function getMonthlyRevenueData($db)
             $orders[] = rand(5, 30);
         }
     }
-
+    
     return [
         'labels' => $months,
         'datasets' => [
@@ -382,77 +328,22 @@ function getMonthlyRevenueData($db)
     ];
 }
 
-
-function getPaymentStatusData($db)
-{
-    $sql = "SELECT
-                status,
-                COALESCE(SUM(amount), 0) AS total_amount
-            FROM payments
-            WHERE status IN ('pending', 'collected', 'submitted', 'confirmed')
-            GROUP BY status";
-
-    $results = $db->fetchAll($sql);
-
-    $paymentStatus = [
-        'pending'   => 0,
-        'collected' => 0,
-        'submitted' => 0,
-        'confirmed' => 0
-    ];
-
-    foreach ($results as $row) {
-
-        $status = strtolower($row['status']);
-
-        if (isset($paymentStatus[$status])) {
-            $paymentStatus[$status] = round(
-                (float)$row['total_amount'],
-                2
-            );
-        }
-    }
-
-    return [
-        'labels' => [
-            'Shop Pay',
-            'Agent Pending',
-            'Pending Confirmation',
-            'Paid Amount'
-        ],
-
-        'data' => [
-            $paymentStatus['pending'],
-            $paymentStatus['collected'],
-            $paymentStatus['submitted'],
-            $paymentStatus['confirmed']
-        ],
-
-        'backgroundColor' => [
-            '#F59E0B',
-            '#3B82F6',
-            '#8B5CF6',
-            '#16A34A'
-        ]
-    ];
-}
 /**
  * Get recent activity data
  * 
  * @param Database $db Database instance
  * @return array Recent activity data
  */
-function getRecentActivityData($db)
-{
+function getRecentActivityData($db) {
     $sql = "SELECT al.*, u.full_name 
             FROM activity_logs al 
             LEFT JOIN users u ON al.user_id = u.id 
             ORDER BY al.created_at DESC 
             LIMIT 10";
     $results = $db->fetchAll($sql);
-
+    
     $activities = [];
-
+    
     if (empty($results)) {
         // Provide sample activity if no logs exist
         return [
@@ -466,14 +357,14 @@ function getRecentActivityData($db)
             ]
         ];
     }
-
+    
     foreach ($results as $row) {
         // Get the action for icon mapping
         $action = $row['action'] ?? 'Unknown';
-
+        
         // Map action to user-friendly description
         $description = $row['description'] ?? $action;
-
+        
         $activities[] = [
             'id' => $row['id'],
             'user' => $row['full_name'] ?? 'System',
@@ -483,6 +374,6 @@ function getRecentActivityData($db)
             'timestamp' => $row['created_at']
         ];
     }
-
+    
     return $activities;
 }

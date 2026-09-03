@@ -29,9 +29,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // ============================================
-// PERMISSION CHECK - Allow Admin OR Staff with staff.edit permission
+// PERMISSION CHECK - Allow Admin OR Staff with staff.permissions permission
 // ============================================
-requirePermissionOrAdmin('staff.edit', 'staff-permissions.php');
+requirePermissionOrAdmin('staff.permissions', 'staff-permissions.php');
 
 // Get database instance
 $db = getDB();

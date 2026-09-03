@@ -13,9 +13,7 @@
 $pageTitle = 'Attendance List';
 require_once '../includes/admin_header.php';
 
-requireLogin();
-requireRole('admin');
-requirePermission('staff.attendance.view');
+requirePermissionOrAdmin('attendance.list', 'attendance-list.php');
 
 $db = getDB();
 

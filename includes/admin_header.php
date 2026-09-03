@@ -29,6 +29,17 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
 $currentUser = getCurrentUser();
 
+// Get current user with avatar
+$db = getDB();
+
+$sql = "SELECT u.*
+        FROM users u
+        WHERE u.id = ?";
+
+$currentUserWithAvatar = $db->fetchOne(
+    $sql,
+    [$_SESSION['user_id'] ?? 0]
+);
 // ============================================
 // CHECK USER ROLE FOR DYNAMIC HEADER
 // ============================================
@@ -88,13 +99,14 @@ if ($isStaff) {
 $canViewAgents = $isAdmin || hasPermission('agent.view');
 $canViewShops = $isAdmin || hasPermission('shop.view');
 $canViewProducts = $isAdmin || hasPermission('product.view');
+$canViewCategories = $isAdmin || hasPermission('category.view');
 $canViewOrders = $isAdmin || hasPermission('order.view');
 $canViewPayments = $isAdmin || hasPermission('payment.view');
 $canViewReports = $isAdmin || hasPermission('report.view');
 $canViewInventory = $isAdmin || hasPermission('inventory.view');
-
-// Staff management permissions (only admin)
-$canManageStaff = $isAdmin && hasPermission('staff.view');
+$canManageStaff = $isAdmin || hasPermission('staff.view');
+$canViewAttendanceSettings = $isAdmin || hasPermission('attendance.settings.view');
+$canViewAttendance = $isAdmin || hasPermission('attendance.list');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -521,7 +533,7 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
             }
 
             .topbar-right {
-                width: 100%;
+                /* width: 100%; */
                 justify-content: flex-end;
             }
 
@@ -561,6 +573,18 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
             align-items: center;
             gap: 10px;
             animation: slideDown 0.3s ease;
+        }
+
+        .sidebar-footer .user-avatar {
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .sidebar-footer .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         @keyframes slideDown {
@@ -648,42 +672,25 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
                 <?php if ($isStaff): ?>
                     <div class="menu-label" style="margin-top: 20px;">My Work</div>
 
-                    <?php if (hasPermission('staff.attendance.view')): ?>
-                        <a href="<?php echo STAFF_URL; ?>attendance.php" class="menu-item <?php echo $currentPage === 'attendance.php' ? 'active' : ''; ?>">
-                            <i class="fas fa-calendar-check"></i> Attendance
-                        </a>
-                    <?php endif; ?>
-
-                    <?php if (hasPermission('staff.visits.view')): ?>
-                        <a href="<?php echo STAFF_URL; ?>visits.php" class="menu-item <?php echo $currentPage === 'visits.php' ? 'active' : ''; ?>">
-                            <i class="fas fa-route"></i> Visits
-                            <?php if ($staffNotificationCount > 0): ?>
-                                <span class="badge"><?php echo $staffNotificationCount; ?></span>
-                            <?php endif; ?>
-                        </a>
-                    <?php endif; ?>
-
-                    <?php if (hasPermission('staff.leads.view')): ?>
-                        <a href="<?php echo STAFF_URL; ?>leads.php" class="menu-item <?php echo $currentPage === 'leads.php' ? 'active' : ''; ?>">
-                            <i class="fas fa-bullhorn"></i> Leads
-                        </a>
-                    <?php endif; ?>
+                    <a href="attendance.php" class="menu-item <?php echo $currentPage === 'attendance.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-calendar-check"></i> Attendance
+                    </a>
                 <?php endif; ?>
+
 
                 <!-- ============================================ -->
                 <!-- MANAGEMENT SECTION (Admin or Staff with permissions) -->
                 <!-- ============================================ -->
                 <div class="menu-label" style="margin-top: 20px;">Management</div>
 
-                <!-- Staff Management - Only Admin -->
-                <?php if ($isAdmin): ?>
+
+                <!-- Staff Management -->
+                <?php if (hasPermission('staff.view')): ?>
                     <a href="<?php echo ADMIN_URL; ?>staff.php" class="menu-item <?php echo in_array($currentPage, ['staff.php', 'staff-attendance.php', 'staff-visits.php', 'staff-leads.php']) ? 'active' : ''; ?>">
                         <i class="fas fa-users"></i>
                         Staff
                     </a>
-            
                 <?php endif; ?>
-
                 <!-- Agents - Admin or Staff with permission -->
                 <?php if ($canViewAgents): ?>
                     <a href="<?php echo ADMIN_URL; ?>agents.php" class="menu-item <?php echo $currentPage === 'agents.php' ? 'active' : ''; ?>">
@@ -715,18 +722,24 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
 
                 <!-- Products - Admin or Staff with permission -->
                 <?php if ($canViewProducts): ?>
-                    <a href="<?php echo ADMIN_URL; ?>products.php" class="menu-item <?php echo in_array($currentPage, ['products.php', 'categories.php']) ? 'active' : ''; ?>">
+                    <a href="<?php echo ADMIN_URL; ?>products.php" class="menu-item <?php echo in_array($currentPage, ['products.php']) ? 'active' : ''; ?>">
                         <i class="fas fa-box"></i>
                         Products
                     </a>
-                    <div class="sub-menu">
+                    <!-- <div class="sub-menu">
                         <a href="<?php echo ADMIN_URL; ?>products.php" class="menu-item <?php echo $currentPage === 'products.php' ? 'active' : ''; ?>">
                             <i class="fas fa-list"></i> All Products
                         </a>
-                        <a href="<?php echo ADMIN_URL; ?>categories.php" class="menu-item <?php echo $currentPage === 'categories.php' ? 'active' : ''; ?>">
-                            <i class="fas fa-tags"></i> Categories
-                        </a>
-                    </div>
+                        
+                    </div> -->
+                <?php endif; ?>
+
+                <!-- category - Admin or Staff with permission -->
+                <?php if ($canViewCategories): ?>
+                    <a href="<?php echo ADMIN_URL; ?>categories.php" class="menu-item <?php echo $currentPage === 'categories.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-tags"></i>
+                        Categories
+                    </a>
                 <?php endif; ?>
 
                 <!-- Orders - Admin or Staff with permission -->
@@ -758,12 +771,17 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
                         Inventory
                     </a>
                 <?php endif; ?>
-                <a href="<?php echo ADMIN_URL; ?>attendance-settings.php" class="menu-item <?php echo $currentPage === 'attendance-settings.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-clock"></i> Attendance Settings
-                </a>
-                <a href="<?php echo ADMIN_URL; ?>attendance-list.php" class="menu-item <?php echo $currentPage === 'attendance-settings.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-clock"></i> Attendance List
-                </a>
+
+                <?php if ($canViewAttendance): ?>
+                    <a href="<?php echo ADMIN_URL; ?>attendance-list.php" class="menu-item <?php echo $currentPage === 'attendance-list.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-clock"></i> Attendance List
+                    </a>
+                <?php endif; ?>
+                <?php if ($canViewAttendanceSettings): ?>
+                    <a href="<?php echo ADMIN_URL; ?>attendance-settings.php" class="menu-item <?php echo $currentPage === 'attendance-settings.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-clock"></i> Attendance Settings
+                    </a>
+                <?php endif; ?>
                 <!-- ============================================ -->
                 <!-- SYSTEM SECTION (Admin only)                   -->
                 <!-- ============================================ -->
@@ -785,7 +803,7 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
                 <?php else: ?>
                     <!-- Staff Profile -->
                     <div class="menu-label" style="margin-top: 20px;">Account</div>
-                    <a href="<?php echo STAFF_URL; ?>profile.php" class="menu-item <?php echo $currentPage === 'profile.php' ? 'active' : ''; ?>">
+                    <a href="staff-profile.php" class="menu-item <?php echo $currentPage === 'profile.php' ? 'active' : ''; ?>">
                         <i class="fas fa-user-circle"></i> My Profile
                     </a>
                 <?php endif; ?>
@@ -794,7 +812,16 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
             <div class="sidebar-footer">
                 <div class="user-info">
                     <div class="user-avatar">
-                        <i class="fas fa-user"></i>
+                        <?php
+                        $avatar = $currentUserWithAvatar['avatar'] ?? '';
+
+                        if (!empty($avatar) && file_exists('../uploads/avatars/' . $avatar)):
+                        ?>
+                            <img src="../uploads/avatars/<?php echo escapeHtml($avatar); ?>"
+                                alt="<?php echo escapeHtml($currentUserWithAvatar['full_name'] ?? 'User'); ?>">
+                        <?php else: ?>
+                            <i class="fas fa-user"></i>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <div class="user-name"><?php echo escapeHtml($currentUser['full_name'] ?? 'User'); ?></div>
@@ -823,12 +850,12 @@ $canManageStaff = $isAdmin && hasPermission('staff.view');
                     <h1 class="page-title"><?php echo escapeHtml($pageTitle); ?></h1>
                 </div>
                 <div class="topbar-right">
-                    <button class="notification-btn" title="Notifications">
+                    <!-- <button class="notification-btn" title="Notifications">
                         <i class="fas fa-bell"></i>
                         <?php if ($notificationCount > 0): ?>
                             <span class="notif-badge"><?php echo $notificationCount; ?></span>
                         <?php endif; ?>
-                    </button>
+                    </button> -->
                     <a href="<?php echo ADMIN_URL; ?>logout.php" class="btn-logout">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>

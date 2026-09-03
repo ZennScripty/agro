@@ -20,8 +20,9 @@ require_once '../includes/admin_header.php';
 
 // Require admin login and permission
 requireLogin();
-requireRole('admin');
-requirePermission('visit.view');
+requirePermissionOrAdmin('visit.view', 'visit-view.php');
+
+
 
 // Get database instance
 $db = getDB();

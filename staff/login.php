@@ -26,7 +26,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // If already logged in and is staff, redirect to dashboard
 if (isLoggedIn() && hasRole('staff')) {
-    redirect('staff/dashboard.php'); // ✅ FIXED: Removed 'staff/' prefix
+    redirect('admin/attendance.php'); // ✅ FIXED: Removed 'staff/' prefix
     exit;
 }
 
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         setFlashMessage('success', 'Welcome back, ' . $_SESSION['user_name'] . '!');
                         
                         // ✅ FIXED: Redirect to dashboard (same folder)
-                        redirect('staff/dashboard.php');
+                        redirect('admin/attendance.php');
                         exit;
                     } else {
                         // Logout inactive staff

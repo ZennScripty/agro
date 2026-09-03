@@ -22,8 +22,8 @@ require_once '../includes/admin_header.php';
 
 // Require admin login and permission
 requireLogin();
-requireRole('admin');
-requirePermission('payment.view');
+
+requirePermissionOrAdmin('payment.view');
 
 // Get database instance
 $db = getDB();

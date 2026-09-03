@@ -79,7 +79,7 @@ $totalOrders = $result['count'] ?? 0;
 $sql = "SELECT COALESCE(SUM(o.total_amount), 0) as total 
         FROM orders o 
         JOIN shops s ON o.shop_id = s.id 
-        WHERE s.agent_id = ? AND o.status = 'delivered'";
+        WHERE s.agent_id = ? AND o.status != 'cancelled'";
 $result = $db->fetchOne($sql, [$agentId]);
 $totalRevenue = $result['total'] ?? 0;
 

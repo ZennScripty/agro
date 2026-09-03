@@ -18,10 +18,8 @@ $pageTitle = 'Attendance Settings';
 // Include admin header
 require_once '../includes/admin_header.php';
 
-// Require admin login and permission
-requireLogin();
-requireRole('admin');
-requirePermission('settings.view');
+requirePermissionOrAdmin('attendance.settings.view', 'attendance-settings.php');
+
 
 // Get database instance
 $db = getDB();

@@ -71,57 +71,9 @@ $result = $db->fetchOne($sql);
 $totalOrders = $result['count'] ?? 0;
 
 // Total Revenue
-$sql = "SELECT COALESCE(SUM(total_amount), 0) as total
-        FROM orders
-        WHERE status != 'cancelled'";
-
+$sql = "SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status = 'delivered'";
 $result = $db->fetchOne($sql);
-
 $totalRevenue = $result['total'] ?? 0;
-
-
-// Revenue - Last Month
-$sql = "SELECT COALESCE(SUM(total_amount), 0) as total
-        FROM orders
-        WHERE status != 'cancelled'
-        AND order_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01')
-        AND order_date < DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')";
-
-$result = $db->fetchOne($sql);
-
-$lastMonthRevenue = $result['total'] ?? 0;
-
-
-// Revenue percentage change
-if ($lastMonthRevenue > 0) {
-
-    $revenueChange = round(
-        (($totalRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100
-    );
-} elseif ($totalRevenue > 0) {
-
-    // Last month 0 tha, current month me revenue hai
-    $revenueChange = 100;
-} else {
-
-    $revenueChange = 0;
-}
-
-
-// Arrow + color
-if ($revenueChange > 0) {
-
-    $revenueArrow = 'fa-arrow-up';
-    $revenueChangeClass = 'positive';
-} elseif ($revenueChange < 0) {
-
-    $revenueArrow = 'fa-arrow-down';
-    $revenueChangeClass = 'negative';
-} else {
-
-    $revenueArrow = 'fa-minus';
-    $revenueChangeClass = '';
-}
 
 // Recent Orders (last 5)
 $sql = "SELECT o.*, s.shop_name 
@@ -141,7 +93,7 @@ $recentOrders = $db->fetchAll($sql);
 $widgets = [];
 
 // Staff Attendance Widget (for staff management)
-if (hasPermission('staff.view')) {
+if (hasPermission('staff.attendance.view')) {
     $sql = "SELECT 
             COUNT(*) as total_staff,
             SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_today
@@ -184,145 +136,36 @@ if (hasPermission('agent.view')) {
 }
 
 // Staff Visits Widget
-if (hasPermission('visit.view')) {
-
-    // Today's visits
-    $sql = "SELECT
-                COUNT(*) AS today_completed,
-
-                -- Assigned visits
-                SUM(CASE
-                    WHEN visit_type = 'assigned' THEN 1
-                    ELSE 0
-                END) AS assigned_total,
-
-                SUM(CASE
-                    WHEN visit_type = 'assigned'
-                    AND status = 'completed'
-                    THEN 1
-                    ELSE 0
-                END) AS assigned_completed
-
-            FROM visits
-            WHERE visit_date = CURDATE()";
-
+if (hasPermission('staff.visits.view')) {
+    $sql = "SELECT COUNT(*) as visits_today FROM staff_visits WHERE visit_date = CURDATE() AND status = 'completed'";
     $visitsToday = $db->fetchOne($sql);
 
-
-    // Last 7 days completed visits
-    $sql = "SELECT COUNT(*) AS week_completed
-            FROM visits
-            WHERE visit_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            AND visit_date <= CURDATE()
-            AND status = 'completed'";
-
+    $sql = "SELECT COUNT(*) as visits_week FROM staff_visits WHERE visit_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND status = 'completed'";
     $visitsWeek = $db->fetchOne($sql);
 
-
     $widgets['staff_visits'] = [
-        'title' => 'Today\'s Visits',
+        'title' => 'Staff Visits',
         'icon' => 'fa-route',
         'color' => 'icon-orange',
-
-        // Today's total completed visits
-        'today' => $visitsToday['today_completed'] ?? 0,
-
-        // Assigned: completed / total assigned
-        'assigned_completed' => $visitsToday['assigned_completed'] ?? 0,
-        'assigned_total' => $visitsToday['assigned_total'] ?? 0,
-
-        // Last 7 days completed
-        'week' => $visitsWeek['week_completed'] ?? 0
+        'today' => $visitsToday['visits_today'] ?? 0,
+        'week' => $visitsWeek['visits_week'] ?? 0
     ];
 }
 
-// Staff New Shops Widget
-if (hasPermission('visit.view')) {
-
-    // Today's new shops
-    $sql = "SELECT COUNT(*) AS today_new_shops
-            FROM visits
-            WHERE visit_type = 'new_shop'
-            AND visit_date = CURDATE()";
-
-    $todayData = $db->fetchOne($sql);
-
-
-    // New shops in last 30 days (including today)
-    $sql = "SELECT COUNT(*) AS last_30_days
-            FROM visits
-            WHERE visit_type = 'new_shop'
-            AND visit_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-            AND visit_date <= CURDATE()";
-
-    $last30Data = $db->fetchOne($sql);
-
-
-    // New shops in previous 30 days
-    $sql = "SELECT COUNT(*) AS previous_30_days
-            FROM visits
-            WHERE visit_type = 'new_shop'
-            AND visit_date >= DATE_SUB(CURDATE(), INTERVAL 59 DAY)
-            AND visit_date < DATE_SUB(CURDATE(), INTERVAL 29 DAY)";
-
-    $previous30Data = $db->fetchOne($sql);
-
-
-    $todayNewShops = (int)($todayData['today_new_shops'] ?? 0);
-    $last30Days = (int)($last30Data['last_30_days'] ?? 0);
-    $previous30Days = (int)($previous30Data['previous_30_days'] ?? 0);
-
-
-    // Percentage increase / decrease
-    if ($previous30Days > 0) {
-
-        $percentageChange = round(
-            (($last30Days - $previous30Days) / $previous30Days) * 100
-        );
-    } elseif ($last30Days > 0) {
-
-        $percentageChange = 100;
-    } else {
-
-        $percentageChange = 0;
-    }
-
-
-    // Arrow and color
-    if ($percentageChange > 0) {
-
-        $arrow = '↑';
-        $changeColor = '#16A34A';
-    } elseif ($percentageChange < 0) {
-
-        $arrow = '↓';
-        $changeColor = '#DC2626';
-    } else {
-
-        $arrow = '→';
-        $changeColor = '#6B7A7B';
-    }
-
+// Staff Leads Widget
+if (hasPermission('staff.leads.view')) {
+    $sql = "SELECT 
+            SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_leads,
+            SUM(CASE WHEN status = 'converted' THEN 1 ELSE 0 END) as converted_leads
+            FROM staff_leads";
+    $leadsData = $db->fetchOne($sql);
 
     $widgets['staff_leads'] = [
-        'title' => 'New Shops',
-        'icon' => 'fa-store',
+        'title' => 'Staff Leads',
+        'icon' => 'fa-bullhorn',
         'color' => 'icon-green',
-
-        // Today's new shops
-        'today' => $todayNewShops,
-
-        // Last 30 days total
-        'last_30_days' => $last30Days,
-
-        // Percentage change
-        'percentage' => abs($percentageChange),
-
-        // ↑ / ↓
-        'arrow' => $arrow,
-
-        // Green / Red / Gray
-        'change_color' => $changeColor
+        'new' => $leadsData['new_leads'] ?? 0,
+        'converted' => $leadsData['converted_leads'] ?? 0
     ];
 }
 
@@ -344,38 +187,13 @@ if (!empty($widgets)):
                         echo $widget['present'] . '/' . $widget['total'];
                         echo '<span style="font-size: 14px; color: #6B7A7B; margin-left: 8px;">(' . $widget['percentage'] . '%)</span>';
                     } elseif ($key === 'staff_visits') {
-
-                        // Today's completed visits
                         echo $widget['today'];
-                        echo '<span style="font-size: 14px; color: #6B7A7B; margin-left: 8px;">Completed</span>';
-
-                        // Assigned visits: completed / total
-                        echo '<br>';
-                        echo '<span style="font-size: 14px; color: #6B7A7B;">';
-                        echo 'Assigned: ' . $widget['assigned_completed'] . '/' . $widget['assigned_total'];
-                        echo '</span>';
-
-                        // // Last 7 days completed
-                        // echo '<br>';
-                        // echo '<span style="font-size: 14px; color: #6B7A7B;">';
-                        // echo 'Week: ' . $widget['week'] . ' Completed';
-                        echo '</span>';
+                        echo '<span style="font-size: 14px; color: #6B7A7B; margin-left: 8px;">Today</span>';
+                        echo '<br><span style="font-size: 14px; color: #6B7A7B;">Week: ' . $widget['week'] . '</span>';
                     } elseif ($key === 'staff_leads') {
-
-                        // Today's new shops
-                        echo $widget['today'];
-                        echo '<span style="font-size: 14px; color: #6B7A7B; margin-left: 8px;">New Shops</span>';
-
-                        // Last 30 days + percentage
-                        echo '<br>';
-                        echo '<span style="font-size: 14px; color: #6B7A7B;">';
-                        echo 'Last 30 Days: ' . $widget['last_30_days'];
-
-                        echo ' <span style="color: ' . $widget['change_color'] . '; font-weight: 600;">';
-                        echo $widget['arrow'] . ' ' . $widget['percentage'] . '%';
-                        echo '</span>';
-
-                        echo '</span>';
+                        echo $widget['new'];
+                        echo '<span style="font-size: 14px; color: #6B7A7B; margin-left: 8px;">New</span>';
+                        echo '<br><span style="font-size: 14px; color: #16A34A;">Converted: ' . $widget['converted'] . '</span>';
                     } else {
                         echo $widget['value'] ?? '-';
                     }
@@ -483,29 +301,11 @@ if (!empty($widgets)):
     }
 
     /* Charts Grid */
-    /* .charts-grid {
+    .charts-grid {
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 24px;
         margin-bottom: 24px;
-    } */
-    .charts-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-        margin-bottom: 24px;
-    }
-
-    .charts-grid .chart-card:nth-child(1) {
-        grid-column: 1 / -1;
-    }
-
-    .charts-grid .chart-card:nth-child(2) {
-        grid-column: 1;
-    }
-
-    .charts-grid .chart-card:nth-child(3) {
-        grid-column: 2;
     }
 
     .charts-grid-2 {
@@ -723,9 +523,9 @@ if (!empty($widgets)):
             <div class="stat-icon icon-green"><i class="fas fa-store"></i></div>
         </div>
         <div class="stat-value"><?php echo number_format($totalShops); ?></div>
-        <!-- <div class="stat-change positive">
+        <div class="stat-change positive">
             <i class="fas fa-arrow-up"></i> 12% from last month
-        </div> -->
+        </div>
     </div>
 
     <div class="stat-card">
@@ -734,9 +534,9 @@ if (!empty($widgets)):
             <div class="stat-icon icon-blue"><i class="fas fa-user-tie"></i></div>
         </div>
         <div class="stat-value"><?php echo number_format($totalAgents); ?></div>
-        <!-- <div class="stat-change positive">
+        <div class="stat-change positive">
             <i class="fas fa-arrow-up"></i> 8% from last month
-        </div> -->
+        </div>
     </div>
 
     <div class="stat-card">
@@ -745,9 +545,9 @@ if (!empty($widgets)):
             <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
         </div>
         <div class="stat-value"><?php echo number_format($totalStaff); ?></div>
-        <!-- <div class="stat-change positive">
+        <div class="stat-change positive">
             <i class="fas fa-arrow-up"></i> 5% from last month
-        </div> -->
+        </div>
     </div>
 
     <div class="stat-card">
@@ -756,9 +556,9 @@ if (!empty($widgets)):
             <div class="stat-icon icon-orange"><i class="fas fa-box"></i></div>
         </div>
         <div class="stat-value"><?php echo number_format($totalProducts); ?></div>
-        <!-- <div class="stat-change positive">
+        <div class="stat-change positive">
             <i class="fas fa-arrow-up"></i> 15% from last month
-        </div> -->
+        </div>
     </div>
 </div>
 
@@ -770,9 +570,9 @@ if (!empty($widgets)):
             <div class="stat-icon icon-blue"><i class="fas fa-shopping-cart"></i></div>
         </div>
         <div class="stat-value"><?php echo number_format($totalOrders); ?></div>
-        <!-- <div class="stat-change positive">
+        <div class="stat-change positive">
             <i class="fas fa-arrow-up"></i> 18% from last month
-        </div> -->
+        </div>
     </div>
 
     <div class="stat-card">
@@ -803,9 +603,8 @@ if (!empty($widgets)):
             <div class="stat-icon icon-green"><i class="fas fa-rupee-sign"></i></div>
         </div>
         <div class="stat-value">₹ <?php echo number_format($totalRevenue, 0); ?></div>
-        <div class="stat-change <?php echo $revenueChangeClass; ?>">
-            <i class="fas <?php echo $revenueArrow; ?>"></i>
-            <?php echo abs($revenueChange); ?>% from last month
+        <div class="stat-change positive">
+            <i class="fas fa-arrow-up"></i> 22% from last month
         </div>
     </div>
 </div>
@@ -828,15 +627,6 @@ if (!empty($widgets)):
         </div>
         <div class="chart-wrapper pie-chart">
             <canvas id="orderStatusChart"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div class="chart-header">
-            <h3 class="chart-title">Payment Status</h3>
-        </div>
-
-        <div class="chart-wrapper pie-chart">
-            <canvas id="paymentStatusChart"></canvas>
         </div>
     </div>
 </div>
@@ -922,7 +712,6 @@ if (!empty($widgets)):
     </div>
 
     <!-- Recent Activities -->
-     
     <div class="content-card">
         <div class="card-header">
             <h3 class="card-title">Recent Activities</h3>
@@ -957,11 +746,6 @@ if (!empty($widgets)):
                     // Render Order Status Chart
                     if (data.orderStatus) {
                         renderOrderStatusChart(data.orderStatus);
-                    }
-
-                    // Render Payment Status Chart
-                    if (data.paymentStatus) {
-                        renderPaymentStatusChart(data.paymentStatus);
                     }
 
                     // Render Monthly Revenue Chart
@@ -1211,78 +995,6 @@ if (!empty($widgets)):
                 }
             });
         }
-        // =====payment status chart=====
-        let paymentStatusChartInstance = null;
-
-        function renderPaymentStatusChart(data) {
-
-            const ctx = document.getElementById('paymentStatusChart').getContext('2d');
-
-            if (paymentStatusChartInstance) {
-                paymentStatusChartInstance.destroy();
-            }
-
-            if (!data.labels || !data.data || data.data.length === 0) {
-                document.getElementById('paymentStatusChart').parentElement.innerHTML = `
-            <div style="text-align:center; padding:40px; color:#6B7A7B;">
-                <i class="fas fa-chart-pie"
-                   style="font-size:24px; display:block; margin-bottom:8px;"></i>
-                No payment data available
-            </div>
-        `;
-                return;
-            }
-
-            paymentStatusChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-
-                data: {
-                    labels: data.labels,
-
-                    datasets: [{
-                        data: data.data,
-                        backgroundColor: data.backgroundColor,
-                        borderWidth: 1
-                    }]
-                },
-
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-
-                    plugins: {
-                        legend: {
-                            position: 'right',
-
-                            labels: {
-                                font: {
-                                    family: 'Inter',
-                                    size: 12
-                                },
-                                padding: 12
-                            }
-                        },
-
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-
-                                    const value = context.raw || 0;
-
-                                    return ' ₹' + Number(value).toLocaleString('en-IN', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    });
-                                }
-                            }
-                        }
-                    },
-
-                    cutout: '65%'
-                }
-            });
-        }
-
 
         let categoryChartInstance = null;
 

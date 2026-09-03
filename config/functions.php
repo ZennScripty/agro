@@ -2482,11 +2482,7 @@ function getPagePermission($page)
         'staff' => 'staff.view',
         'staff-add' => 'staff.create',
         'staff-edit' => 'staff.edit',
-        'staff-permissions' => 'staff.edit',
-        'staff-attendance' => 'staff.attendance.view',
-        'staff-visits' => 'staff.visits.view',
-        'staff-leads' => 'staff.leads.view',
-        'attendance-settings' => 'attendance.settings.view',
+        'staff-permissions' => 'staff.permissions',
 
         // Agent Management
         'agents' => 'agent.view',

@@ -3,12 +3,12 @@
  * SAMRIDHI AGRO - Reports Dashboard
  * 
  * This page displays sales reports, revenue analytics,
- * and other business insights with interactive charts.
+ * payment statistics, and other business insights with interactive charts.
  * 
  * @package SamridhiAgro
  * @subpackage Admin
  * @author Samridhi Agro Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // ============================================
@@ -30,26 +30,112 @@ requirePermissionOrAdmin('report.view', 'reports.php');
 $db = getDB();
 
 // ============================================
-// GET FILTER PARAMETERS
+// GET FILTER PARAMETERS (Simplified)
 // ============================================
 
-$filterType = $_GET['filter'] ?? 'monthly';
 $year = (int)($_GET['year'] ?? date('Y'));
-$month = (int)($_GET['month'] ?? date('m'));
 
 // ============================================
-// SUMMARY STATISTICS
+// SUMMARY STATISTICS - ORDERS
 // ============================================
 
-// Total Revenue (delivered orders only)
-$sql = "SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status = 'delivered'";
-$result = $db->fetchOne($sql);
-$totalRevenue = $result['total'] ?? 0;
-
-// Total Orders
+// Total Orders (All)
 $sql = "SELECT COUNT(*) as count FROM orders";
 $result = $db->fetchOne($sql);
 $totalOrders = $result['count'] ?? 0;
+
+// Total Revenue (All orders - total amount)
+$sql = "SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status != 'cancelled'";
+$result = $db->fetchOne($sql);
+$totalRevenue = $result['total'] ?? 0;
+
+// Delivered Revenue (for comparison)
+$sql = "SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status = 'delivered'";
+$result = $db->fetchOne($sql);
+$deliveredRevenue = $result['total'] ?? 0;
+
+// Pending Orders
+$sql = "SELECT COUNT(*) as count FROM orders WHERE status = 'pending'";
+$result = $db->fetchOne($sql);
+$pendingOrders = $result['count'] ?? 0;
+
+// Delivered Orders
+$sql = "SELECT COUNT(*) as count FROM orders WHERE status = 'delivered'";
+$result = $db->fetchOne($sql);
+$deliveredOrders = $result['count'] ?? 0;
+
+// Average Order Value
+$avgOrderValue = $totalOrders > 0 ? round($totalRevenue / $totalOrders, 2) : 0;
+
+// ============================================
+// PAYMENT STATISTICS
+// ============================================
+
+// Total Payments (All)
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM payments";
+$result = $db->fetchOne($sql);
+$totalPayments = $result['count'] ?? 0;
+$totalPaymentsAmount = $result['total'] ?? 0;
+
+// Pending Collection (pay_to = 'agent' AND status = 'pending')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE pay_to = 'agent' AND status = 'pending'";
+$result = $db->fetchOne($sql);
+$pendingCollection = $result['count'] ?? 0;
+$pendingCollectionAmount = $result['total'] ?? 0;
+
+// Collected by Agents (pay_to = 'agent' AND status = 'collected')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE pay_to = 'agent' AND status = 'collected'";
+$result = $db->fetchOne($sql);
+$collectedByAgents = $result['count'] ?? 0;
+$collectedByAgentsAmount = $result['total'] ?? 0;
+
+// Submitted to Admin (pay_to = 'agent' AND status = 'submitted')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE pay_to = 'agent' AND status = 'submitted'";
+$result = $db->fetchOne($sql);
+$submittedToAdmin = $result['count'] ?? 0;
+$submittedToAdminAmount = $result['total'] ?? 0;
+
+// Confirmed/Paid (status = 'confirmed')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE status = 'confirmed'";
+$result = $db->fetchOne($sql);
+$confirmedPayments = $result['count'] ?? 0;
+$confirmedPaymentsAmount = $result['total'] ?? 0;
+
+// Failed Payments (status = 'failed')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE status = 'failed'";
+$result = $db->fetchOne($sql);
+$failedPayments = $result['count'] ?? 0;
+$failedPaymentsAmount = $result['total'] ?? 0;
+
+// Direct Payments (pay_to = 'admin')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE pay_to = 'admin'";
+$result = $db->fetchOne($sql);
+$directPayments = $result['count'] ?? 0;
+$directPaymentsAmount = $result['total'] ?? 0;
+
+// Agent Payments (pay_to = 'agent')
+$sql = "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+        FROM payments 
+        WHERE pay_to = 'agent'";
+$result = $db->fetchOne($sql);
+$agentPayments = $result['count'] ?? 0;
+$agentPaymentsAmount = $result['total'] ?? 0;
+
+// ============================================
+// SHOP & PRODUCT STATISTICS
+// ============================================
 
 // Total Shops
 $sql = "SELECT COUNT(*) as count FROM shops WHERE status = 'approved'";
@@ -61,8 +147,10 @@ $sql = "SELECT COUNT(*) as count FROM products WHERE status = 'active'";
 $result = $db->fetchOne($sql);
 $totalProducts = $result['count'] ?? 0;
 
-// Average Order Value
-$avgOrderValue = $totalOrders > 0 ? round($totalRevenue / $totalOrders, 2) : 0;
+// Total Agents
+$sql = "SELECT COUNT(*) as count FROM agents WHERE status = 'approved'";
+$result = $db->fetchOne($sql);
+$totalAgents = $result['count'] ?? 0;
 
 // ============================================
 // MONTHLY REVENUE DATA (for chart)
@@ -79,10 +167,10 @@ for ($i = 11; $i >= 0; $i--) {
     $start = date('Y-m-01', strtotime($date));
     $end = date('Y-m-t', strtotime($date));
     
-    // Revenue
+    // Revenue (All non-cancelled orders)
     $sql = "SELECT COALESCE(SUM(total_amount), 0) as total 
             FROM orders 
-            WHERE status = 'delivered' 
+            WHERE status != 'cancelled'
             AND order_date BETWEEN ? AND ?";
     $result = $db->fetchOne($sql, [$start . ' 00:00:00', $end . ' 23:59:59']);
     $monthlyRevenue[] = round($result['total'] ?? 0, 2);
@@ -128,7 +216,7 @@ $sql = "SELECT p.id, p.product_name, p.sku, p.price,
         COALESCE(SUM(oi.total), 0) as total_revenue
         FROM products p
         LEFT JOIN order_items oi ON p.id = oi.product_id
-        LEFT JOIN orders o ON oi.order_id = o.id AND o.status = 'delivered'
+        LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled'
         GROUP BY p.id
         ORDER BY total_sold DESC
         LIMIT 10";
@@ -147,21 +235,6 @@ $sql = "SELECT s.id, s.shop_name, s.shop_code,
         ORDER BY total_revenue DESC
         LIMIT 10";
 $topShops = $db->fetchAll($sql);
-
-// ============================================
-// REVENUE BY CATEGORY
-// ============================================
-
-$sql = "SELECT c.id, c.category_name,
-        COALESCE(SUM(oi.total), 0) as total_revenue
-        FROM categories c
-        LEFT JOIN products p ON c.id = p.category_id
-        LEFT JOIN order_items oi ON p.id = oi.product_id
-        LEFT JOIN orders o ON oi.order_id = o.id AND o.status = 'delivered'
-        GROUP BY c.id
-        ORDER BY total_revenue DESC
-        LIMIT 10";
-$categoryRevenue = $db->fetchAll($sql);
 
 // ============================================
 // CSS STYLES
@@ -208,21 +281,23 @@ $categoryRevenue = $db->fetchAll($sql);
         color: #6B7A7B;
     }
     
-    .stat-card .stat-change {
-        font-size: 12px;
-        font-weight: 500;
-        margin-top: 4px;
+    .stat-card .stat-sub {
+        font-size: 11px;
+        color: #6B7A7B;
+        margin-top: 2px;
     }
-    
-    .stat-card .stat-change.positive { color: #16A34A; }
-    .stat-card .stat-change.negative { color: #DC2626; }
-    .stat-card .stat-change.neutral { color: #6B7A7B; }
     
     .stat-card.revenue .stat-icon { color: #16A34A; }
     .stat-card.orders .stat-icon { color: #7C3AED; }
     .stat-card.shops .stat-icon { color: #2563EB; }
     .stat-card.products .stat-icon { color: #D97706; }
     .stat-card.avg-order .stat-icon { color: #0891B2; }
+    .stat-card.payments .stat-icon { color: #14532D; }
+    .stat-card.pending-collection .stat-icon { color: #F59E0B; }
+    .stat-card.collected .stat-icon { color: #3B82F6; }
+    .stat-card.submitted .stat-icon { color: #7C3AED; }
+    .stat-card.confirmed .stat-icon { color: #16A34A; }
+    .stat-card.agents .stat-icon { color: #7C3AED; }
     
     .chart-grid {
         display: grid;
@@ -322,57 +397,57 @@ $categoryRevenue = $db->fetchAll($sql);
         color: #6B7A7B;
     }
     
-    .filter-bar {
-        display: flex;
-        flex-wrap: wrap;
+
+
+    .payment-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 12px;
-        align-items: center;
-        margin-bottom: 20px;
-        padding: 16px 20px;
+        margin-bottom: 24px;
+    }
+    
+    .payment-stat-card {
         background: white;
+        border-radius: 10px;
+        padding: 14px 16px;
         border: 1px solid #E5EDE7;
-        border-radius: 12px;
-    }
-    
-    .filter-bar label {
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        color: #14532D;
-    }
-    
-    .filter-bar select,
-    .filter-bar input {
-        padding: 8px 14px;
-        border: 2px solid #E5EDE7;
-        border-radius: 8px;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        background: white;
+        text-align: center;
         transition: all 0.3s ease;
     }
     
-    .filter-bar select:focus,
-    .filter-bar input:focus {
-        outline: none;
-        border-color: #16A34A;
+    .payment-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
     
-    .filter-bar .btn-filter {
-        padding: 8px 24px;
-        background: #14532D;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
+    .payment-stat-card .number {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+    }
+    
+    .payment-stat-card .label {
+        font-size: 11px;
+        color: #6B7A7B;
+    }
+    
+    .payment-stat-card .amount {
+        font-size: 13px;
         font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
+        margin-top: 2px;
     }
     
-    .filter-bar .btn-filter:hover {
-        background: #052E16;
+    .payment-stat-card.pending .number { color: #F59E0B; }
+    .payment-stat-card.collected .number { color: #3B82F6; }
+    .payment-stat-card.submitted .number { color: #7C3AED; }
+    .payment-stat-card.confirmed .number { color: #16A34A; }
+    .payment-stat-card.direct .number { color: #DC2626; }
+    .payment-stat-card.total .number { color: #14532D; }
+    
+    .section-divider {
+        border: none;
+        border-top: 2px dashed #E5EDE7;
+        margin: 24px 0;
     }
     
     @media (max-width: 1024px) {
@@ -388,14 +463,17 @@ $categoryRevenue = $db->fetchAll($sql);
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
-        .filter-bar {
-            flex-direction: column;
-            align-items: stretch;
+        .payment-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
+      
     }
     
     @media (max-width: 480px) {
         .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        .payment-stats-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -416,96 +494,138 @@ HTML CONTENT
             <i class="fas fa-chart-bar" style="color: #16A34A;"></i>
             Reports Dashboard
         </h2>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <a href="reports.php?filter=daily" class="btn-action-sm btn-<?php echo $filterType === 'daily' ? 'primary' : 'secondary'; ?>">
-                Daily
-            </a>
-            <a href="reports.php?filter=monthly" class="btn-action-sm btn-<?php echo $filterType === 'monthly' ? 'primary' : 'secondary'; ?>">
-                Monthly
-            </a>
-            <a href="reports.php?filter=yearly" class="btn-action-sm btn-<?php echo $filterType === 'yearly' ? 'primary' : 'secondary'; ?>">
-                Yearly
-            </a>
-        </div>
     </div>
     
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <label for="year">Year:</label>
-        <select id="year" name="year" onchange="this.form.submit()">
-            <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
-                <option value="<?php echo $y; ?>" <?php echo $year == $y ? 'selected' : ''; ?>>
-                    <?php echo $y; ?>
-                </option>
-            <?php endfor; ?>
-        </select>
-        
-        <label for="month">Month:</label>
-        <select id="month" name="month" onchange="this.form.submit()">
-            <?php for ($m = 1; $m <= 12; $m++): ?>
-                <option value="<?php echo $m; ?>" <?php echo $month == $m ? 'selected' : ''; ?>>
-                    <?php echo date('F', mktime(0, 0, 0, $m, 1)); ?>
-                </option>
-            <?php endfor; ?>
-        </select>
-        
-        <form method="GET" action="" style="display: inline;">
-            <input type="hidden" name="filter" value="<?php echo $filterType; ?>">
-            <button type="submit" class="btn-filter">
-                <i class="fas fa-sync"></i> Update
-            </button>
-        </form>
-    </div>
+  
     
-    <!-- Statistics Cards -->
+    <!-- ============================================
+    ORDER STATISTICS
+    ============================================ -->
+    <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; color: #052E16; margin-bottom: 16px;">
+        <i class="fas fa-shopping-cart" style="color: #16A34A;"></i>
+        Order Statistics
+    </h3>
+    
     <div class="stats-grid">
         <div class="stat-card revenue">
             <span class="stat-icon"><i class="fas fa-rupee-sign"></i></span>
             <div class="stat-number">₹ <?php echo number_format($totalRevenue, 0); ?></div>
             <div class="stat-label">Total Revenue</div>
-            <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i> 12.5% from last month
-            </div>
+            <div class="stat-sub">All orders (non-cancelled)</div>
         </div>
         
         <div class="stat-card orders">
             <span class="stat-icon"><i class="fas fa-shopping-cart"></i></span>
             <div class="stat-number"><?php echo number_format($totalOrders); ?></div>
             <div class="stat-label">Total Orders</div>
-            <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i> 8.3% from last month
-            </div>
+            <div class="stat-sub"><?php echo number_format($deliveredOrders); ?> delivered</div>
         </div>
         
         <div class="stat-card shops">
             <span class="stat-icon"><i class="fas fa-store"></i></span>
             <div class="stat-number"><?php echo number_format($totalShops); ?></div>
             <div class="stat-label">Active Shops</div>
-            <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i> 5 new this month
-            </div>
+        </div>
+        
+        <div class="stat-card agents">
+            <span class="stat-icon"><i class="fas fa-user-tie"></i></span>
+            <div class="stat-number"><?php echo number_format($totalAgents); ?></div>
+            <div class="stat-label">Active Agents</div>
         </div>
         
         <div class="stat-card products">
             <span class="stat-icon"><i class="fas fa-box"></i></span>
             <div class="stat-number"><?php echo number_format($totalProducts); ?></div>
             <div class="stat-label">Active Products</div>
-            <div class="stat-change neutral">
-                <i class="fas fa-minus"></i> No change
-            </div>
         </div>
         
         <div class="stat-card avg-order">
             <span class="stat-icon"><i class="fas fa-calculator"></i></span>
             <div class="stat-number">₹ <?php echo number_format($avgOrderValue, 2); ?></div>
             <div class="stat-label">Avg Order Value</div>
-            <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i> 3.2% increase
+        </div>
+    </div>
+    
+    <!-- ============================================
+    PAYMENT STATISTICS
+    ============================================ -->
+    <hr class="section-divider">
+    
+    <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; color: #052E16; margin-bottom: 16px;">
+        <i class="fas fa-credit-card" style="color: #16A34A;"></i>
+        Payment Statistics
+    </h3>
+    
+    <div class="payment-stats-grid">
+        <!-- Total Payments -->
+        <div class="payment-stat-card total">
+            <div class="number"><?php echo number_format($totalPayments); ?></div>
+            <div class="label">Total Payments</div>
+            <div class="amount">₹ <?php echo number_format($totalPaymentsAmount, 0); ?></div>
+        </div>
+        
+        <!-- Pending Collection -->
+        <div class="payment-stat-card pending">
+            <div class="number"><?php echo number_format($pendingCollection); ?></div>
+            <div class="label">Pending Collection</div>
+            <div class="amount">₹ <?php echo number_format($pendingCollectionAmount, 0); ?></div>
+        </div>
+        
+        <!-- Collected by Agents -->
+        <div class="payment-stat-card collected">
+            <div class="number"><?php echo number_format($collectedByAgents); ?></div>
+            <div class="label">Collected by Agents</div>
+            <div class="amount">₹ <?php echo number_format($collectedByAgentsAmount, 0); ?></div>
+        </div>
+        
+        <!-- Submitted to Admin -->
+        <div class="payment-stat-card submitted">
+            <div class="number"><?php echo number_format($submittedToAdmin); ?></div>
+            <div class="label">Submitted to Admin</div>
+            <div class="amount">₹ <?php echo number_format($submittedToAdminAmount, 0); ?></div>
+        </div>
+        
+        <!-- Confirmed/Paid -->
+        <div class="payment-stat-card confirmed">
+            <div class="number"><?php echo number_format($confirmedPayments); ?></div>
+            <div class="label">Confirmed / Paid</div>
+            <div class="amount">₹ <?php echo number_format($confirmedPaymentsAmount, 0); ?></div>
+        </div>
+        
+        <!-- Direct Payments -->
+        <div class="payment-stat-card direct">
+            <div class="number"><?php echo number_format($directPayments); ?></div>
+            <div class="label">Direct to Admin</div>
+            <div class="amount">₹ <?php echo number_format($directPaymentsAmount, 0); ?></div>
+        </div>
+    </div>
+    
+    <!-- Payment Flow Summary -->
+    <div style="background: #F7FCF7; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; border: 1px solid #E5EDE7;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; text-align: center;">
+            <div>
+                <div style="font-size: 12px; color: #6B7A7B;">Agent Payments</div>
+                <div style="font-weight: 700; color: #7C3AED;">₹ <?php echo number_format($agentPaymentsAmount, 0); ?></div>
+                <div style="font-size: 11px; color: #6B7A7B;"><?php echo number_format($agentPayments); ?> payments</div>
+            </div>
+            <div style="border-left: 1px solid #E5EDE7; padding-left: 12px;">
+                <div style="font-size: 12px; color: #6B7A7B;">Direct Payments</div>
+                <div style="font-weight: 700; color: #DC2626;">₹ <?php echo number_format($directPaymentsAmount, 0); ?></div>
+                <div style="font-size: 11px; color: #6B7A7B;"><?php echo number_format($directPayments); ?> payments</div>
+            </div>
+            <div style="border-left: 1px solid #E5EDE7; padding-left: 12px;">
+                <div style="font-size: 12px; color: #6B7A7B;">Failed Payments</div>
+                <div style="font-weight: 700; color: #DC2626;">₹ <?php echo number_format($failedPaymentsAmount, 0); ?></div>
+                <div style="font-size: 11px; color: #6B7A7B;"><?php echo number_format($failedPayments); ?> payments</div>
             </div>
         </div>
     </div>
     
-    <!-- Charts -->
+    <!-- ============================================
+    CHARTS
+    ============================================ -->
+    <hr class="section-divider">
+    
     <div class="chart-grid">
         <div class="chart-card">
             <div class="chart-title">
@@ -528,6 +648,9 @@ HTML CONTENT
         </div>
     </div>
     
+    <!-- ============================================
+    RANKINGS
+    ============================================ -->
     <div class="chart-grid-2">
         <div class="chart-card">
             <div class="chart-title">

@@ -306,11 +306,25 @@ require_once '../includes/admin_header.php';
         flex-shrink: 0;
     }
 
-    .agent-avatar.active { background: #16A34A; }
-    .agent-avatar.pending { background: #F59E0B; }
-    .agent-avatar.rejected { background: #DC2626; }
-    .agent-avatar.suspended { background: #6B7A7B; }
-    .agent-avatar.approved { background: #16A34A; }
+    .agent-avatar.active {
+        background: #16A34A;
+    }
+
+    .agent-avatar.pending {
+        background: #F59E0B;
+    }
+
+    .agent-avatar.rejected {
+        background: #DC2626;
+    }
+
+    .agent-avatar.suspended {
+        background: #6B7A7B;
+    }
+
+    .agent-avatar.approved {
+        background: #16A34A;
+    }
 
     .badge-status {
         display: inline-block;
@@ -321,12 +335,35 @@ require_once '../includes/admin_header.php';
         text-transform: capitalize;
     }
 
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-danger { background: #FEE2E2; color: #991B1B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    .badge-status.badge-primary { background: #EDE9FE; color: #5B21B6; }
-    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-status.badge-primary {
+        background: #EDE9FE;
+        color: #5B21B6;
+    }
+
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
 
     .btn-action {
         width: 32px;
@@ -342,35 +379,84 @@ require_once '../includes/admin_header.php';
         font-size: 13px;
     }
 
-    .btn-action:hover { transform: translateY(-2px); }
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
 
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-    .btn-view:hover { background: #BFDBFE; }
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
 
-    .btn-edit { background: #EDE9FE; color: #7C3AED; }
-    .btn-edit:hover { background: #DDD6FE; }
+    .btn-view:hover {
+        background: #BFDBFE;
+    }
 
-    .btn-approve { background: #DCFCE7; color: #16A34A; }
-    .btn-approve:hover { background: #BBF7D0; }
+    .btn-edit {
+        background: #EDE9FE;
+        color: #7C3AED;
+    }
 
-    .btn-reject { background: #FEE2E2; color: #DC2626; }
-    .btn-reject:hover { background: #FECACA; }
+    .btn-edit:hover {
+        background: #DDD6FE;
+    }
 
-    .btn-toggle { background: #FEF3C7; color: #D97706; }
-    .btn-toggle:hover { background: #FDE68A; }
+    .btn-approve {
+        background: #DCFCE7;
+        color: #16A34A;
+    }
 
-    .btn-delete { background: #FEE2E2; color: #DC2626; }
-    .btn-delete:hover { background: #FECACA; }
+    .btn-approve:hover {
+        background: #BBF7D0;
+    }
+
+    .btn-reject {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-reject:hover {
+        background: #FECACA;
+    }
+
+    .btn-toggle {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+
+    .btn-toggle:hover {
+        background: #FDE68A;
+    }
+
+    .btn-delete {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-delete:hover {
+        background: #FECACA;
+    }
 
     .financial-amount {
         font-weight: 600;
         font-size: 13px;
     }
 
-    .financial-amount.positive { color: #14532D; }
-    .financial-amount.negative { color: #DC2626; }
-    .financial-amount.zero { color: #16A34A; }
-    .financial-amount.warning { color: #D97706; }
+    .financial-amount.positive {
+        color: #14532D;
+    }
+
+    .financial-amount.negative {
+        color: #DC2626;
+    }
+
+    .financial-amount.zero {
+        color: #16A34A;
+    }
+
+    .financial-amount.warning {
+        color: #D97706;
+    }
 
     .financial-detail {
         font-size: 10px;
@@ -389,7 +475,8 @@ require_once '../includes/admin_header.php';
             </span>
         </h3>
         <div>
-            <a href="agent-add.php" class="btn-primary" style="
+            <?php if (hasPermission('agent.create')): ?>
+                <a href="agent-add.php" class="btn-primary" style="
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
@@ -405,9 +492,10 @@ require_once '../includes/admin_header.php';
                 transition: all 0.3s ease;
                 cursor: pointer;
             ">
-                <i class="fas fa-plus"></i>
-                Add Agent
-            </a>
+                    <i class="fas fa-plus"></i>
+                    Add Agent
+                </a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -565,7 +653,7 @@ require_once '../includes/admin_header.php';
                                 </span>
                             </td>
                             <td>
-                                <?php 
+                                <?php
                                 $remaining = $agent['remaining_amount'] ?? 0;
                                 $class = $remaining <= 0 ? 'zero' : 'negative';
                                 ?>
@@ -602,45 +690,53 @@ require_once '../includes/admin_header.php';
                                     </a>
 
                                     <!-- Edit -->
-                                    <a href="agent-edit.php?id=<?php echo $agent['id']; ?>"
-                                        class="btn-action btn-edit"
-                                        title="Edit Agent">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-
-                                    <?php if ($agent['status'] === 'pending'): ?>
-                                        <!-- Approve -->
-                                        <a href="agents.php?action=approve&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                                            class="btn-action btn-approve"
-                                            title="Approve Agent"
-                                            onclick="return confirm('Are you sure you want to approve this agent?')">
-                                            <i class="fas fa-check"></i>
-                                        </a>
-
-                                        <!-- Reject -->
-                                        <a href="agents.php?action=reject&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                                            class="btn-action btn-reject"
-                                            title="Reject Agent"
-                                            onclick="return confirm('Are you sure you want to reject this agent?')">
-                                            <i class="fas fa-times"></i>
-                                        </a>
-                                    <?php else: ?>
-                                        <!-- Toggle Status (Activate/Deactivate) -->
-                                        <a href="agents.php?action=toggle&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                                            class="btn-action btn-toggle"
-                                            title="<?php echo $agent['status'] === 'approved' ? 'Suspend' : 'Activate'; ?>"
-                                            onclick="return confirm('Are you sure you want to <?php echo $agent['status'] === 'approved' ? 'suspend' : 'activate'; ?> this agent?')">
-                                            <i class="fas fa-<?php echo $agent['status'] === 'approved' ? 'pause' : 'play'; ?>"></i>
+                                    <?php if (hasPermission('agent.edit')): ?>
+                                        <a href="agent-edit.php?id=<?php echo $agent['id']; ?>"
+                                            class="btn-action btn-edit"
+                                            title="Edit Agent">
+                                            <i class="fas fa-edit"></i>
                                         </a>
                                     <?php endif; ?>
 
-                                    <!-- Delete -->
-                                    <a href="agents.php?action=delete&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
-                                        class="btn-action btn-delete"
-                                        title="Delete Agent"
-                                        onclick="return confirm('Are you sure you want to delete this agent? This action cannot be undone.')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <?php if (hasPermission('agent.approve')): ?>
+                                        <?php if ($agent['status'] === 'pending'): ?>
+                                            <!-- Approve -->
+                                            <a href="agents.php?action=approve&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                                class="btn-action btn-approve"
+                                                title="Approve Agent"
+                                                onclick="return confirm('Are you sure you want to approve this agent?')">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+
+                                            <!-- Reject -->
+                                            <a href="agents.php?action=reject&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                                class="btn-action btn-reject"
+                                                title="Reject Agent"
+                                                onclick="return confirm('Are you sure you want to reject this agent?')">
+                                                <i class="fas fa-times"></i>
+                                            </a>
+                                        <?php else: ?>
+                                            <!-- Toggle Status (Activate/Deactivate) -->
+                                            <a href="agents.php?action=toggle&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                                class="btn-action btn-toggle"
+                                                title="<?php echo $agent['status'] === 'approved' ? 'Suspend' : 'Activate'; ?>"
+                                                onclick="return confirm('Are you sure you want to <?php echo $agent['status'] === 'approved' ? 'suspend' : 'activate'; ?> this agent?')">
+                                                <i class="fas fa-<?php echo $agent['status'] === 'approved' ? 'pause' : 'play'; ?>"></i>
+                                            </a>
+                                        <?php endif; ?>
+
+                                    <?php endif; ?>
+                                    <?php if (hasPermission('agent.delete')): ?>
+
+                                        <!-- Delete -->
+                                        <a href="agents.php?action=delete&id=<?php echo $agent['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-delete"
+                                            title="Delete Agent"
+                                            onclick="return confirm('Are you sure you want to delete this agent? This action cannot be undone.')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    <?php endif; ?>
+
                                 </div>
                             </td>
                         </tr>

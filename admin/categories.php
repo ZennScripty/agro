@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SAMRIDHI AGRO - Category Management
  * 
@@ -43,78 +44,78 @@ $db = getDB();
 // Handle toggle status
 if (isset($_GET['action']) && $_GET['action'] === 'toggle' && isset($_GET['id'])) {
     requirePermission('category.edit');
-    
+
     $categoryId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
         // Get current status
         $sql = "SELECT status, category_name FROM categories WHERE id = ?";
         $category = $db->fetchOne($sql, [$categoryId]);
-        
+
         if ($category) {
             $newStatus = $category['status'] === 'active' ? 'inactive' : 'active';
             $sql = "UPDATE categories SET status = ? WHERE id = ?";
             $db->query($sql, [$newStatus, $categoryId]);
-            
+
             logActivity(
                 'update',
                 $_SESSION['user_id'],
                 'category',
                 'Toggled category status to ' . $newStatus . ' for: ' . $category['category_name']
             );
-            
+
             setFlashMessage('success', 'Category status updated successfully.');
         } else {
             setFlashMessage('error', 'Category not found.');
         }
     }
-    
-    redirect('categories.php');
+
+    redirect('admin/categories.php');
     exit;
 }
 
 // Handle delete
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     requirePermission('category.delete');
-    
+
     $categoryId = (int)$_GET['id'];
     $csrfToken = $_GET['csrf'] ?? '';
-    
+
     if (!verifyCsrfToken($csrfToken)) {
         setFlashMessage('error', 'Invalid security token.');
     } else {
         // Check if category has products
         $sql = "SELECT COUNT(*) as count FROM products WHERE category_id = ?";
         $result = $db->fetchOne($sql, [$categoryId]);
-        
+
         if ($result && $result['count'] > 0) {
             setFlashMessage('error', 'Cannot delete category. It has ' . $result['count'] . ' products associated with it.');
         } else {
             // Get category name for log
             $sql = "SELECT category_name FROM categories WHERE id = ?";
             $category = $db->fetchOne($sql, [$categoryId]);
-            
+
             if ($category) {
                 // Check if category has sub-categories
                 $sql = "SELECT COUNT(*) as count FROM categories WHERE parent_id = ?";
                 $result = $db->fetchOne($sql, [$categoryId]);
-                
+
                 if ($result && $result['count'] > 0) {
                     setFlashMessage('error', 'Cannot delete category. It has ' . $result['count'] . ' sub-categories.');
                 } else {
                     $sql = "DELETE FROM categories WHERE id = ?";
                     $db->query($sql, [$categoryId]);
-                    
+
                     logActivity(
                         'delete',
                         $_SESSION['user_id'],
                         'category',
                         'Deleted category: ' . $category['category_name']
                     );
-                    
+
                     setFlashMessage('success', 'Category deleted successfully.');
                 }
             } else {
@@ -122,8 +123,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
             }
         }
     }
-    
-    redirect('categories.php');
+
+    redirect('admin/categories.php');
     exit;
 }
 
@@ -193,10 +194,15 @@ require_once '../includes/admin_header.php';
         color: white;
         flex-shrink: 0;
     }
-    
-    .category-icon.active { background: #16A34A; }
-    .category-icon.inactive { background: #6B7A7B; }
-    
+
+    .category-icon.active {
+        background: #16A34A;
+    }
+
+    .category-icon.inactive {
+        background: #6B7A7B;
+    }
+
     .badge-status {
         display: inline-block;
         padding: 4px 12px;
@@ -205,12 +211,27 @@ require_once '../includes/admin_header.php';
         font-weight: 600;
         text-transform: capitalize;
     }
-    
-    .badge-status.badge-success { background: #DCFCE7; color: #065F46; }
-    .badge-status.badge-warning { background: #FEF3C7; color: #92400E; }
-    .badge-status.badge-secondary { background: #F3F4F6; color: #6B7A7B; }
-    .badge-status.badge-info { background: #DBEAFE; color: #1E40AF; }
-    
+
+    .badge-status.badge-success {
+        background: #DCFCE7;
+        color: #065F46;
+    }
+
+    .badge-status.badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-status.badge-secondary {
+        background: #F3F4F6;
+        color: #6B7A7B;
+    }
+
+    .badge-status.badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
     .btn-action {
         width: 32px;
         height: 32px;
@@ -224,29 +245,53 @@ require_once '../includes/admin_header.php';
         cursor: pointer;
         font-size: 13px;
     }
-    
+
     .btn-action:hover {
         transform: translateY(-2px);
     }
-    
-    .btn-edit { background: #EDE9FE; color: #7C3AED; }
-    .btn-edit:hover { background: #DDD6FE; }
-    
-    .btn-toggle { background: #FEF3C7; color: #D97706; }
-    .btn-toggle:hover { background: #FDE68A; }
-    
-    .btn-delete { background: #FEE2E2; color: #DC2626; }
-    .btn-delete:hover { background: #FECACA; }
-    
-    .btn-view { background: #DBEAFE; color: #2563EB; }
-    .btn-view:hover { background: #BFDBFE; }
-    
+
+    .btn-edit {
+        background: #EDE9FE;
+        color: #7C3AED;
+    }
+
+    .btn-edit:hover {
+        background: #DDD6FE;
+    }
+
+    .btn-toggle {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+
+    .btn-toggle:hover {
+        background: #FDE68A;
+    }
+
+    .btn-delete {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .btn-delete:hover {
+        background: #FECACA;
+    }
+
+    .btn-view {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    .btn-view:hover {
+        background: #BFDBFE;
+    }
+
     .tree-indent {
         display: inline-block;
         width: 20px;
         margin-left: 4px;
     }
-    
+
     .tree-line {
         color: #6B7A7B;
         font-size: 12px;
@@ -263,7 +308,9 @@ require_once '../includes/admin_header.php';
             </span>
         </h3>
         <div>
-            <a href="category-add.php" class="btn-primary" style="
+            <?php if (hasPermission('category.create')): ?>
+
+                <a href="category-add.php" class="btn-primary" style="
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
@@ -279,20 +326,21 @@ require_once '../includes/admin_header.php';
                 transition: all 0.3s ease;
                 cursor: pointer;
             ">
-                <i class="fas fa-plus"></i>
-                Add Category
-            </a>
+                    <i class="fas fa-plus"></i>
+                    Add Category
+                </a>
+            <?php endif; ?>
         </div>
     </div>
-    
+
     <!-- Search -->
     <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
         <form method="GET" action="" style="flex: 1; min-width: 200px; display: flex; gap: 12px;">
             <div style="flex: 1; min-width: 180px; position: relative;">
-                <input 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search categories..." 
+                <input
+                    type="text"
+                    name="search"
+                    placeholder="Search categories..."
                     value="<?php echo escapeHtml($search); ?>"
                     style="
                         width: 100%;
@@ -303,8 +351,7 @@ require_once '../includes/admin_header.php';
                         font-size: 14px;
                         transition: all 0.3s ease;
                         background: white;
-                    "
-                >
+                    ">
                 <i class="fas fa-search" style="
                     position: absolute;
                     left: 14px;
@@ -328,7 +375,7 @@ require_once '../includes/admin_header.php';
                 <i class="fas fa-search"></i> Search
             </button>
             <?php if (!empty($search)): ?>
-            <a href="categories.php" style="
+                <a href="categories.php" style="
                 padding: 10px 16px;
                 background: #F3F4F6;
                 color: #4A5B5D;
@@ -339,12 +386,12 @@ require_once '../includes/admin_header.php';
                 text-decoration: none;
                 transition: all 0.3s ease;
             ">
-                <i class="fas fa-times"></i> Clear
-            </a>
+                    <i class="fas fa-times"></i> Clear
+                </a>
             <?php endif; ?>
         </form>
     </div>
-    
+
     <!-- Category Table -->
     <div class="table-wrapper">
         <table class="table-custom">
@@ -362,122 +409,131 @@ require_once '../includes/admin_header.php';
             </thead>
             <tbody>
                 <?php if (empty($categoryList)): ?>
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
-                        <i class="fas fa-tags" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
-                        No categories found
-                        <?php if (!empty($search)): ?>
-                        <br><span style="font-size: 13px;">Try adjusting your search</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #6B7A7B;">
+                            <i class="fas fa-tags" style="font-size: 32px; display: block; margin-bottom: 12px; color: #D1D5DB;"></i>
+                            No categories found
+                            <?php if (!empty($search)): ?>
+                                <br><span style="font-size: 13px;">Try adjusting your search</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 <?php else: ?>
-                <?php foreach ($categoryList as $category): ?>
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="category-icon <?php echo $category['status']; ?>">
-                                <i class="fas fa-<?php echo !empty($category['icon']) ? escapeHtml($category['icon']) : 'tag'; ?>"></i>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: #052E16;">
-                                    <?php if ($category['parent_id']): ?>
-                                    <span class="tree-line">├── </span>
-                                    <?php endif; ?>
-                                    <?php echo escapeHtml($category['category_name']); ?>
+                    <?php foreach ($categoryList as $category): ?>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="category-icon <?php echo $category['status']; ?>">
+                                        <i class="fas fa-<?php echo !empty($category['icon']) ? escapeHtml($category['icon']) : 'tag'; ?>"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600; color: #052E16;">
+                                            <?php if ($category['parent_id']): ?>
+                                                <span class="tree-line">├── </span>
+                                            <?php endif; ?>
+                                            <?php echo escapeHtml($category['category_name']); ?>
+                                        </div>
+                                        <?php if (!empty($category['description'])): ?>
+                                            <div style="font-size: 12px; color: #6B7A7B;">
+                                                <?php echo escapeHtml(truncateText($category['description'], 50)); ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                                <?php if (!empty($category['description'])): ?>
-                                <div style="font-size: 12px; color: #6B7A7B;">
-                                    <?php echo escapeHtml(truncateText($category['description'], 50)); ?>
-                                </div>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 13px; color: #6B7A7B;">
+                                    <?php echo escapeHtml($category['category_slug']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($category['parent_name']): ?>
+                                    <span style="font-size: 13px;"><?php echo escapeHtml($category['parent_name']); ?></span>
+                                <?php else: ?>
+                                    <span style="color: #6B7A7B; font-size: 13px;">—</span>
                                 <?php endif; ?>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="font-family: monospace; font-size: 13px; color: #6B7A7B;">
-                            <?php echo escapeHtml($category['category_slug']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php if ($category['parent_name']): ?>
-                            <span style="font-size: 13px;"><?php echo escapeHtml($category['parent_name']); ?></span>
-                        <?php else: ?>
-                            <span style="color: #6B7A7B; font-size: 13px;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <span style="font-weight: 600; color: #14532D;">
-                            <?php echo number_format($category['product_count']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <span style="font-weight: 600; color: #7C3AED;">
-                            <?php echo number_format($category['sub_category_count']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php 
-                        $statusColors = [
-                            'active' => 'badge-success',
-                            'inactive' => 'badge-secondary'
-                        ];
-                        $color = $statusColors[$category['status']] ?? 'badge-secondary';
-                        ?>
-                        <span class="badge-status <?php echo $color; ?>">
-                            <?php echo ucfirst($category['status']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <span style="font-size: 13px; color: #6B7A7B;">
-                            <?php echo $category['sort_order']; ?>
-                        </span>
-                    </td>
-                    <td style="text-align: center;">
-                        <div style="display: flex; gap: 4px; justify-content: center;">
-                            <!-- View Products -->
-                            <a href="products.php?category=<?php echo $category['id']; ?>" 
-                               class="btn-action btn-view" 
-                               title="View Products">
-                                <i class="fas fa-box"></i>
-                            </a>
-                            
-                            <!-- Edit -->
-                            <a href="category-edit.php?id=<?php echo $category['id']; ?>" 
-                               class="btn-action btn-edit" 
-                               title="Edit Category">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            
-                            <!-- Toggle Status -->
-                            <a href="categories.php?action=toggle&id=<?php echo $category['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                               class="btn-action btn-toggle" 
-                               title="<?php echo $category['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
-                               onclick="return confirm('Are you sure you want to <?php echo $category['status'] === 'active' ? 'deactivate' : 'activate'; ?> this category?')">
-                                <i class="fas fa-<?php echo $category['status'] === 'active' ? 'pause' : 'play'; ?>"></i>
-                            </a>
-                            
-                            <!-- Delete -->
-                            <a href="categories.php?action=delete&id=<?php echo $category['id']; ?>&csrf=<?php echo $csrfToken; ?>" 
-                               class="btn-action btn-delete" 
-                               title="Delete Category"
-                               onclick="return confirm('Are you sure you want to delete this category? This action cannot be undone.')">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; color: #14532D;">
+                                    <?php echo number_format($category['product_count']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; color: #7C3AED;">
+                                    <?php echo number_format($category['sub_category_count']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php
+                                $statusColors = [
+                                    'active' => 'badge-success',
+                                    'inactive' => 'badge-secondary'
+                                ];
+                                $color = $statusColors[$category['status']] ?? 'badge-secondary';
+                                ?>
+                                <span class="badge-status <?php echo $color; ?>">
+                                    <?php echo ucfirst($category['status']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-size: 13px; color: #6B7A7B;">
+                                    <?php echo $category['sort_order']; ?>
+                                </span>
+                            </td>
+                            <td style="text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+
+                                    <?php if (hasPermission('product.view')): ?>
+                                        <!-- View Products -->
+                                        <a href="products.php?category=<?php echo $category['id']; ?>"
+                                            class="btn-action btn-view"
+                                            title="View Products">
+                                            <i class="fas fa-box"></i>
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <!-- Edit -->
+                                    <?php if (hasPermission('category.edit')): ?>
+                                        <a href="category-edit.php?id=<?php echo $category['id']; ?>"
+                                            class="btn-action btn-edit"
+                                            title="Edit Category">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <?php if (hasPermission('category.edit')): ?>
+                                        <!-- Toggle Status -->
+                                        <a href="categories.php?action=toggle&id=<?php echo $category['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-toggle"
+                                            title="<?php echo $category['status'] === 'active' ? 'Deactivate' : 'Activate'; ?>"
+                                            onclick="return confirm('Are you sure you want to <?php echo $category['status'] === 'active' ? 'deactivate' : 'activate'; ?> this category?')">
+                                            <i class="fas fa-<?php echo $category['status'] === 'active' ? 'pause' : 'play'; ?>"></i>
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <!-- Delete -->
+                                    <?php if (hasPermission('category.delete')): ?>
+                                        <a href="categories.php?action=delete&id=<?php echo $category['id']; ?>&csrf=<?php echo $csrfToken; ?>"
+                                            class="btn-action btn-delete"
+                                            title="Delete Category"
+                                            onclick="return confirm('Are you sure you want to delete this category? This action cannot be undone.')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
-    
+
     <!-- Pagination -->
     <?php if ($totalPages > 1): ?>
-    <div style="margin-top: 20px;">
-        <?php echo $pagination; ?>
-    </div>
+        <div style="margin-top: 20px;">
+            <?php echo $pagination; ?>
+        </div>
     <?php endif; ?>
 </div>
 
